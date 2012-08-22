@@ -8,7 +8,8 @@
 
  Date: 23/08/2012
 
- Version: 0.1 Conect via COM port with a Xbee modem and read ID, DH & DL parameters.
+ Version: 	0.1.1 Add Write values option
+			0.1 Conect via COM port with a Xbee modem and read ID, DH & DL parameters.
 
 #ce ----------------------------------------------------------------------------
 
@@ -115,7 +116,7 @@ EndFunc
 
 ;***************************************************************************************************
 Func _CONFSendButtonClick()
-	Local $temString ; For display de command send to the XBee Modem and his response
+	Local $tempString ; For display de command send to the XBee Modem and his response
 
 	;MsgBox(0, "Send Command to XBee modem", "Sending configuration to XBee modem")
 
@@ -129,13 +130,69 @@ Func _CONFSendButtonClick()
 
 	;MsgBox(0, "Send Command to XBee modem", "Port COM open")
 
+	$tempString = "Opening AT Command mode"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	Sleep(1000)  ; wait 1 second. Necesary 1 second idle to enter in AT Mode.
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "+++"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	_CommSendString("+++")
+	Sleep(1000)   ; Necesary for entering in AT Command mode.
+	$readString = _CommGetLine(@CR,10,400)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	GUICtrlSetData( $ConfOutput, $tempString)
+
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Assingning Network ID"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	Sleep(100)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATID " & GUICtrlRead($ATID)
+	GUICtrlSetData( $ConfOutput, $tempString)
+	_CommSendString("ATID " & GUICtrlRead($ATID) & @CR)    ; send the ID to the XBee modem
+	$readString = _CommGetLine(@CR,10,400)
+	if $readString <> ("OK" & @CR) Then
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & "Error assinging Network ID"
+	Else
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	EndIf
+	GUICtrlSetData( $ConfOutput, $tempString)
+
+	Sleep(100)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Assingning Destination Address Hight bytes"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	Sleep(100)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATDH " & GUICtrlRead($ATDH)
+	GUICtrlSetData( $ConfOutput, $tempString)
+	_CommSendString("ATDH " & GUICtrlRead($ATDH) & @CR)    ; send the ID to the XBee modem
+	$readString = _CommGetLine(@CR,10,400)
+	if $readString <> ("OK" & @CR) Then
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & "Error assinging Destination Address Hight bytes"
+	Else
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	EndIf
+	GUICtrlSetData( $ConfOutput, $tempString)
+
+	Sleep(100)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Assingning Destination Address Low bytes"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	Sleep(100)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATDL " & GUICtrlRead($ATDL)
+	GUICtrlSetData( $ConfOutput, $tempString)
+	_CommSendString("ATDL " & GUICtrlRead($ATDL) & @CR)    ; send the ID to the XBee modem
+	$readString = _CommGetLine(@CR,10,400)
+	if $readString <> ("OK" & @CR) Then
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & "Error assinging Destination Address Low bytes"
+	Else
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	EndIf
+	GUICtrlSetData( $ConfOutput, $tempString)
+
+
 	_CommClosePort()
 
 	;MsgBox(0, "Send Command to XBee modem", "Port COM close")
 EndFunc
 
 Func _CONFReadButtonClick()
-	Local $temString ; For display de command send to the XBee Modem and his response
+	Local $tempString ; For display de command send to the XBee Modem and his response
 	Local $readString ; Response from XBee modem to the sent AT Command
 
 	;MsgBox(0, "Send Command to XBee modem", "Read configuration from XBee modem")
@@ -150,53 +207,53 @@ Func _CONFReadButtonClick()
 
 	;MsgBox(0, "Send Command to XBee modem", "Port COM open")
 
-	$temString = "Opening AT Command mode"
-	GUICtrlSetData( $ConfOutput, $temString)
+	$tempString = "Opening AT Command mode"
+	GUICtrlSetData( $ConfOutput, $tempString)
 	Sleep(1000)  ; wait 1 second. Necesary 1 second idle to enter in AT Mode.
-	$temString = GUICtrlRead($ConfOutput) & @CRLF & "+++"
-	GUICtrlSetData( $ConfOutput, $temString)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "+++"
+	GUICtrlSetData( $ConfOutput, $tempString)
 	_CommSendString("+++")
 	Sleep(1000)   ; Necesary for entering in AT Command mode.
 	$readString = _CommGetLine(@CR,10,400)
-	$temString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
-	GUICtrlSetData( $ConfOutput, $temString)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	GUICtrlSetData( $ConfOutput, $tempString)
 
 
-	$temString = GUICtrlRead($ConfOutput) & @CRLF & "Getting Network ID"
-	GUICtrlSetData( $ConfOutput, $temString)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Getting Network ID"
+	GUICtrlSetData( $ConfOutput, $tempString)
 	Sleep(100)
-	$temString = GUICtrlRead($ConfOutput) & @CRLF & "ATID"
-	GUICtrlSetData( $ConfOutput, $temString)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATID"
+	GUICtrlSetData( $ConfOutput, $tempString)
 	_CommSendString("ATID" & @CR)    ; Request the ID to the XBee modem
 	$readString = _CommGetLine(@CR,10,400)
-	$temString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
-	GUICtrlSetData( $ConfOutput, $temString)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	GUICtrlSetData( $ConfOutput, $tempString)
 	GUICtrlSetData($ATID, $readString)
 
 
 	Sleep(100)
-	$temString = GUICtrlRead($ConfOutput) & @CRLF & "Getting Destination Address Hight bytes"
-	GUICtrlSetData( $ConfOutput, $temString)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Getting Destination Address Hight bytes"
+	GUICtrlSetData( $ConfOutput, $tempString)
 	Sleep(100)
-	$temString = GUICtrlRead($ConfOutput) & @CRLF & "ATDH"
-	GUICtrlSetData( $ConfOutput, $temString)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATDH"
+	GUICtrlSetData( $ConfOutput, $tempString)
 	_CommSendString("ATDH" & @CR)    ; Request the Higth byte Destination Address to the XBee modem
 	$readString = _CommGetLine(@CR,10,400)
-	$temString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
-	GUICtrlSetData( $ConfOutput, $temString)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	GUICtrlSetData( $ConfOutput, $tempString)
 	GUICtrlSetData($ATDH, $readString)
 
 
 	Sleep(100)
-	$temString = GUICtrlRead($ConfOutput) & @CRLF & "Getting Destination Address Low bytes"
-	GUICtrlSetData( $ConfOutput, $temString)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Getting Destination Address Low bytes"
+	GUICtrlSetData( $ConfOutput, $tempString)
 	Sleep(100)
-	$temString = GUICtrlRead($ConfOutput) & @CRLF & "ATDL"
-	GUICtrlSetData( $ConfOutput, $temString)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATDL"
+	GUICtrlSetData( $ConfOutput, $tempString)
 	_CommSendString("ATDL" & @CR)    ; Request the Low byte Destination Address to the XBee modem
 	$readString = _CommGetLine(@CR,10,400)
-	$temString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
-	GUICtrlSetData( $ConfOutput, $temString)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	GUICtrlSetData( $ConfOutput, $tempString)
 	GUICtrlSetData($ATDL, $readString)
 
 
