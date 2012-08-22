@@ -8,8 +8,9 @@
 
  Date: 23/08/2012
 
- Version: 	0.1.1 Add Write values option
-			0.1 Conect via COM port with a Xbee modem and read ID, DH & DL parameters.
+ Version: 	0.2 	Change the GUI. Two serial connection available. Read the Source Address data.
+			0.1.1 	Add Write values option
+			0.1 	Conect via COM port with a Xbee modem and read ID, DH & DL parameters.
 
 #ce ----------------------------------------------------------------------------
 
@@ -44,14 +45,16 @@ Opt("GUIOnEventMode", 1)  ; Change to OnEvent mode
 
 
 
-Local $GUIWidth = 400, $GUIHeight = 500
+Local $GUIWidth = 600, $GUIHeight = 600
 Local $GUIWidthSpacer = 20, $GUIHeigthSpacer = 10
 
 Local $myGui ; main GUI handler
 Local $myTab, $GeneralTab, $ConfigTab ; handlers for tab structure
-Local $COMport, $ATID, $ATDH, $ATDL, $ConfOutput ; for the configuration of XBee modem in AT Mode.
-Local $ConfSendButton
-
+Local $COMportA, $ATID_A, $ATSH_A, $ATSL_A, $ATDH_A, $ATDL_A ; for the configuration of XBee modem in AT Mode.
+Local $COMportB, $ATID_B, $ATSH_B, $ATSL_B, $ATDH_B, $ATDL_B ; for the configuration of XBee modem in AT Mode.
+Local $ConfOutput ; for the configuration of XBee modem in AT Mode.
+Local $ConfSendButtonA, $ConfReadButtonA, $ConfSendButtonB, $ConfReadButtonB, $ConfConnectButton
+Local $Sp = 5, $S = 5 ; To separate a control of each other
 
 $myGui = GUICreate("Formulario de pruebas con ARDUINO", $GUIWidth, $GUIHeight, @DesktopWidth / 4, 20)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
@@ -59,27 +62,57 @@ $myTab = GUICtrlCreateTab( 10, 10, $GUIWidth - 20, $GUIHeight - 20)
 $GeneralTab = GUICtrlCreateTabItem("General")
 
 $ConfigTab = GUICtrlCreateTabItem("Config") ; Configurtation XBee interface tab
-GUICtrlSetOnEvent($ConfigTab, "_COMPortSelect")
-GUICtrlCreateLabel("Select COM port", $GUIWidthSpacer, $GUIHeigthSpacer * 5, $GUIWidth - $GUIWidthSpacer * 2)
-$COMport = GUICtrlCreateCombo("", $GUIWidthSpacer, $GUIHeigthSpacer * 6.5, $GUIWidth - $GUIWidthSpacer * 2)
-GUICtrlSetOnEvent($COMport,"_COMPortSelect")
-GUICtrlCreateLabel("Select Network ID", $GUIWidthSpacer, $GUIHeigthSpacer * 10, $GUIWidth - $GUIWidthSpacer * 2)
-$ATID = GUICtrlCreateInput("", $GUIWidthSpacer, $GUIHeigthSpacer * 11.5, $GUIWidth - $GUIWidthSpacer * 2)
-GUICtrlCreateLabel("Select Destination Address Hight", $GUIWidthSpacer, $GUIHeigthSpacer * 15, $GUIWidth - $GUIWidthSpacer * 2)
-$ATDH = GUICtrlCreateInput("", $GUIWidthSpacer, $GUIHeigthSpacer * 16.5, $GUIWidth - $GUIWidthSpacer * 2)
-GUICtrlCreateLabel("Select Destination Address Low", $GUIWidthSpacer, $GUIHeigthSpacer * 20, $GUIWidth - $GUIWidthSpacer * 2)
-$ATDL = GUICtrlCreateInput("", $GUIWidthSpacer, $GUIHeigthSpacer * 21.5, $GUIWidth - $GUIWidthSpacer * 2)
-$ConfOutput = GUICtrlCreateEdit("", $GUIWidthSpacer, $GUIHeigthSpacer * 27, $GUIWidth - $GUIWidthSpacer * 2, $GUIHeigthSpacer * 16)
-$ConfSendButton = GUICtrlCreateButton("Send Conf.", $GUIWidth - $GUIWidthSpacer * 8, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 6)
-GUICtrlSetOnEvent($ConfSendButton, "_CONFSendButtonClick")
+GUICtrlCreateLabel("COM port", $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$COMportA = GUICtrlCreateCombo("", $GUIWidthSpacer, $GUIHeigthSpacer * ($Sp + 1.5), $GUIWidth / 2 - $GUIWidthSpacer * 2)
+GUICtrlSetOnEvent($COMportA,"_COMportASelect")
+GUICtrlCreateLabel("COM port", $GUIWidth / 2 + $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$COMportB = GUICtrlCreateCombo("",$GUIWidth / 2 + $GUIWidthSpacer, $GUIHeigthSpacer * ($Sp + 1.5), $GUIWidth / 2 - $GUIWidthSpacer * 2)
+GUICtrlSetOnEvent($COMportB,"_COMportASelect")
+$Sp = $Sp + $S
+GUICtrlCreateLabel("Network ID", $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$ATID_A = GUICtrlCreateInput("", $GUIWidthSpacer, $GUIHeigthSpacer * ($Sp + 1.5), $GUIWidth / 2 - $GUIWidthSpacer * 2)
+GUICtrlCreateLabel("Network ID", $GUIWidth / 2 + $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$ATID_B = GUICtrlCreateInput("", $GUIWidth / 2 + $GUIWidthSpacer, $GUIHeigthSpacer * ($Sp + 1.5), $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$Sp = $Sp + $S
+GUICtrlCreateLabel("Destination Address Hight", $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$ATDH_A = GUICtrlCreateInput("", $GUIWidthSpacer, $GUIHeigthSpacer * ($Sp + 1.5), $GUIWidth / 2 - $GUIWidthSpacer * 2)
+GUICtrlCreateLabel("Destination Address Hight", $GUIWidth / 2 + $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$ATDH_B = GUICtrlCreateInput("", $GUIWidth / 2 + $GUIWidthSpacer, $GUIHeigthSpacer * ($Sp + 1.5), $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$Sp = $Sp + $S
+GUICtrlCreateLabel("Destination Address Low", $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$ATDL_A = GUICtrlCreateInput("", $GUIWidthSpacer, $GUIHeigthSpacer * ($Sp + 1.5), $GUIWidth / 2 - $GUIWidthSpacer * 2)
+GUICtrlCreateLabel("Destination Address Low", $GUIWidth / 2 + $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$ATDL_B = GUICtrlCreateInput("", $GUIWidth / 2 + $GUIWidthSpacer, $GUIHeigthSpacer * ($Sp + 1.5), $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$Sp = $Sp + $S
+GUICtrlCreateLabel("Source Address Hight", $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$ATSH_A = GUICtrlCreateLabel(" ", $GUIWidthSpacer, $GUIHeigthSpacer * ($Sp + 1.5), $GUIWidth / 2 - $GUIWidthSpacer * 2)
+GUICtrlCreateLabel("Source Address Hight", $GUIWidth / 2 + $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$ATSH_B = GUICtrlCreateLabel(" ", $GUIWidth / 2 + $GUIWidthSpacer, $GUIHeigthSpacer * ($Sp + 1.5), $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$Sp = $Sp + $S
+GUICtrlCreateLabel("Source Address Low", $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$ATSL_A = GUICtrlCreateLabel(" ", $GUIWidthSpacer, $GUIHeigthSpacer * ($Sp + 1.5), $GUIWidth / 2 - $GUIWidthSpacer * 2)
+GUICtrlCreateLabel("Source Address Low", $GUIWidth / 2 + $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$ATSL_B = GUICtrlCreateLabel(" ", $GUIWidth / 2 + $GUIWidthSpacer, $GUIHeigthSpacer * ($Sp + 1.5), $GUIWidth / 2 - $GUIWidthSpacer * 2)
+$Sp = $Sp + $S + 2
 
-$ConfReadButton = GUICtrlCreateButton("Read Conf.", $GUIWidthSpacer, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 6)
-GUICtrlSetOnEvent($ConfReadButton, "_CONFReadButtonClick")
+$ConfOutput = GUICtrlCreateEdit("", $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth - $GUIWidthSpacer * 2, ($GUIHeight - $GUIHeigthSpacer * 6) - $GUIHeigthSpacer * $Sp)
 
+$ConfReadButtonA = GUICtrlCreateButton("Read Conf.", $GUIWidthSpacer, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 4)
+GUICtrlSetOnEvent($ConfReadButtonA, "_CONFReadButtonClick")
+$ConfSendButtonA = GUICtrlCreateButton("Send Conf.", $GUIWidthSpacer * 6, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 4)
+GUICtrlSetOnEvent($ConfSendButtonA, "_CONFSendButtonClick")
+
+$ConfReadButtonB = GUICtrlCreateButton("Read Conf.", $GUIWidth - $GUIWidthSpacer * 10, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 4)
+GUICtrlSetOnEvent($ConfReadButtonB, "_CONFReadButtonClick")
+$ConfSendButtonB = GUICtrlCreateButton("Send Conf.", $GUIWidth - $GUIWidthSpacer * 5, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 4)
+GUICtrlSetOnEvent($ConfSendButtonB, "_CONFSendButtonClick")
+
+$ConfConnectButton = GUICtrlCreateButton("Connect both", $GUIWidth / 2 - $GUIWidthSpacer * 2, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 4)
+GUICtrlSetOnEvent($ConfConnectButton, "_CONFConnectButtonClick")
 
 GUISetState() ; Show the main GUI
 
-_COMPortSelect()
+_COMportASelect()
 
 
 while 1
@@ -94,11 +127,11 @@ Func _CLOSEClicked ()
 EndFunc
 
 ;***************************************************************************************************
-Func _COMPortSelect()
+Func _COMportASelect()
 	Local $pl; contador
 
-	;MsgBox(0,"comportselectclick", "inside the comportselect click routine")
-	$portlist = _CommListPorts(0) ;find the available COM ports and write them into the COMport combo
+	;MsgBox(0,"COMportAselectclick", "inside the COMportAselect click routine")
+	$portlist = _CommListPorts(0) ;find the available COM ports and write them into the COMportA combo
 									;$portlist[0] contain the $portlist[] lenght
 
 	If @error = 1 Then
@@ -108,9 +141,9 @@ Func _COMPortSelect()
 
 
 	For $pl = 1 To $portlist[0]
-		GUICtrlSetData($COMport,$portlist[$pl]);add de list or detected COMports to the $COMport combo
+		GUICtrlSetData($COMportA,$portlist[$pl]);add de list or detected COMportAs to the $COMportA combo
 	Next
-	;GUICtrlSetData($COMport,$portlist[1]);show the first port found
+	;GUICtrlSetData($COMportA,$portlist[1]);show the first port found
 EndFunc
 
 
@@ -120,7 +153,7 @@ Func _CONFSendButtonClick()
 
 	;MsgBox(0, "Send Command to XBee modem", "Sending configuration to XBee modem")
 
-	$CMPort = StringReplace(GUICtrlRead($COMport),'COM','') ; Eliminate the COM caracters to the COMport text
+	$CMPort = StringReplace(GUICtrlRead($COMportA),'COM','') ; Eliminate the COM caracters to the COMportA text
 
 	_CommSetPort($CMPort, $sportSetError, $CmBoBaud, $CmboDataBits, $CmBoParity, $CmBoStop, $setflow)
 	if $sportSetError <> '' then
@@ -144,9 +177,9 @@ Func _CONFSendButtonClick()
 	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Assingning Network ID"
 	GUICtrlSetData( $ConfOutput, $tempString)
 	Sleep(100)
-	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATID " & GUICtrlRead($ATID)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATID " & GUICtrlRead($ATID_A)
 	GUICtrlSetData( $ConfOutput, $tempString)
-	_CommSendString("ATID " & GUICtrlRead($ATID) & @CR)    ; send the ID to the XBee modem
+	_CommSendString("ATID " & GUICtrlRead($ATID_A) & @CR)    ; send the ID to the XBee modem
 	$readString = _CommGetLine(@CR,10,400)
 	if $readString <> ("OK" & @CR) Then
 		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & "Error assinging Network ID"
@@ -159,9 +192,9 @@ Func _CONFSendButtonClick()
 	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Assingning Destination Address Hight bytes"
 	GUICtrlSetData( $ConfOutput, $tempString)
 	Sleep(100)
-	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATDH " & GUICtrlRead($ATDH)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATDH " & GUICtrlRead($ATDH_A)
 	GUICtrlSetData( $ConfOutput, $tempString)
-	_CommSendString("ATDH " & GUICtrlRead($ATDH) & @CR)    ; send the ID to the XBee modem
+	_CommSendString("ATDH " & GUICtrlRead($ATDH_A) & @CR)    ; send the ID to the XBee modem
 	$readString = _CommGetLine(@CR,10,400)
 	if $readString <> ("OK" & @CR) Then
 		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & "Error assinging Destination Address Hight bytes"
@@ -174,9 +207,9 @@ Func _CONFSendButtonClick()
 	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Assingning Destination Address Low bytes"
 	GUICtrlSetData( $ConfOutput, $tempString)
 	Sleep(100)
-	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATDL " & GUICtrlRead($ATDL)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATDL " & GUICtrlRead($ATDL_A)
 	GUICtrlSetData( $ConfOutput, $tempString)
-	_CommSendString("ATDL " & GUICtrlRead($ATDL) & @CR)    ; send the ID to the XBee modem
+	_CommSendString("ATDL " & GUICtrlRead($ATDL_A) & @CR)    ; send the ID to the XBee modem
 	$readString = _CommGetLine(@CR,10,400)
 	if $readString <> ("OK" & @CR) Then
 		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & "Error assinging Destination Address Low bytes"
@@ -197,7 +230,7 @@ Func _CONFReadButtonClick()
 
 	;MsgBox(0, "Send Command to XBee modem", "Read configuration from XBee modem")
 
-	$CMPort = StringReplace(GUICtrlRead($COMport),'COM','') ; Eliminate the COM caracters to the COMport text
+	$CMPort = StringReplace(GUICtrlRead($COMportA),'COM','') ; Eliminate the COM caracters to the COMportA text
 
 	_CommSetPort($CMPort, $sportSetError, $CmBoBaud, $CmboDataBits, $CmBoParity, $CmBoStop, $setflow)
 	if $sportSetError <> '' then
@@ -228,7 +261,7 @@ Func _CONFReadButtonClick()
 	$readString = _CommGetLine(@CR,10,400)
 	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
 	GUICtrlSetData( $ConfOutput, $tempString)
-	GUICtrlSetData($ATID, $readString)
+	GUICtrlSetData($ATID_A, $readString)
 
 
 	Sleep(100)
@@ -241,7 +274,7 @@ Func _CONFReadButtonClick()
 	$readString = _CommGetLine(@CR,10,400)
 	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
 	GUICtrlSetData( $ConfOutput, $tempString)
-	GUICtrlSetData($ATDH, $readString)
+	GUICtrlSetData($ATDH_A, $readString)
 
 
 	Sleep(100)
@@ -254,10 +287,38 @@ Func _CONFReadButtonClick()
 	$readString = _CommGetLine(@CR,10,400)
 	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
 	GUICtrlSetData( $ConfOutput, $tempString)
-	GUICtrlSetData($ATDL, $readString)
+	GUICtrlSetData($ATDL_A, $readString)
 
+	Sleep(100)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Getting Source Address Hight bytes"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	Sleep(100)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATSH"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	_CommSendString("ATSH" & @CR)    ; Request the Hight byte Source Address to the XBee modem
+	$readString = _CommGetLine(@CR,10,400)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	GUICtrlSetData( $ConfOutput, $tempString)
+	GUICtrlSetData($ATSH_A, $readString)
+
+	Sleep(100)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Getting Source Address Low bytes"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	Sleep(100)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATSL"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	_CommSendString("ATSL" & @CR)    ; Request the Low byte Source Address to the XBee modem
+	$readString = _CommGetLine(@CR,10,400)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	GUICtrlSetData( $ConfOutput, $tempString)
+	GUICtrlSetData($ATSL_A, $readString)
 
 	_CommClosePort()
 
 	;MsgBox(0, "Send Command to XBee modem", "Port COM close")
+EndFunc
+
+Func _CONFConnectButtonClick()
+
+
 EndFunc
