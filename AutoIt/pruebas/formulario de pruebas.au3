@@ -8,7 +8,9 @@
 
  Date: 23/08/2012
 
- Version: 	0.2 	Change the GUI. Read the Source Address data. Write Destination address data for
+ Version: 	0.2.1 	Add network reset command after change configuration to force modems to rejoin the network
+					Add button for reset the XBee modem to factory setting.
+			0.2 	Change the GUI. Read the Source Address data. Write Destination address data for
 					enable direct transparent comunication between the both modem
 			0.1.1 	Add Write values option
 			0.1 	Conect via COM port with a Xbee modem and read ID, DH & DL parameters.
@@ -54,7 +56,7 @@ Local $myTab, $GeneralTab, $ConfigTab ; handlers for tab structure
 Local $COMportA, $ATID_A, $ATSH_A, $ATSL_A, $ATDH_A, $ATDL_A ; for the configuration of XBee modem in AT Mode.
 Local $COMportB, $ATID_B, $ATSH_B, $ATSL_B, $ATDH_B, $ATDL_B ; for the configuration of XBee modem in AT Mode.
 Local $ConfOutput ; for the configuration of XBee modem in AT Mode.
-Local $ConfSendButtonA, $ConfReadButtonA, $ConfSendButtonB, $ConfReadButtonB, $ConfConnectButton
+Local $ConfSendButtonA, $ConfReadButtonA, $ConfSendButtonB, $ConfReadButtonB, $ConfConnectButton, $ConfModemAReset, $ConfModemBReset
 Local $Sp = 5, $S = 5 ; To separate a control of each other
 
 $myGui = GUICreate("Formulario de pruebas con ARDUINO", $GUIWidth, $GUIHeight, @DesktopWidth / 4, 20)
@@ -98,15 +100,20 @@ $Sp = $Sp + $S + 2
 
 $ConfOutput = GUICtrlCreateEdit("", $GUIWidthSpacer, $GUIHeigthSpacer * $Sp, $GUIWidth - $GUIWidthSpacer * 2, ($GUIHeight - $GUIHeigthSpacer * 6) - $GUIHeigthSpacer * $Sp)
 
-$ConfReadButtonA = GUICtrlCreateButton("Read Conf.", $GUIWidthSpacer, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 4)
+$ConfReadButtonA = GUICtrlCreateButton("Read Conf.", $GUIWidthSpacer, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 3.5)
 GUICtrlSetOnEvent($ConfReadButtonA, "_CONFReadButtonAClick")
-$ConfSendButtonA = GUICtrlCreateButton("Send Conf.", $GUIWidthSpacer * 6, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 4)
+$ConfSendButtonA = GUICtrlCreateButton("Send Conf.", $GUIWidthSpacer * 5.5, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 3.5)
 GUICtrlSetOnEvent($ConfSendButtonA, "_CONFSendButtonAClick")
 
-$ConfReadButtonB = GUICtrlCreateButton("Read Conf.", $GUIWidth - $GUIWidthSpacer * 10, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 4)
+$ConfReadButtonB = GUICtrlCreateButton("Read Conf.", $GUIWidth - $GUIWidthSpacer * 9, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 3.5)
 GUICtrlSetOnEvent($ConfReadButtonB, "_CONFReadButtonBClick")
-$ConfSendButtonB = GUICtrlCreateButton("Send Conf.", $GUIWidth - $GUIWidthSpacer * 5, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 4)
+$ConfSendButtonB = GUICtrlCreateButton("Send Conf.", $GUIWidth - $GUIWidthSpacer * 4.5, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 3.5)
 GUICtrlSetOnEvent($ConfSendButtonB, "_CONFSendButtonBClick")
+
+$ConfModemAReset = GUICtrlCreateButton("Reset", $GUIWidthSpacer * 10, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 2)
+GUICtrlSetOnEvent($ConfModemAReset, "_CONFModemAResetClick")
+$ConfModemBReset = GUICtrlCreateButton("Reset", $GUIWidth - $GUIWidthSpacer * 12, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 2)
+GUICtrlSetOnEvent($ConfModemBReset, "_CONFModemBResetClick")
 
 $ConfConnectButton = GUICtrlCreateButton("Connect both", $GUIWidth / 2 - $GUIWidthSpacer * 2, $GUIHeight - $GUIHeigthSpacer * 5, $GUIWidthSpacer * 4)
 GUICtrlSetOnEvent($ConfConnectButton, "_CONFConnectButtonClick")
@@ -122,11 +129,17 @@ WEnd
 
 
 ;***************************************************************************************************
+;
+;
+;***************************************************************************************************
 Func _CLOSEClicked ()
 	MsgBox(0, "GUI Event", "You clicked CLOSE! Exiting...")
 	Exit
 EndFunc
 
+;***************************************************************************************************
+;
+;
 ;***************************************************************************************************
 Func _COMportASelect()
 	Local $pl; contador
@@ -148,6 +161,9 @@ Func _COMportASelect()
 EndFunc
 
 ;***************************************************************************************************
+;
+;
+;***************************************************************************************************
 Func _COMportBSelect()
 	Local $pl; contador
 
@@ -167,6 +183,9 @@ Func _COMportBSelect()
 	;GUICtrlSetData($COMportA,$portlist[1]);show the first port found
 EndFunc
 
+;***************************************************************************************************
+;
+;
 ;***************************************************************************************************
 Func _CONFSendButtonAClick()
 
@@ -191,6 +210,9 @@ Func _CONFSendButtonAClick()
 EndFunc
 
 ;***************************************************************************************************
+;
+;
+;***************************************************************************************************
 Func _CONFSendButtonBClick()
 
 	;MsgBox(0, "Send Command to XBee modem", "Sending configuration to XBee modem")
@@ -213,6 +235,9 @@ Func _CONFSendButtonBClick()
 	;MsgBox(0, "Send Command to XBee modem", "Port COM close")
 EndFunc
 
+;***************************************************************************************************
+;
+;
 ;***************************************************************************************************
 Func _CONFReadButtonAClick()
 	Local $tempString ; For display de command send to the XBee Modem and his response
@@ -283,6 +308,9 @@ Func _CONFReadButtonAClick()
 EndFunc
 
 ;***************************************************************************************************
+;
+;
+;***************************************************************************************************
 Func _CONFReadButtonBClick()
 Local $tempString ; For display de command send to the XBee Modem and his response
 	Local $readString ; Response from XBee modem to the sent AT Command
@@ -352,6 +380,9 @@ Local $tempString ; For display de command send to the XBee Modem and his respon
 EndFunc
 
 ;***************************************************************************************************
+;
+;
+;***************************************************************************************************
 Func _CONFConnectButtonClick()
 
 	;write in Destiny addres of modem conected to PortB the Source Addres of modem conected to PortA
@@ -382,12 +413,111 @@ Func _CONFConnectButtonClick()
 EndFunc
 
 ;***************************************************************************************************
-Func _SendConfToXBee($ID, $DH, $DL, $Output)
+;
+;
+;***************************************************************************************************
+Func _CONFModemAResetClick()
 	Local $tempString ; For display de command send to the XBee Modem and his response
+	Local $readString ; Response from XBee modem to the sent AT Command
 
+	$CMPort = StringReplace(GUICtrlRead($COMportA),'COM','') ; Eliminate the COM caracters to the COMportA text
+
+	_CommSetPort($CMPort, $sportSetError, $CmBoBaud, $CmboDataBits, $CmBoParity, $CmBoStop, $setflow)
+	if $sportSetError <> '' then
+		MsgBox(0,'Setport error = ',$sportSetError)
+		Return
+	EndIf
 
 	$tempString = "Opening AT Command mode"
 	GUICtrlSetData( $ConfOutput, $tempString)
+	$readString = _ConfEnterATMode($ConfOutput)
+	if $readString <> ("OK" & @CR) Then
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & "Error entering AT Mode"
+		Return -1
+	Else
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	EndIf
+	GUICtrlSetData( $ConfOutput, $tempString)
+
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Setting Modem A to factory defaults"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	Sleep(100)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATRE"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	_CommSendString("ATRE" & @CR)    ; send the factory default command to the XBee modem
+	$readString = _CommGetLine(@CR,10,400)
+	if $readString <> ("OK" & @CR) Then
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & "Error sending factory defaults command"
+		Return -1
+	Else
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	EndIf
+	GUICtrlSetData( $ConfOutput, $tempString)
+
+	_ConfExitATMode($ConfOutput)
+
+	_CommClosePort()
+
+EndFunc
+
+;***************************************************************************************************
+;
+;
+;***************************************************************************************************
+Func _CONFModemBResetClick()
+	Local $tempString ; For display de command send to the XBee Modem and his response
+	Local $readString ; Response from XBee modem to the sent AT Command
+
+	$CMPort = StringReplace(GUICtrlRead($COMportB),'COM','') ; Eliminate the COM caracters to the COMportA text
+
+	_CommSetPort($CMPort, $sportSetError, $CmBoBaud, $CmboDataBits, $CmBoParity, $CmBoStop, $setflow)
+	if $sportSetError <> '' then
+		MsgBox(0,'Setport error = ',$sportSetError)
+		Return
+	EndIf
+
+	$tempString = "Opening AT Command mode"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	$readString = _ConfEnterATMode($ConfOutput)
+	if $readString <> ("OK" & @CR) Then
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & "Error entering AT Mode"
+		Return -1
+	Else
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	EndIf
+	GUICtrlSetData( $ConfOutput, $tempString)
+
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Setting Modem B to factory defaults"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	Sleep(100)
+	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "ATRE"
+	GUICtrlSetData( $ConfOutput, $tempString)
+	_CommSendString("ATRE" & @CR)    ; send the factory default command to the XBee modem
+	$readString = _CommGetLine(@CR,10,400)
+	if $readString <> ("OK" & @CR) Then
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & "Error sending factory defaults command"
+		Return -1
+	Else
+		$tempString = GUICtrlRead($ConfOutput) & @CRLF & "          " & $readString
+	EndIf
+	GUICtrlSetData( $ConfOutput, $tempString)
+
+	_ConfExitATMode($ConfOutput)
+
+	_CommClosePort()
+EndFunc
+
+;***************************************************************************************************
+;
+;
+;***************************************************************************************************
+Func _SendConfToXBee($ID, $DH, $DL, $Output)
+	Local $tempString ; For display de command send to the XBee Modem and his response
+	Local $readString ; Response from XBee modem to the sent AT Command
+
+
+	$tempString = "Opening AT Command mode"
+	GUICtrlSetData( $Output, $tempString)
 	$readString = _ConfEnterATMode($Output)
 	if $readString <> ("OK" & @CR) Then
 		$tempString = GUICtrlRead($Output) & @CRLF & "          " & "Error entering AT Mode"
@@ -397,7 +527,7 @@ Func _SendConfToXBee($ID, $DH, $DL, $Output)
 	EndIf
 	GUICtrlSetData( $Output, $tempString)
 
-	$tempString = GUICtrlRead($ConfOutput) & @CRLF & "Assingning Network ID"
+	$tempString = GUICtrlRead($Output) & @CRLF & "Assingning Network ID"
 	GUICtrlSetData( $Output, $tempString)
 	Sleep(100)
 	$tempString = GUICtrlRead($Output) & @CRLF & "ATID " & GUICtrlRead($ID)
@@ -462,24 +592,28 @@ Func _SendConfToXBee($ID, $DH, $DL, $Output)
 	GUICtrlSetData( $Output, $tempString)
 
 	Sleep(100)
-	$tempString = GUICtrlRead($Output) & @CRLF & "Exit Command Mode"
+	$tempString = GUICtrlRead($Output) & @CRLF & "Force to rebuilt networking"
 	GUICtrlSetData( $Output, $tempString)
 	Sleep(100)
-	$tempString = GUICtrlRead($Output) & @CRLF & "ATCN"
+	$tempString = GUICtrlRead($Output) & @CRLF & "ATNR"
 	GUICtrlSetData( $Output, $tempString)
-	_CommSendString("ATCN" & @CR)    ; send the write data to memory command
+	_CommSendString("ATNR" & @CR)    ; send the write data to memory command
 	$readString = _CommGetLine(@CR,10,400)
 	if $readString <> ("OK" & @CR) Then
-		$tempString = GUICtrlRead($Output) & @CRLF & "          " & "Error while exiting command mode"
-		MsgBox(0,"Error...","Error writing data to memoty in XBee modem. Actual data will overwrite on next Modem restart")
+		$tempString = GUICtrlRead($Output) & @CRLF & "          " & "Error forcing to rebuilt networking"
 		Return -1
 	Else
 		$tempString = GUICtrlRead($Output) & @CRLF & "          " & $readString
 	EndIf
 	GUICtrlSetData( $Output, $tempString)
 
+	_ConfExitATMode($Output)
+
 EndFunc
 
+;***************************************************************************************************
+;
+;
 ;***************************************************************************************************
 Func _ConfEnterATMode($Output)
 	Local $tempString ; For display de command send to the XBee Modem and his response
@@ -496,6 +630,34 @@ Func _ConfEnterATMode($Output)
 	Return $readString
 EndFunc
 
+;***************************************************************************************************
+;
+;
+;***************************************************************************************************
+Func _ConfExitATMode($Output)
+	Local $tempString ; For display de command send to the XBee Modem and his response
+	Local $readString ; Response from XBee modem to the sent AT Command
+
+	Sleep(100)
+	$tempString = GUICtrlRead($Output) & @CRLF & "Exit Command Mode"
+	GUICtrlSetData( $Output, $tempString)
+	Sleep(100)
+	$tempString = GUICtrlRead($Output) & @CRLF & "ATCN"
+	GUICtrlSetData( $Output, $tempString)
+	_CommSendString("ATCN" & @CR)    ; send the write data to memory command
+	$readString = _CommGetLine(@CR,10,400)
+	if $readString <> ("OK" & @CR) Then
+		$tempString = GUICtrlRead($Output) & @CRLF & "          " & "Error while exiting command mode"
+		Return -1
+	Else
+		$tempString = GUICtrlRead($Output) & @CRLF & "          " & $readString
+	EndIf
+	GUICtrlSetData( $Output, $tempString)
+EndFunc
+
+;***************************************************************************************************
+;
+;
 ;***************************************************************************************************
 Func _ConfGetData($command, $Output)
 	Local $tempString ; For display de command send to the XBee Modem and his response
