@@ -4,7 +4,7 @@
  * this version for 24LC256
  * implements a fifo of MAX_LENGHT capacity
  * don´t prevent the FIFO Overflow. When FIFO is full
- * overwrite older data and move tail address to the new oldest data.
+ * overwrite older data and move tail address to the next oldest data.
  
  */
 #include <Wire.h>
@@ -26,6 +26,7 @@ unsigned int t_address = 0; // FIFO tail
 unsigned int h_address = 0; // FIFO head
 boolean full = false;
 boolean empty = true;
+boolean busy = false; // FIFO is being accesed
 
 byte d_hour, d_minute, d_second;
 
@@ -55,6 +56,10 @@ void serialEvent()
 
   while(Serial.available())
   {
+    while (busy) // FIFO is not being accesed
+      ;
+    busy = true; //  
+    
     char ch = Serial.read();
     if (ch == 'D') {
       data = I2CEEPROM_Read();
@@ -76,15 +81,21 @@ void serialEvent()
       Serial.print(t_address, DEC);
       Serial.print(", h_add: ");
       Serial.println(h_address, DEC);
+      
+      busy = false; //
     }    
   }      
 }      
+      
       
 void captureData()
 {
   word sensor;
   
   sensor = analogRead(sensorPIN);
+  while (busy) // FIFO is  being accesed
+      ;
+  busy = true; //
   I2CEEPROM_Write(hour());
   I2CEEPROM_Write(minute());
   I2CEEPROM_Write(second());
@@ -93,6 +104,8 @@ void captureData()
   //Serial.println(lowByte(sensor),HEX);
   I2CEEPROM_Write(highByte(sensor));
   I2CEEPROM_Write(lowByte(sensor));
+  busy = false; // 
+  
 }
 
 void fifoFull(boolean value)
