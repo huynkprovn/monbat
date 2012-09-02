@@ -14,12 +14,12 @@ class Fifo
 {
     public:
         
-        void FIFO_Write(byte data);
-        byte FIFO_Read();
-        boolean FIFO_Empty();
-        boolean FIFO_Full();
-        boolean FIFO_Busy();
-        void FIFO_Block(boolean busy);
+        void Write(byte data);
+        byte Read();
+        boolean Empty();
+        boolean Full();
+        boolean Busy();
+        void Block(boolean busy);
         
         
     private:

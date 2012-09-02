@@ -23,7 +23,7 @@ Fifo::Fifo(byte Eeprom_ID, unsigned int max_Lenght, unsigned int frame_Lenght);
 
 // PUBLIC METODS
 
-void Fifo::FIFO_Write(byte data)
+void Fifo::Write(byte data)
 {
     Wire.beginTransmission(EEPROM_ID);
     Wire.write((int)highByte(_h_address));
@@ -51,7 +51,7 @@ void Fifo::FIFO_Write(byte data)
     } 
 }
 
-byte Fifo::FIFO_Read()
+byte Fifo::Read()
 {
     
     if (empty) return -1; // FIFO empty return error -1
@@ -79,24 +79,24 @@ byte Fifo::FIFO_Read()
     return data;
 }
 
-boolean FIFO::FIFO_Empty()
+boolean FIFO::Empty()
 {
     return _empty;    
 }
 
 
-boolean FIFO::FIFO_Full()
+boolean FIFO::Full()
 {
     return _full;    
 }
 
 
-boolean FIFO::FIFO_Busy()
+boolean FIFO::Busy()
 {
     return _busy;    
 }
 
-void FIFO::FIFO_Block(boolean busy)
+void FIFO::Block(boolean busy)
 {
     _busy = busy;
 }
