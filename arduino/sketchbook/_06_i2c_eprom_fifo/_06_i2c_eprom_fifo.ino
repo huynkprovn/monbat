@@ -13,7 +13,7 @@
                         // to add the Arduino.h in the include files
 
 const byte EEPROM_ID = 0x50;      // I2C address for 24LC128 EEPROM
-const int FRAME_LENGH = 5;   // Frame write in FIFO (h,m,s,Dhigh, Dlow)
+const int FRAME_LENGHT = 5;   // Frame write in FIFO (h,m,s,Dhigh, Dlow)
 const unsigned int MAX_LENGHT = 63; //EEPROM Max lenght in bytes
 
 const int fullLED = 11;
@@ -38,9 +38,9 @@ boolean I2CEEPROM_Read(unsigned int &h_address, unsigned int &t_address, byte &d
 void setup()
 {
   pinMode(fullLED, OUTPUT);
-  digitalWrite(fullLED, full);
+  //digitalWrite(fullLED, full);
   pinMode(emptyLED, OUTPUT);
-  digitalWrite(emptyLED, empty);
+  //digitalWrite(emptyLED, empty);
 
   Serial.begin(9600);
   Wire.begin();
@@ -51,7 +51,7 @@ void setup()
 
 void serialEvent()
 {
-  boolean f_e; // FIFO Empty
+  //boolean f_e; // FIFO Empty
   byte data;
 
   while(Serial.available())
@@ -62,6 +62,11 @@ void serialEvent()
     
     char ch = Serial.read();
     if (ch == 'D') {
+      if (empty){
+        Serial.println("FIFO is empty");
+        busy = false;
+        return;
+      }
       data = I2CEEPROM_Read();
       Serial.print("At ");
       Serial.print(data);
@@ -108,20 +113,12 @@ void captureData()
   
 }
 
-void fifoFull(boolean value)
-{
-    if (value) digitalWrite(fullLED, value);
-}
-
-
-void fifoEmpty(boolean value)
-{
-    digitalWrite(emptyLED, value);
-}
-
 void loop()
 {
+  digitalWrite(emptyLED, empty);
+  digitalWrite(fullLED, full);
   Alarm.delay(10); // Necesary for the periodic event function. ¿¿??
+
 
 }
 
@@ -148,10 +145,10 @@ void I2CEEPROM_Write(byte data)
     h_address = 0;
   }
 
-
-  if (h_address == t_address) {
+  if (empty) empty = false; // if FIFO was empty, now not.
+  if (h_address == t_address) { // FIFO full
         full = true;
-        t_address += FRAME_LENGH; // Increment address to the next valid frame
+        t_address += FRAME_LENGHT; // Increment address to the next valid frame
         if (t_address > MAX_LENGHT) t_address = (t_address % MAX_LENGHT) - 1; // Reset the value
   }
 }
@@ -160,6 +157,8 @@ void I2CEEPROM_Write(byte data)
 // This function is similar to EEPROM.read()
 byte I2CEEPROM_Read()
 {
+  if (empty) return -1; // FIFO empty return error -1
+  
   byte data;
   Wire.beginTransmission(EEPROM_ID);
   Wire.write((int)highByte(t_address) );
@@ -176,6 +175,7 @@ byte I2CEEPROM_Read()
     t_address = 0;
   }
   
+  if (full) full = false; // If FIFO was full, now not.
   if (t_address == h_address){
       empty = true;
   }
