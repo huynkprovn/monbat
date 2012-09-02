@@ -19,7 +19,7 @@ class Fifo
         boolean FIFO_Empty();
         boolean FIFO_Full();
         boolean FIFO_Busy();
-        void FIFO_Block();
+        void FIFO_Block(boolean busy);
         
         
     private:

@@ -96,7 +96,7 @@ boolean FIFO::FIFO_Busy()
     return _busy;    
 }
 
-void FIFO::FIFO_Block()
+void FIFO::FIFO_Block(boolean busy)
 {
-    _busy = true;
+    _busy = busy;
 }
