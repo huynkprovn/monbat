@@ -13,7 +13,8 @@
                         // to add the Arduino.h in the include files
 
 const byte EEPROM_ID = 0x50;      // I2C address for 24LC128 EEPROM
-const unsigned int MAX_LENGHT = 123; //EEPROM Max lenght in bytes
+const int FRAME_LENGH = 5;   // Frame write in FIFO (h,m,s,Dhigh, Dlow)
+const unsigned int MAX_LENGHT = 63; //EEPROM Max lenght in bytes
 
 const int fullLED = 11;
 const int emptyLED = 12;
@@ -56,24 +57,19 @@ void serialEvent()
   {
     char ch = Serial.read();
     if (ch == 'D') {
-      f_e = I2CEEPROM_Read(data);
-      fifoEmpty(f_e);
+      data = I2CEEPROM_Read();
       Serial.print("At ");
       Serial.print(data);
-      f_e = I2CEEPROM_Read(data);
-      fifoEmpty(f_e);
+      data = I2CEEPROM_Read();
       Serial.print(":");
       Serial.print(data);
-      f_e = I2CEEPROM_Read(data);
-      fifoEmpty(f_e);
+      data = I2CEEPROM_Read();
       Serial.print(":");
       Serial.print(data);
-      f_e = I2CEEPROM_Read(data);
-      fifoEmpty(f_e);
+      data = I2CEEPROM_Read();
       Serial.print(" Sensor Value");
       Serial.print(data);
-      f_e = I2CEEPROM_Read(data);
-      fifoEmpty(f_e);
+      data = I2CEEPROM_Read();
       Serial.println(data);
       
       Serial.print("t_add: ");
@@ -87,15 +83,12 @@ void serialEvent()
 void captureData()
 {
   word sensor;
-  boolean f_f; // FIFO full
   
   sensor = analogRead(sensorPIN);
-  f_f = I2CEEPROM_Write(hour());
-  fifoFull(f_f);
-  f_f = I2CEEPROM_Write(minute());
-  fifoFull(f_f);
-  f_f = I2CEEPROM_Write(second());
-  fifoFull(f_f);
+  I2CEEPROM_Write(hour());
+  I2CEEPROM_Write(minute());
+  I2CEEPROM_Write(second());
+  
   //Serial.println(highByte(sensor),HEX);
   //Serial.println(lowByte(sensor),HEX);
   I2CEEPROM_Write(highByte(sensor));
@@ -121,7 +114,7 @@ void loop()
 
 
 // Write one byte in the FIFO
-boolean I2CEEPROM_Write(byte data)
+void I2CEEPROM_Write(byte data)
 {
   ///Serial.print("1");
   Wire.beginTransmission(EEPROM_ID);
@@ -136,7 +129,7 @@ boolean I2CEEPROM_Write(byte data)
   Serial.print(", data: ");
   Serial.println(data, DEC);
   delay (5);
-  h_address += 1;
+  h_address++;
   
   if (h_address > MAX_LENGHT) {  //have reach the higer mem address
     h_address = 0;
@@ -144,15 +137,17 @@ boolean I2CEEPROM_Write(byte data)
 
 
   if (h_address == t_address) {
-        return true;
+        full = true;
+        t_address += FRAME_LENGH; // Increment address to the next valid frame
+        if (t_address > MAX_LENGHT) t_address = (t_address % MAX_LENGHT) - 1; // Reset the value
   }
-  return false;
 }
 
 
 // This function is similar to EEPROM.read()
-boolean I2CEEPROM_Read(byte &data)
+byte I2CEEPROM_Read()
 {
+  byte data;
   Wire.beginTransmission(EEPROM_ID);
   Wire.write((int)highByte(t_address) );
   Wire.write((int)lowByte(t_address) );
@@ -162,15 +157,15 @@ boolean I2CEEPROM_Read(byte &data)
     ;
   data = Wire.read();
   
-  t_address += 1;
+  t_address++;
   
-  if (t_address == MAX_LENGHT) {  //have reach the higer mem address
-    t_address = 1;
+  if (t_address > MAX_LENGHT) {  //have reach the higer mem address
+    t_address = 0;
   }
   
   if (t_address == h_address){
-      return true;
+      empty = true;
   }
-  return false;
+  return data;
 }
 
