@@ -13,7 +13,7 @@
 class Fifo
 {
     public:
-        
+        Fifo(byte Eeprom_ID, unsigned int max_Lenght, unsigned int frame_Lenght);
         void Write(byte data);
         byte Read();
         boolean Empty();
