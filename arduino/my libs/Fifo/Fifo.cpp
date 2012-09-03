@@ -35,7 +35,7 @@ Fifo::Fifo(byte Eeprom_ID, unsigned int max_Lenght, unsigned int frame_Lenght);
 
 void Fifo::Write(byte data)
 {
-    Wire.beginTransmission(EEPROM_ID);
+    Wire.beginTransmission(_EEPROM_ID);
     Wire.write((int)highByte(_h_address));
     Wire.write((int)lowByte(_h_address));
     Wire.write(data);
@@ -64,27 +64,27 @@ void Fifo::Write(byte data)
 byte Fifo::Read()
 {
     
-    if (empty) return -1; // FIFO empty return error -1
+    if (_empty) return -1; // FIFO empty return error -1
   
     byte data;
-    Wire.beginTransmission(EEPROM_ID);
-    Wire.write((int)highByte(t_address) );
-    Wire.write((int)lowByte(t_address) );
+    Wire.beginTransmission(_EEPROM_ID);
+    Wire.write((int)highByte(_t_address) );
+    Wire.write((int)lowByte(_t_address) );
     Wire.endTransmission();
-    Wire.requestFrom(EEPROM_ID,(byte)1);
+    Wire.requestFrom(_EEPROM_ID,(byte)1);
     while(Wire.available() == 0) // wait for data
         ;
     data = Wire.read();
   
-    t_address++;
+    _t_address++;
   
-    if (t_address > MAX_LENGHT) {  //have reach the higer mem address
-        t_address = 0;
+    if (_t_address > _MAX_LENGHT) {  //have reach the higer mem address
+        _t_address = 0;
     }
   
-    if (full) full = false; // If FIFO was full, now not.
-    if (t_address == h_address){
-        empty = true;
+    if (_full) _full = false; // If FIFO was full, now not.
+    if (_t_address == _h_address){
+        _empty = true;
     }
     return data;
 }
