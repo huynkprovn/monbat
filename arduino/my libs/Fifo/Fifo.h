@@ -23,13 +23,14 @@ class Fifo
         
         
     private:
-        Fifo(byte _EEPROM_ID);  // Addres for I2C EEPROM memory
-        Fifo(int _FRAME_LENGH); // 
-        Fifo(unsigned int _MAX_LENGH); // FIFO lengh
-        Fifo(unsigned int _t_address); // FIFO tail
-        Fifo(unsigned int _h_address); // FIFO head}
-        Fifo(boolean full);
-        Fifo(boolean empty);
-        Fifo(boolean busy); // FIFO is being accesed
+        byte _EEPROM_ID;  // Addres for I2C EEPROM memory
+        int _FRAME_LENGH; // 
+        unsigned int _MAX_LENGH; // FIFO lengh
+        unsigned int _t_address; // FIFO tail
+        unsigned int _h_address; // FIFO head}
+        boolean full;
+        boolean empty;
+        boolean busy; // FIFO is being accesed
 
+};
 #endif

@@ -1,0 +1,7 @@
+Fifo    KEYWORD1
+Write   KEYWORD2
+Read    KEYWORD2
+Empty   KEYWORD2
+Full    KEYWORD2
+Busy    KEYWORD2
+Block   KEYWORD2
