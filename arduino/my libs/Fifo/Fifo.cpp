@@ -7,6 +7,16 @@
 #include <Wire.h>
 #include "Fifo.h"
 
+byte _EEPROM_ID;
+unsigned int _MAX_LENGHT;
+unsigned int _FRAME_LENGHT;
+unsigned int _t_address = 0; // FIFO tail
+unsigned int _h_address = 0; // FIFO head
+boolean _full = false;
+boolean _empty = true;
+boolean _busy = false; // FIFO is being accesed
+
+
 Fifo::Fifo(byte Eeprom_ID, unsigned int max_Lenght, unsigned int frame_Lenght);
 {
     _EEPROM_ID = Eeprom_ID;
