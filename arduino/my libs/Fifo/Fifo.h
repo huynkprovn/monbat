@@ -28,9 +28,9 @@ class Fifo
         unsigned int _MAX_LENGH; // FIFO lengh
         unsigned int _t_address; // FIFO tail
         unsigned int _h_address; // FIFO head}
-        boolean full;
-        boolean empty;
-        boolean busy; // FIFO is being accesed
+        boolean _full;
+        boolean _empty;
+        boolean _busy; // FIFO is being accesed
 
 };
 #endif

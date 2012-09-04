@@ -17,7 +17,7 @@ boolean _empty = true;
 boolean _busy = false; // FIFO is being accesed
 
 
-Fifo::Fifo(byte Eeprom_ID, unsigned int max_Lenght, unsigned int frame_Lenght);
+Fifo::Fifo(byte Eeprom_ID, unsigned int max_Lenght, unsigned int frame_Lenght)
 {
     _EEPROM_ID = Eeprom_ID;
     _MAX_LENGHT = max_Lenght;
@@ -27,8 +27,6 @@ Fifo::Fifo(byte Eeprom_ID, unsigned int max_Lenght, unsigned int frame_Lenght);
     _empty = true;
     _full = false;
     _busy = false;
-    Wire.begin();
-        
 }
 
 // PUBLIC METODS
@@ -89,24 +87,24 @@ byte Fifo::Read()
     return data;
 }
 
-boolean FIFO::Empty()
+boolean Fifo::Empty()
 {
     return _empty;    
 }
 
 
-boolean FIFO::Full()
+boolean Fifo::Full()
 {
     return _full;    
 }
 
 
-boolean FIFO::Busy()
+boolean Fifo::Busy()
 {
     return _busy;    
 }
 
-void FIFO::Block(boolean busy)
+void Fifo::Block(boolean busy)
 {
     _busy = busy;
 }
