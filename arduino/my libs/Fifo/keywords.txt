@@ -1,18 +1,1 @@
-#######################################
-# Syntax Coloring Map For Wire
-#######################################
-
-#######################################
-# Datatypes (KEYWORD1)
-#######################################
-Fifo    KEYWORD1
-
-#######################################
-# Methods and Functions (KEYWORD2)
-#######################################
-Write   KEYWORD2
-Read    KEYWORD2
-Empty   KEYWORD2
-Full    KEYWORD2
-Busy    KEYWORD2
-Block   KEYWORD2
+#######Syntax Coloring Map For Wire########Datatypes (KEYWORD1) ###################Fifo	KEYWORD1######Methods and Functions (KEYWORD2)#######################################Write	KEYWORD2Read	KEYWORD2Empty	KEYWORD2Full	KEYWORD2Busy	KEYWORD2Block	KEYWORD2
