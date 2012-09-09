@@ -55,7 +55,7 @@ Func _main()
 	Local $Checksum
 	Local $GeneratedCheckSum
 
-	Local $K ; contador
+	Local $K = 0; contador
 
 
 	While True
@@ -78,35 +78,64 @@ Func _main()
 			$FrameType = _CommReadByte(100)  	; Receive frame type. Must be 0x90
 			ConsoleWrite(Hex($FrameType,2) & " ")
 
-			For $K = 0 To 7
-				$Address64[$K] = _CommReadByte(100)  ; Read the 64 source address
+			While $K <= 7	; eight first byte for the 64 source address
+				$ByteRead = _CommReadByte(100)  ; Read a byte
+				If $ByteRead == 0x7D Then	; This byte must be escaped the next byte
+					$Address64[$K] = BitXOR(_CommReadByte(100),0x20)
+				Else
+					$Address64[$K] = $ByteRead
+				EndIf
 				ConsoleWrite(Hex($Address64[$K],2))
-			Next
+				$K += 1
+			WEnd
+
 			ConsoleWrite(" ")
 
-	;		ConsoleWrite(Hex($Address64,16) & " ")
+			While ($K >= 8 And $K <= 9) ; two byte for the 16 source address
+				$ByteRead = _CommReadByte(100)  ; Read a byte
+				If $ByteRead == 0x7D Then	; This byte must be escaped the next byte
+					$Address16[$K - 8] = BitXOR(_CommReadByte(100),0x20)
+				Else
+					$Address64[$K - 8] = $ByteRead
+				EndIf
+				ConsoleWrite(Hex($Address16[$K - 8],2))
+				$K += 1
+			WEnd
 
-			For $K = 0 To 1
-				$Address16[$K] = _CommReadByte(100)  ; Read the 16 source address
-				ConsoleWrite(Hex($Address16[$K],2))
-			Next
 			ConsoleWrite(" ")
 
+			$ByteRead = _CommReadByte(100)  ; Read a byte
+			If $ByteRead == 0x7D Then	; This byte must be escaped the next byte
+				$Option = BitXOR(_CommReadByte(100),0x20)
+			Else
+				$Option = $ByteRead
+			EndIf
+			ConsoleWrite(Hex($Option,2) & " ")
+			$K += 1
 
-			$Option = _CommReadByte(100)  	; Receive the option byte
+
+			While ($K < $Lenght - 1)
+				$ByteRead = _CommReadByte(100)  ; Read a byte
+				If $ByteRead == 0x7D Then	; This byte must be escaped the next byte
+					$Data[$K - 11] = BitXOR(_CommReadByte(100),0x20)
+				Else
+					$Data[$K - 11] = $ByteRead
+				EndIf
+				ConsoleWrite(Hex($Data[$K - 11],2))
+				$K += 1
+			WEnd
 			ConsoleWrite(Hex($Option,2) & " ")
 
-			;ConsoleWrite(Hex($Address16,4) & " ")
-			;ConsoleWrite(($Lenght - 11) & " ")
-			For $K = 0 to ($Lenght - 11)    ; Read de Data = lenght - 8 byte (64 bit addr) - 2 byte (16bit addr) - 1 byte (checksum)
-				$Data[$K] = _CommReadByte(100)
-				ConsoleWrite(Hex($Data[$K],2))
-			Next
-			ConsoleWrite(" ")
-			;ConsoleWrite(Hex($Data,($Lenght - 10)*2) & " ")
-
-			$Checksum = _CommReadByte(100)
+			$ByteRead = _CommReadByte(100)  ; Read a byte
+			If $ByteRead == 0x7D Then	; This byte must be escaped the next byte
+				$Checksum = BitXOR(_CommReadByte(100),0x20)
+			Else
+				$Checksum = $ByteRead
+			EndIf
 			ConsoleWrite(Hex($Checksum,2) & @CRLF)
+
+
+			$K = 0
 
 		EndIf
 
