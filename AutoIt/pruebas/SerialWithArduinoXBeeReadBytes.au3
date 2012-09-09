@@ -8,7 +8,7 @@
 	Los datos son enviados desde Arduino usando XBee en API Mode.
 	Se esperan tramas del tipo ZigBee RX Packet. FrameType = 0x90
 
-	Los dato"ConsoleWrite()"
+	Los datos se muestran por la consola formateados segun los campos con "ConsoleWrite()"
 
 #ce ----------------------------------------------------------------------------
 
@@ -75,65 +75,36 @@ Func _main()
 			While _CommGetInputCount() < ($LenghtMSB & $LenghtLSB) ; Wait until all byte are available
 			Wend
 
-			$FrameType = _CommReadByte(100)  	; Receive frame type. Must be 0x90
+			$FrameType = _ReadByte(100)  	; Receive frame type. Must be 0x90
 			ConsoleWrite(Hex($FrameType,2) & " ")
 
 			While $K <= 7	; eight first byte for the 64 source address
-				$ByteRead = _CommReadByte(100)  ; Read a byte
-				If $ByteRead == 0x7D Then	; This byte must be escaped the next byte
-					$Address64[$K] = BitXOR(_CommReadByte(100),0x20)
-				Else
-					$Address64[$K] = $ByteRead
-				EndIf
+				$Address64[$K] = _ReadByte(100)  ; Read a byte
 				ConsoleWrite(Hex($Address64[$K],2))
 				$K += 1
 			WEnd
-
 			ConsoleWrite(" ")
 
 			While ($K >= 8 And $K <= 9) ; two byte for the 16 source address
-				$ByteRead = _CommReadByte(100)  ; Read a byte
-				If $ByteRead == 0x7D Then	; This byte must be escaped the next byte
-					$Address16[$K - 8] = BitXOR(_CommReadByte(100),0x20)
-				Else
-					$Address64[$K - 8] = $ByteRead
-				EndIf
+				$Address16[$K - 8] = _ReadByte(100)  ; Read a byte
 				ConsoleWrite(Hex($Address16[$K - 8],2))
 				$K += 1
 			WEnd
-
 			ConsoleWrite(" ")
 
-			$ByteRead = _CommReadByte(100)  ; Read a byte
-			If $ByteRead == 0x7D Then	; This byte must be escaped the next byte
-				$Option = BitXOR(_CommReadByte(100),0x20)
-			Else
-				$Option = $ByteRead
-			EndIf
+			$Option = _ReadByte(100)  ; Read the option byte
 			ConsoleWrite(Hex($Option,2) & " ")
 			$K += 1
 
-
-			While ($K < $Lenght - 1)
-				$ByteRead = _CommReadByte(100)  ; Read a byte
-				If $ByteRead == 0x7D Then	; This byte must be escaped the next byte
-					$Data[$K - 11] = BitXOR(_CommReadByte(100),0x20)
-				Else
-					$Data[$K - 11] = $ByteRead
-				EndIf
+			While ($K < $Lenght - 1)    ; Read the data
+				$Data[$K - 11] = _ReadByte(100)  ; Read a byte
 				ConsoleWrite(Hex($Data[$K - 11],2))
 				$K += 1
 			WEnd
 			ConsoleWrite(Hex($Option,2) & " ")
 
-			$ByteRead = _CommReadByte(100)  ; Read a byte
-			If $ByteRead == 0x7D Then	; This byte must be escaped the next byte
-				$Checksum = BitXOR(_CommReadByte(100),0x20)
-			Else
-				$Checksum = $ByteRead
-			EndIf
+			$Checksum = _ReadByte(100)  ; Read a byte
 			ConsoleWrite(Hex($Checksum,2) & @CRLF)
-
 
 			$K = 0
 
@@ -141,5 +112,23 @@ Func _main()
 
 
 	WEnd
+
+EndFunc
+
+
+#cs --------------------------------------------------------------------------------------------
+	-	Read a byte from default serial port and check if is an API-2 mode escaped byte
+	-	if so, return the correct byte
+	-	if not, return the read byte
+#ce
+Func _ReadByte($wait = 0)
+	Local $ByteRead
+
+	$ByteRead = _CommReadByte($wait)  ; Read a byte
+	If $ByteRead == 0x7D Then	; This byte must be escaped return the next byte xor 0x20
+		Return (BitXOR(_CommReadByte(100),0x20))
+	Else
+		Return $ByteRead
+	EndIf
 
 EndFunc
