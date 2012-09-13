@@ -6,10 +6,12 @@
 
 Opt("mustdeclarevars", 1) ;testing only
 
-Const $LIB_VERSION = 'XBeeAPI.au3 V0.0'
-Global $mgdebug = True
+Const $LIB_VERSION = 'XBeeAPI.au3 V0.0.1'
+Global $debug = True
 #cs
-    Version 0.0		Const and var definition
+    Version 0.0.1	Add Begin and End funtion to initialize the serial port where XBee modem are conected
+					Add _CheckIncomingFrame() and  _CheckRxFrameCheckSum()
+	Version 0.0		Const and var definition
 
     AutoIt Version: 3.3.8.1
     Language:       English
@@ -17,13 +19,18 @@ Global $mgdebug = True
     Description:    Functions for XBee series 2 modem comunication using the API mode
 
     Functions available:
+					_XbeeBegin($port, $baudRate)
+					_XbeeEnd($port)
+					_CheckIncomingFrame()
+					_CheckRxFrameCheckSum()
 
     Author: Antonio Morales
 #ce
 
 ;********* CONST DEFINITION
 
-Const $MAX_FRAME_DATA_SIZE = 80 ; ******** CHANGE THIS VALOR FOR THE REAL ONE. LOOG¿K FOR IN ZibBee SPECIFICATION
+Const $MAX_FRAME_SIZE = 96 ;  74 data + 24 byte for a 0x12 Api command (Verify)
+Const $MAX_DATA_SIZE = 72; 72 	Bytes for maximum for the data to be sent or received
 
 ; Escaped byte definition
 Const $START_BYTE = 0x7E
@@ -73,10 +80,7 @@ Const $COORDINATOR_REALIGNMENT = 5
 Const $COORDINATOR_STARTED = 6
 
 
-;******* GLOBAL VARS DEFINITION
-
-Global $sportSetError = '' ; used for serial comm library
-
+;*********** GLOBAL VARIABLES DEFINITION
 
 Global $apiId
 Global $msbLength
@@ -98,8 +102,11 @@ Global $remoteAddress64[4]
 ;Global $remoteAddressLow
 Global $remoteAddress16[2]
 
-Global $responseFrameData[$MAX_FRAME_DATA_SIZE]
+Global $responseFrameData[$MAX_FRAME_SIZE]
 Global $responseFrameLenght
+
+Global $requestFrameData[$MAX_FRAME_SIZE]
+Global $requestFrameLenght
 
 ; Used in ZigBee Tx Status frame
 Global $transmitRetryCount
@@ -119,7 +126,11 @@ Global $atCommand
 Global $status
 
 
-If ($mgdebug) Then
+; Used in serial comm library
+Global $sportSetError = ''
+
+
+If ($debug) Then
 	ConsoleWrite($LIB_VERSION & @CRLF)
 EndIf
 
@@ -128,7 +139,7 @@ EndIf
 
 ;===============================================================================
 ;
-; Function Name:  	_Xbee_Begin($port, $baudRate)
+; Function Name:  	_XbeeBegin($port, $baudRate)
 ; Description:    	Open a serial conection with the XBee modem conected to the
 ;					COM port $port at $baudRate bits/s. The other parameters
 ;					Necessary to stablish the connection are stablished automatically
@@ -147,7 +158,7 @@ EndIf
 ;                           -32               $Port access denied (in use?)
 ;                           -64               unknown error
 ;===============================================================================
-Func _Xbee_Begin($port, $baudRate)
+Func _XbeeBegin($port, $baudRate)
 
 	Local $DataBits =  8		; Data Bits
 	Local $Parity = "none"		; Parity none
@@ -167,14 +178,14 @@ EndFunc
 
 ;===============================================================================
 ;
-; Function Name:	_Xbee_End($port)
+; Function Name:	_Xbee_End()
 ; Description:    	Close the serial connection with the Xbee modem.
 ;					If several COM ports are open with the CommMG.dll, close the active one
 ; Parameters:
 ; Returns;  		No return value
 ;
 ;===============================================================================
-Func _Xbee_End($port)
+Func _XbeeEnd()
 	_CommClosePort()
 EndFunc
 
@@ -183,9 +194,82 @@ EndFunc
 
 ;===============================================================================
 ;
-; Function Name:
-; Description:
-; Parameters:
-; Returns;  on success -
-;           on error -
+; Function Name:	_CheckIncomingFrame()
+; Description:		Check if is a available frame in the serial incoming buffer.
+;					If yes, verify for a START BYTE and read the entire frame
+; Parameters:		None
+; Returns;  on success - return 1 and the available is read to the  $responseFrameData
+;						 global variable
+;           on error - return 0
 ;===============================================================================
+Func _CheckIncomingFrame()
+	Local $byteRead
+	Local $k = 4
+	Local $lenght
+	Local $timeout = 200
+
+	If _CommGetInputCount() == 0 Then
+		Return 0
+	Else
+		$byteRead = _CommReadByte($timeout)
+		If $byteRead == $START_BYTE Then ; receive the frame
+			$responseFrameData[1] = $byteRead
+			$responseFrameData[2] = _CommReadByte($timeout) ;
+			$responseFrameData[3] = _CommReadByte($timeout) ;
+			$lenght = $responseFrameData[3] ; hight byte alwais be 00
+
+			If $debug Then
+				ConsoleWrite($lenght & @CRLF)
+			EndIf
+
+			For $k=1 To $lenght + 1
+				$responseFrameData[$k+3] = _CommReadByte($timeout)
+			Next
+
+			$responseFrameLenght = $lenght + 4
+			If $debug Then
+				For $k=1 To $lenght+4
+					ConsoleWrite($responseFrameData[$k])
+				Next
+				ConsoleWrite(@CRLF)
+			EndIf
+			Return 1
+
+		EndIf
+
+	EndIf
+	Return 0
+
+EndFunc
+
+;===============================================================================
+;
+; Function Name:	_CheckRxFrameCheckSum()
+; Description:		Check the Checksum byte in the received API frame content in
+;					the $responseFrameData global var.
+;					Must be useb after a "_CheckIncomingFrame() = true" function call
+; Parameters:		None
+; Returns;  on success - return 1 Cheksum byte ok
+;           on error - return 0
+;===============================================================================
+Func _CheckRxFrameCheckSum()
+	Local $k
+	Local $Sum = 0x0
+
+	If $debug Then
+		ConsoleWrite("In CheckSum functrion, Lenght is: " & $responseFrameLenght & @CRLF)
+	EndIf
+
+	For $k=4 to $responseFrameLenght
+		$Sum += "0x"&Hex($responseFrameData[$k],2)
+
+		If $debug Then
+			ConsoleWrite($responseFrameData[$k] & " " & Hex($responseFrameData[$k],2) & " " & $Sum  & " " & Hex(Int($Sum),2) & @CRLF)
+		EndIf
+	Next
+
+	If "0x"&Hex(Int($Sum),2) = 0xFF Then
+		Return 1
+	EndIf
+	Return 0
+EndFunc
