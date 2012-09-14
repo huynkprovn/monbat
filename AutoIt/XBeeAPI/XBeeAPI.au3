@@ -9,20 +9,40 @@ Opt("mustdeclarevars", 1) ;testing only
 Const $LIB_VERSION = 'XBeeAPI.au3 V0.0.1'
 Global $debug = True
 #cs
-    Version 0.0.1	Add Begin and End funtion to initialize the serial port where XBee modem are conected
+    Version 0.1.1	Check received escaped byte
+	Version 0.1.0	Add functions body definition
+	Version 0.0.1	Add Begin and End funtion to initialize the serial port where XBee modem are conected
 					Add _CheckIncomingFrame() and  _CheckRxFrameCheckSum()
 	Version 0.0		Const and var definition
 
     AutoIt Version: 3.3.8.1
     Language:       English
 
-    Description:    Functions for XBee series 2 modem comunication using the API mode
+    Description:    Functions library for XBee series 2 modem comunication using the API mode
 
     Functions available:
 					_XbeeBegin($port, $baudRate)
 					_XbeeEnd($port)
 					_CheckIncomingFrame()
 					_CheckRxFrameCheckSum()
+					_GetApiID(&$frameID)
+
+					_SendATCommand()
+					_SendATCommandQueue()
+					_SendRemoteATCommand()
+					_SendZBData()
+					_SendZBDataExplicit()
+
+					_SendTxFrame()
+
+					_ReadATCommandResponse()
+					_ReadRemoteATCommandResponse()
+					_ReadModemStatusResponse()
+					_ReadZBDataResponse()
+					_ReadZBStatusResponse()
+
+					_SetFrameId()
+					_IsEscaped($byte)
 
     Author: Antonio Morales
 #ce
@@ -204,7 +224,7 @@ EndFunc
 ;===============================================================================
 Func _CheckIncomingFrame()
 	Local $byteRead
-	Local $k = 4
+	Local $k
 	Local $lenght
 	Local $timeout = 200
 
@@ -216,7 +236,11 @@ Func _CheckIncomingFrame()
 			$responseFrameData[1] = $byteRead
 			$responseFrameData[2] = _CommReadByte($timeout) ;
 			$responseFrameData[3] = _CommReadByte($timeout) ;
-			$lenght = $responseFrameData[3] ; hight byte alwais be 00
+			If _IsEscaped($responseFrameData[3]) Then
+				$responseFrameData[3] = "0x"&BitXOR(_CommReadByte($timeout),0x20)
+			EndIf
+
+			$lenght = $responseFrameData[3] ; hight byte always be 00
 
 			If $debug Then
 				ConsoleWrite($lenght & @CRLF)
@@ -224,6 +248,9 @@ Func _CheckIncomingFrame()
 
 			For $k=1 To $lenght + 1
 				$responseFrameData[$k+3] = _CommReadByte($timeout)
+				If _IsEscaped($responseFrameData[$k+3]) Then
+					$responseFrameData[$k+3] = "0x"&Hex(BitXOR(_CommReadByte($timeout),0x20),2)
+				EndIf
 			Next
 
 			$responseFrameLenght = $lenght + 4
@@ -273,3 +300,225 @@ Func _CheckRxFrameCheckSum()
 	EndIf
 	Return 0
 EndFunc
+
+
+;===============================================================================
+;
+; Function Name:?  _GetApiID()
+; Description:?  ?  Return the API ID byte in a API frame previosly received whith
+;
+; Parameters:?  ?  by Val. $frameID - variable to return API ID frame
+; Returns;  on success - return The API frame byte
+;           on error - return 0
+;===============================================================================
+Func _GetApiID()
+
+  If $responseFrameData[1] == 0x7E Then
+    Return $responseFrameData[4]
+  EndIf
+  Return 0
+
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:?  _SendATCommand()
+; Description:	Send an AT command frame to a local Xbee modem conected via serial
+;		port to the PC.
+;		The AT command must previosly be set with the XXXXX function
+;		If the ATcommand contain a value data, the value must previosly
+;		be set with the XXXXX function
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _SendATCommand()
+
+
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:?  _SendATCommandQueue()
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _SendATCommandQueue()
+
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:?  _SendRemoteATCommand()
+; Description:		Equal to _SendATCommand.
+;			The remote Address must be set with the XXXX function.
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _SendRemoteATCommand()
+
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:?
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _SendZBData()
+
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:?
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _SendZBDataExplicit()
+
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:?
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _SendTxFrame()
+  Local $k
+
+  For $k = 1 To $requestFrameLenght
+    _CommSendByte($requestFrameData[$k],100)
+  Next
+EndFunc
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadATCommandResponse()
+
+EndFunc
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadRemoteATCommandResponse()
+
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadModemStatusResponse()
+
+EndFunc
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadZBDataResponse()
+
+EndFunc
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadZBStatusResponse()
+
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _SetFrameId()
+
+
+EndFunc
+
+
+
+;===============================================================================
+;
+; Function Name:	 _IsEscaped($byte)
+; Description:		Check if the received byte is a escaped byte
+;
+; Parameters:
+; Returns;  on success - return 1 (byte is a escaped byte)
+;           on error - return 0
+;===============================================================================
+Func _IsEscaped($byte)
+
+	If ($byte == $START_BYTE Or $byte == $ESCAPE Or $byte == $XON Or $byte == $XOFF) Then
+		If $debug Then
+			ConsoleWrite("escaped byte")
+		EndIf
+		Return 1
+	Else
+		Return 0
+	EndIf
+
+EndFunc
+
+
+
+
