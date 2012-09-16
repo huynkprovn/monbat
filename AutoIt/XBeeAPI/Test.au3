@@ -11,7 +11,7 @@ Dim $apiframe
 
 _XbeeBegin(9, 9600)
 
-_SendATCommand("SL")
+_SendATCommand("ID")
 
 ConsoleWrite($requestFrameLenght & @CRLF)
 For $k = 1 To $requestFrameLenght

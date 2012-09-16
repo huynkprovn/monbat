@@ -6,9 +6,11 @@
 
 Opt("mustdeclarevars", 1) ;testing only
 
-Const $LIB_VERSION = 'XBeeAPI.au3 V0.0.1'
+Const $LIB_VERSION = 'XBeeAPI.au3 V0.2.1'
 Global $debug = True
 #cs
+	Version 0.2.1 	Fix error while sending parameters to set in AT command
+	Version 0.2.0	Add AT command sent functionality with _SendATCommand()funct
 	Version 0.1.1	Check received escaped byte
 	Version 0.1.0	Add functions body definition
 	Version 0.0.1	Add Begin and End funtion to initialize the serial port where XBee modem are conected
@@ -49,7 +51,7 @@ Global $debug = True
 
 ;********* CONST DEFINITION
 
-Const $MAX_FRAME_SIZE = 96 ;  74 data + 24 byte for a 0x12 Api command (Verify)
+Const $MAX_FRAME_SIZE = 20 ;  74 data + 24 byte for a 0x12 Api command (Verify)
 Const $MAX_DATA_SIZE = 72; 72 	Bytes for maximum for the data to be sent or received
 
 ; Escaped byte definition
@@ -154,7 +156,6 @@ Global $sportSetError = ''
 If ($debug) Then
 	ConsoleWrite($LIB_VERSION & @CRLF)
 EndIf
-
 
 
 
@@ -430,7 +431,7 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 					ConsoleWrite($requestFrameData[$k] & @CR)
 				EndIf
 			EndIf
-			$byte += 1
+			$k += 1
 		Next
 	EndIf
 
