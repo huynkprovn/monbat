@@ -157,7 +157,6 @@ EndIf
 
 
 
-_SendATCommand("ID")
 
 ;***************** FUNCTION DEFINITION ******************
 
@@ -343,11 +342,12 @@ EndFunc   ;==>_GetApiID
 ;           on error - return 0
 ;===============================================================================
 Func _SendATCommand($command, $value = 0, $ack = 1)
-	Local $com, $comLenght ; command and command lenght
-	Local $val, $valLenght ; value and value lenght
-	Local $k = 0
-	Local $j ; counters
-	Local $byte
+	Local $com, $comLenght 	; command and command lenght
+	Local $val, $valLenght	; value and value lenght
+	Local $k = 0			; to calculate the real frame lenght
+	Local $j 				; counters
+	Local $byte				; for contain each byte to analize if is a escaped one
+	Local $Checksum	= 0x00	;
 
 	$com = StringSplit($command, "") ; Breaks the input string into an array of characters
 	$comLenght = $com[0]
@@ -373,14 +373,17 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	$k += 1
 
 	$requestFrameData[$k] = $AT_COMMAND_REQUEST
+	$checksum += $AT_COMMAND_REQUEST
 	$k += 1
 
 	If $ack = 0 Then
-		$requestFrameData[$k] = 0x00
+		$byte = 0x00
 	Else
-		$requestFrameData[$k] = 0x01
+		$byte = 0x01
 		;$requestFrameData[$k] = _GetFrameId()
 	EndIf
+	$requestFrameData[$k]=$byte
+	$checksum += $byte
 	$k += 1
 
 	If $debug Then
@@ -389,6 +392,7 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 
 	For $j = 1 To $com[0] ; Set the AT command
 		$byte = "0x" & Hex(Asc($com[$j]), 2)
+		$checksum += $byte
 		If _IsEscaped($byte) Then
 			$requestFrameData[$k] = $ESCAPE
 			$k += 1
@@ -411,6 +415,7 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 
 		For $j = 1 To $val[0] ;Set the AT Command value
 			$byte = "0x" & $val[$j]
+			$checksum += $byte
 			If $debug Then
 				ConsoleWrite($byte & @CR)
 			EndIf
@@ -429,7 +434,13 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 		Next
 	EndIf
 
-	$requestFrameData[$k] = 0x69 ;TODO : set the checksum byte
+	$checksum = 0xFF - $checksum
+
+	If $debug Then
+		ConsoleWrite("Checksum byte is: " & Hex($checksum,2) & @CRLF)
+	EndIf
+
+	$requestFrameData[$k] = $checksum ;TODO : set the checksum byte
 	$requestFrameLenght = $k
 
 	_SendTxFrame()
@@ -606,7 +617,7 @@ Func _IsEscaped($byte)
 
 	If ($byte == $START_BYTE Or $byte == $ESCAPE Or $byte == $XON Or $byte == $XOFF) Then
 		If $debug Then
-			ConsoleWrite("escaped byte")
+			ConsoleWrite("escaped byte" & @CRLF)
 		EndIf
 		Return 1
 	Else
