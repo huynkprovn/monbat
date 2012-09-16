@@ -7,6 +7,31 @@
 Dim $send[98]
 Dim $k
 Dim $lenght = 9
+Dim $apiframe
+
+_XbeeBegin(9, 9600)
+
+_SendATCommand("ID")
+
+ConsoleWrite($requestFrameLenght & @CRLF)
+For $k = 1 To $requestFrameLenght
+	ConsoleWrite(Hex($requestFrameData[$k],2))
+Next
+ConsoleWrite(@CRLF)
+
+#cs
+$requestFrameData[1] = 0x7E    ; ATSH command
+$requestFrameData[2] = 0x00
+$requestFrameData[3] = 0x04
+$requestFrameData[4] = 0x08
+$requestFrameData[5] = 0x01
+$requestFrameData[6] = 0x53
+$requestFrameData[7] = 0x48
+$requestFrameData[8] = 0x5B
+
+$requestFrameLenght = 8
+
+_SendTxFrame()
 
 
 $send[1] = 0x7E
@@ -18,7 +43,6 @@ $send[6] = 0x53
 $send[7] = 0x4C
 $send[8] = 0x57
 
-_XbeeBegin(9, 9600)
 
 For $k = 1 To 8
 	_CommSendByte($send[$k],100)
@@ -26,6 +50,9 @@ For $k = 1 To 8
 Next
 ConsoleWrite(@CRLF)
 Sleep(500)
+#ce
+
+Sleep(200)
 
 If _CheckIncomingFrame() Then
 	ConsoleWrite("API frame received" & @CRLF)
@@ -34,11 +61,15 @@ Else
 EndIf
 _XbeeEnd()
 
-For $k=1 To ($lenght+4)
+For $k=1 To $responseFrameLenght
 	ConsoleWrite(Hex($responseFrameData[$k],2))
 Next
 ConsoleWrite(@CRLF & $responseFrameLenght & @CRLF)
 
+$apiframe = _GetApiID()
+ConsoleWrite( Hex($apiframe,2) & @CRLF)
+
+#cs
 If _CheckRxFrameCheckSum() Then
 	ConsoleWrite("Checksum Correct" & @CRLF)
 Else
@@ -46,3 +77,4 @@ Else
 EndIf
 
 ConsoleWrite(Hex(0x0434,2))
+#ce

@@ -9,42 +9,42 @@ Opt("mustdeclarevars", 1) ;testing only
 Const $LIB_VERSION = 'XBeeAPI.au3 V0.0.1'
 Global $debug = True
 #cs
-    Version 0.1.1	Check received escaped byte
+	Version 0.1.1	Check received escaped byte
 	Version 0.1.0	Add functions body definition
 	Version 0.0.1	Add Begin and End funtion to initialize the serial port where XBee modem are conected
-					Add _CheckIncomingFrame() and  _CheckRxFrameCheckSum()
+	Add _CheckIncomingFrame() and  _CheckRxFrameCheckSum()
 	Version 0.0		Const and var definition
 
-    AutoIt Version: 3.3.8.1
-    Language:       English
+	AutoIt Version: 3.3.8.1
+	Language:       English
 
-    Description:    Functions library for XBee series 2 modem comunication using the API mode
+	Description:    Functions library for XBee series 2 modem comunication using the API mode
 
-    Functions available:
-					_XbeeBegin($port, $baudRate)
-					_XbeeEnd($port)
-					_CheckIncomingFrame()
-					_CheckRxFrameCheckSum()
-					_GetApiID(&$frameID)
+	Functions available:
+	_XbeeBegin($port, $baudRate)
+	_XbeeEnd($port)
+	_CheckIncomingFrame()
+	_CheckRxFrameCheckSum()
+	_GetApiID(&$frameID)
 
-					_SendATCommand()
-					_SendATCommandQueue()
-					_SendRemoteATCommand()
-					_SendZBData()
-					_SendZBDataExplicit()
+	_SendATCommand()
+	_SendATCommandQueue()
+	_SendRemoteATCommand()
+	_SendZBData()
+	_SendZBDataExplicit()
 
-					_SendTxFrame()
+	_SendTxFrame()
 
-					_ReadATCommandResponse()
-					_ReadRemoteATCommandResponse()
-					_ReadModemStatusResponse()
-					_ReadZBDataResponse()
-					_ReadZBStatusResponse()
+	_ReadATCommandResponse()
+	_ReadRemoteATCommandResponse()
+	_ReadModemStatusResponse()
+	_ReadZBDataResponse()
+	_ReadZBStatusResponse()
 
-					_SetFrameId()
-					_IsEscaped($byte)
+	_SetFrameId()
+	_IsEscaped($byte)
 
-    Author: Antonio Morales
+	Author: Antonio Morales
 #ce
 
 ;********* CONST DEFINITION
@@ -64,16 +64,16 @@ Const $AT_COMMAND_QUEUE_REQUEST = 0x09
 Const $REMOTE_AT_REQUEST = 0x17
 Const $ZB_TX_REQUEST = 0x10
 Const $ZB_EXPLICIT_TX_REQUEST = 0x11
-Const $ZB_BINDIND_TABLE_COMMAND = 0x12    ; ******** look for info about this frame
+Const $ZB_BINDIND_TABLE_COMMAND = 0x12 ; ******** look for info about this frame
 Const $AT_RESPONSE = 0x88
 ;Const TX_STATUS_RESPONSE 0x89  ; ******** look for info about this frame
 Const $MODEM_STATUS_RESPONSE = 0x8A
 Const $ZB_TX_STATUS_RESPONSE = 0x8B ; When a TX request is complete, the module sends a TX Status Message. This message will indicate if the packet was transmitted successfully
 Const $ADVANCED_MODEM_STATUS_RESPONSE = 0x8C
-Const $ZB_RX_RESPONSE = 0x90  ; When the modem receive an RF packet, it is sent out the UART using this message type.
+Const $ZB_RX_RESPONSE = 0x90 ; When the modem receive an RF packet, it is sent out the UART using this message type.
 Const $ZB_EXPLICIT_RX_RESPONSE = 0x91 ; When the modem receives a ZigBee FR packet it is sent out the UART using this message type if the EXPLICIT_RECEIVE_OPTION bit is set in AO
 Const $ZB_IO_SAMPLE_RESPONSE = 0x92
-Const $ZB_IO_NODE_IDENTIFIER_RESPONSE = 0x95  ; ******** look for info about this frame
+Const $ZB_IO_NODE_IDENTIFIER_RESPONSE = 0x95 ; ******** look for info about this frame
 Const $AT_COMMAND_RESPONSE = 0x88
 Const $REMOTE_AT_COMMAND_RESPONSE = 0x97
 
@@ -141,6 +141,7 @@ Global $broadcastRadius
 
 ; Used in AT command frame
 Global $atCommand
+Global $atCommandValue
 
 ; Used in RX status frames
 Global $status
@@ -154,6 +155,9 @@ If ($debug) Then
 	ConsoleWrite($LIB_VERSION & @CRLF)
 EndIf
 
+
+
+_SendATCommand("ID")
 
 ;***************** FUNCTION DEFINITION ******************
 
@@ -180,20 +184,20 @@ EndIf
 ;===============================================================================
 Func _XbeeBegin($port, $baudRate)
 
-	Local $DataBits =  8		; Data Bits
-	Local $Parity = "none"		; Parity none
-	Local $Stop = 1				; Stop
-	Local $flow = 2				; Flow NONE
+	Local $DataBits = 8 ; Data Bits
+	Local $Parity = "none" ; Parity none
+	Local $Stop = 1 ; Stop
+	Local $flow = 2 ; Flow NONE
 
 	_CommSetPort($port, $sportSetError, $baudRate, $DataBits, $Parity, $Stop, $flow)
-	if $sportSetError <> '' then
-		MsgBox(0,'Setport error = ',$sportSetError)
+	If $sportSetError <> '' Then
+		MsgBox(0, 'Setport error = ', $sportSetError)
 		Return 0
 	EndIf
 
 	Return 1
 
-EndFunc
+EndFunc   ;==>_XbeeBegin
 
 
 ;===============================================================================
@@ -207,7 +211,7 @@ EndFunc
 ;===============================================================================
 Func _XbeeEnd()
 	_CommClosePort()
-EndFunc
+EndFunc   ;==>_XbeeEnd
 
 
 
@@ -237,7 +241,7 @@ Func _CheckIncomingFrame()
 			$responseFrameData[2] = _CommReadByte($timeout) ;
 			$responseFrameData[3] = _CommReadByte($timeout) ;
 			If _IsEscaped($responseFrameData[3]) Then
-				$responseFrameData[3] = "0x"&BitXOR(_CommReadByte($timeout),0x20)
+				$responseFrameData[3] = "0x" & BitXOR(_CommReadByte($timeout), 0x20)
 			EndIf
 
 			$lenght = $responseFrameData[3] ; hight byte always be 00
@@ -246,16 +250,16 @@ Func _CheckIncomingFrame()
 				ConsoleWrite($lenght & @CRLF)
 			EndIf
 
-			For $k=1 To $lenght + 1
-				$responseFrameData[$k+3] = _CommReadByte($timeout)
-				If _IsEscaped($responseFrameData[$k+3]) Then
-					$responseFrameData[$k+3] = "0x"&Hex(BitXOR(_CommReadByte($timeout),0x20),2)
+			For $k = 1 To $lenght + 1
+				$responseFrameData[$k + 3] = _CommReadByte($timeout)
+				If _IsEscaped($responseFrameData[$k + 3]) Then
+					$responseFrameData[$k + 3] = "0x" & Hex(BitXOR(_CommReadByte($timeout), 0x20), 2)
 				EndIf
 			Next
 
 			$responseFrameLenght = $lenght + 4
 			If $debug Then
-				For $k=1 To $lenght+4
+				For $k = 1 To $lenght + 4
 					ConsoleWrite($responseFrameData[$k])
 				Next
 				ConsoleWrite(@CRLF)
@@ -267,7 +271,7 @@ Func _CheckIncomingFrame()
 	EndIf
 	Return 0
 
-EndFunc
+EndFunc   ;==>_CheckIncomingFrame
 
 ;===============================================================================
 ;
@@ -287,19 +291,19 @@ Func _CheckRxFrameCheckSum()
 		ConsoleWrite("In CheckSum functrion, Lenght is: " & $responseFrameLenght & @CRLF)
 	EndIf
 
-	For $k=4 to $responseFrameLenght
-		$Sum += "0x"&Hex($responseFrameData[$k],2)
+	For $k = 4 To $responseFrameLenght
+		$Sum += "0x" & Hex($responseFrameData[$k], 2)
 
 		If $debug Then
-			ConsoleWrite($responseFrameData[$k] & " " & Hex($responseFrameData[$k],2) & " " & $Sum  & " " & Hex(Int($Sum),2) & @CRLF)
+			ConsoleWrite($responseFrameData[$k] & " " & Hex($responseFrameData[$k], 2) & " " & $Sum & " " & Hex(Int($Sum), 2) & @CRLF)
 		EndIf
 	Next
 
-	If "0x"&Hex(Int($Sum),2) = 0xFF Then
+	If "0x" & Hex(Int($Sum), 2) = 0xFF Then
 		Return 1
 	EndIf
 	Return 0
-EndFunc
+EndFunc   ;==>_CheckRxFrameCheckSum
 
 
 ;===============================================================================
@@ -313,12 +317,12 @@ EndFunc
 ;===============================================================================
 Func _GetApiID()
 
-  If $responseFrameData[1] == 0x7E Then
-    Return $responseFrameData[4]
-  EndIf
-  Return 0
+	If $responseFrameData[1] == 0x7E Then
+		Return $responseFrameData[4]
+	EndIf
+	Return 0
 
-EndFunc
+EndFunc   ;==>_GetApiID
 
 
 ;===============================================================================
@@ -330,14 +334,106 @@ EndFunc
 ;		If the ATcommand contain a value data, the value must previosly
 ;		be set with the XXXXX function
 ;
-; Parameters:
+; Parameters: 	$command - The AT command without the AT prefix
+;				$value - (optional) if <> 0 then set the value of the property sent with $command
+;									must be a byte comma separated string
+;				$ack - (optional) if <> 0 a byte frame byte is set to an automatically valor.
+;							else is set to 0 (no at command response is will be given)
 ; Returns;  on success - return 1
 ;           on error - return 0
 ;===============================================================================
-Func _SendATCommand()
+Func _SendATCommand($command, $value = 0, $ack = 1)
+	Local $com, $comLenght ; command and command lenght
+	Local $val, $valLenght ; value and value lenght
+	Local $k = 0
+	Local $j ; counters
+	Local $byte
 
+	$com = StringSplit($command, "") ; Breaks the input string into an array of characters
+	$comLenght = $com[0]
+	$valLenght = 0;
+	If @NumParams > 1 Then
+		$val = StringSplit($value, ",")
+		$valLenght = $val[0]
+	EndIf
 
-EndFunc
+	$k += 1
+	$requestFrameData[$k] = $START_BYTE
+	$k += 1
+	$requestFrameData[$k] = 0x00
+	$k += 1
+	$byte = "0x" & Hex(2 + $comLenght + $valLenght, 2) ; 2 = api byte + frame id
+	If _IsEscaped($byte) Then
+		$requestFrameData[$k] = $ESCAPE
+		$k += 1
+		$requestFrameData[$k] = "0x" & Hex(BitXOR($byte, 0x20), 2)
+	Else
+		$requestFrameData[$k] = $byte
+	EndIf
+	$k += 1
+
+	$requestFrameData[$k] = $AT_COMMAND_REQUEST
+	$k += 1
+
+	If $ack = 0 Then
+		$requestFrameData[$k] = 0x00
+	Else
+		$requestFrameData[$k] = 0x01
+		;$requestFrameData[$k] = _GetFrameId()
+	EndIf
+	$k += 1
+
+	If $debug Then
+		ConsoleWrite("AT command length is:" & $com[0] & @CRLF)
+	EndIf
+
+	For $j = 1 To $com[0] ; Set the AT command
+		$byte = "0x" & Hex(Asc($com[$j]), 2)
+		If _IsEscaped($byte) Then
+			$requestFrameData[$k] = $ESCAPE
+			$k += 1
+			$requestFrameData[$k] = "0x" & BitXOR($byte, 0x20)
+		Else
+			$requestFrameData[$k] = $byte
+		EndIf
+		$k += 1
+	Next
+
+	If @NumParams > 1 Then ; Is a value present?
+
+		If $debug Then
+			ConsoleWrite("AT value length is:" & $val[0] & @CRLF)
+			For $j = 1 To $val[0]
+				ConsoleWrite($val[$j])
+			Next
+			ConsoleWrite(@CRLF)
+		EndIf
+
+		For $j = 1 To $val[0] ;Set the AT Command value
+			$byte = "0x" & $val[$j]
+			If $debug Then
+				ConsoleWrite($byte & @CR)
+			EndIf
+
+			If _IsEscaped($byte) Then
+				$requestFrameData[$k] = $ESCAPE
+				$k += 1
+				$requestFrameData[$k] = "0x" & BitXOR($byte, 0x20)
+			Else
+				$requestFrameData[$k] = $byte
+				If $debug Then
+					ConsoleWrite($requestFrameData[$k] & @CR)
+				EndIf
+			EndIf
+			$byte += 1
+		Next
+	EndIf
+
+	$requestFrameData[$k] = 0x69 ;TODO : set the checksum byte
+	$requestFrameLenght = $k
+
+	_SendTxFrame()
+EndFunc   ;==>_SendATCommand
 
 
 ;===============================================================================
@@ -351,7 +447,7 @@ EndFunc
 ;===============================================================================
 Func _SendATCommandQueue()
 
-EndFunc
+EndFunc   ;==>_SendATCommandQueue
 
 
 ;===============================================================================
@@ -366,7 +462,7 @@ EndFunc
 ;===============================================================================
 Func _SendRemoteATCommand()
 
-EndFunc
+EndFunc   ;==>_SendRemoteATCommand
 
 
 ;===============================================================================
@@ -380,7 +476,7 @@ EndFunc
 ;===============================================================================
 Func _SendZBData()
 
-EndFunc
+EndFunc   ;==>_SendZBData
 
 
 ;===============================================================================
@@ -394,7 +490,7 @@ EndFunc
 ;===============================================================================
 Func _SendZBDataExplicit()
 
-EndFunc
+EndFunc   ;==>_SendZBDataExplicit
 
 
 ;===============================================================================
@@ -407,12 +503,12 @@ EndFunc
 ;           on error - return 0
 ;===============================================================================
 Func _SendTxFrame()
-  Local $k
+	Local $k
 
-  For $k = 1 To $requestFrameLenght
-    _CommSendByte($requestFrameData[$k],100)
-  Next
-EndFunc
+	For $k = 1 To $requestFrameLenght
+		_CommSendByte($requestFrameData[$k], 100)
+	Next
+EndFunc   ;==>_SendTxFrame
 
 ;===============================================================================
 ;
@@ -425,7 +521,7 @@ EndFunc
 ;===============================================================================
 Func _ReadATCommandResponse()
 
-EndFunc
+EndFunc   ;==>_ReadATCommandResponse
 
 ;===============================================================================
 ;
@@ -438,7 +534,7 @@ EndFunc
 ;===============================================================================
 Func _ReadRemoteATCommandResponse()
 
-EndFunc
+EndFunc   ;==>_ReadRemoteATCommandResponse
 
 
 ;===============================================================================
@@ -452,7 +548,7 @@ EndFunc
 ;===============================================================================
 Func _ReadModemStatusResponse()
 
-EndFunc
+EndFunc   ;==>_ReadModemStatusResponse
 
 ;===============================================================================
 ;
@@ -465,7 +561,7 @@ EndFunc
 ;===============================================================================
 Func _ReadZBDataResponse()
 
-EndFunc
+EndFunc   ;==>_ReadZBDataResponse
 
 ;===============================================================================
 ;
@@ -478,7 +574,7 @@ EndFunc
 ;===============================================================================
 Func _ReadZBStatusResponse()
 
-EndFunc
+EndFunc   ;==>_ReadZBStatusResponse
 
 
 ;===============================================================================
@@ -493,7 +589,7 @@ EndFunc
 Func _SetFrameId()
 
 
-EndFunc
+EndFunc   ;==>_SetFrameId
 
 
 
@@ -517,7 +613,7 @@ Func _IsEscaped($byte)
 		Return 0
 	EndIf
 
-EndFunc
+EndFunc   ;==>_IsEscaped
 
 
 
