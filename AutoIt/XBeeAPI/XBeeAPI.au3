@@ -6,9 +6,11 @@
 
 Opt("mustdeclarevars", 1) ;testing only
 
-Const $LIB_VERSION = 'XBeeAPI.au3 V0.2.1'
+Const $LIB_VERSION = 'XBeeAPI.au3 V0.2.3'
 Global $debug = True
 #cs
+	Version 0.2.3 	Fix error while checksum byte was a escaped one.
+	Version 0.2.2	Add secuential frameId funtionality
 	Version 0.2.1 	Fix error while sending parameters to set in AT command
 	Version 0.2.0	Add AT command sent functionality with _SendATCommand()funct
 	Version 0.1.1	Check received escaped byte
@@ -112,7 +114,7 @@ Global $frameLength
 Global $complete
 Global $errorCode
 
-Global $frameId
+Global $frameId = 0x01
 
 Global $address64[4]
 ;Global $addressHight
@@ -157,8 +159,11 @@ If ($debug) Then
 	ConsoleWrite($LIB_VERSION & @CRLF)
 EndIf
 
+Dim $l
 
-
+For $l =1 To 3
+	_SendATCommand("ID")
+Next
 ;***************** FUNCTION DEFINITION ******************
 
 ;===============================================================================
@@ -361,9 +366,9 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	$k += 1
 	$requestFrameData[$k] = $START_BYTE
 	$k += 1
-	$requestFrameData[$k] = 0x00
+	$requestFrameData[$k] = 0x00						; Lenght Hight byte
 	$k += 1
-	$byte = "0x" & Hex(2 + $comLenght + $valLenght, 2) ; 2 = api byte + frame id
+	$byte = "0x" & Hex(2 + $comLenght + $valLenght, 2) ;Lenght Low Byte (2 = api byte + frame id byte)
 	If _IsEscaped($byte) Then
 		$requestFrameData[$k] = $ESCAPE
 		$k += 1
@@ -373,18 +378,23 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	EndIf
 	$k += 1
 
-	$requestFrameData[$k] = $AT_COMMAND_REQUEST
+	$requestFrameData[$k] = $AT_COMMAND_REQUEST			; All byte from this one until the frame end are used in checksum calculation
 	$checksum += $AT_COMMAND_REQUEST
 	$k += 1
 
-	If $ack = 0 Then
+	If $ack = 0 Then				; Generate the FrameID byte
 		$byte = 0x00
 	Else
-		$byte = 0x01
-		;$requestFrameData[$k] = _GetFrameId()
+		$byte = _GetFrameId()
 	EndIf
-	$requestFrameData[$k]=$byte
 	$checksum += $byte
+	If _IsEscaped($byte) Then
+		$requestFrameData[$k] = $ESCAPE
+		$k += 1
+		$requestFrameData[$k] = "0x" & BitXOR($byte, 0x20)
+	Else
+		$requestFrameData[$k] = $byte
+	EndIf
 	$k += 1
 
 	If $debug Then
@@ -436,6 +446,16 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	EndIf
 
 	$checksum = 0xFF - $checksum
+	If _IsEscaped($checksum) Then
+		$requestFrameData[$k] = $ESCAPE
+		$k += 1
+		$requestFrameData[$k] = "0x" & BitXOR($checksum, 0x20)
+	Else
+		$requestFrameData[$k] = $checksum
+		If $debug Then
+			ConsoleWrite($requestFrameData[$k] & @CR)
+		EndIf
+	EndIf
 
 	If $debug Then
 		ConsoleWrite("Checksum byte is: " & Hex($checksum,2) & @CRLF)
@@ -444,7 +464,7 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	$requestFrameData[$k] = $checksum ;TODO : set the checksum byte
 	$requestFrameLenght = $k
 
-	_SendTxFrame()
+	;_SendTxFrame()
 EndFunc   ;==>_SendATCommand
 
 
@@ -603,6 +623,23 @@ Func _SetFrameId()
 
 EndFunc   ;==>_SetFrameId
 
+
+;===============================================================================
+;
+; Function Name:	 _GetFrameID()
+; Description:		Generate a secuencial IdFrame between 0x01 and 0xFF
+; Parameters:
+; Returns;  on success - return a byte containing the frameID
+;           on error - return 0
+;===============================================================================
+Func _GetFrameId()
+	If $apiId = 255 Then
+		$apiId = 1
+	Else
+		$apiId += 1
+	EndIf
+	Return $apiId
+EndFunc
 
 
 ;===============================================================================
