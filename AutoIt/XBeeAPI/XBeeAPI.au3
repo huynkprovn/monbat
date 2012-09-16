@@ -6,9 +6,10 @@
 
 Opt("mustdeclarevars", 1) ;testing only
 
-Const $LIB_VERSION = 'XBeeAPI.au3 V0.2.3'
+Const $LIB_VERSION = 'XBeeAPI.au3 V0.3.0'
 Global $debug = True
 #cs
+	Version 0.3.0	Implements Functions for reading status and data in a ATResponseFrame
 	Version 0.2.3 	Fix error while checksum byte was a escaped one.
 	Version 0.2.2	Add secuential frameId funtionality
 	Version 0.2.1 	Fix error while sending parameters to set in AT command
@@ -29,7 +30,7 @@ Global $debug = True
 	_XbeeEnd($port)
 	_CheckIncomingFrame()
 	_CheckRxFrameCheckSum()
-	_GetApiID(&$frameID)
+	_GetApiID()
 
 	_SendATCommand()
 	_SendATCommandQueue()
@@ -109,7 +110,7 @@ Const $COORDINATOR_STARTED = 6
 Global $apiId
 Global $msbLength
 Global $lsbLength
-Global $checksum
+Global $checksum = 0x00
 Global $frameLength
 Global $complete
 Global $errorCode
@@ -159,7 +160,6 @@ If ($debug) Then
 	ConsoleWrite($LIB_VERSION & @CRLF)
 EndIf
 
-Dim $l
 
 ;***************** FUNCTION DEFINITION ******************
 
@@ -461,7 +461,7 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	$requestFrameData[$k] = $checksum ;TODO : set the checksum byte
 	$requestFrameLenght = $k
 
-	;_SendTxFrame()
+	_SendTxFrame()
 EndFunc   ;==>_SendATCommand
 
 
@@ -606,6 +606,59 @@ Func _ReadZBStatusResponse()
 EndFunc   ;==>_ReadZBStatusResponse
 
 
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadFrameId()
+
+
+EndFunc   ;==>_ReadFrameId
+
+
+;===============================================================================
+;
+; Function Name:	_ReadATCommandResponseStatus()
+; Description:		Return the status byte in a RXAtCommandResponse previously checked
+;					With the _GetApiId function equal to 0x88
+;
+; Parameters:		None
+; Returns;  on success - return the status byte
+;           on error - return 0
+;===============================================================================
+Func _ReadATCommandResponseStatus()
+	Return $responseFrameData[8]
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadATCommandResponseValue()
+	Local $k
+	Local $value = ""
+
+	For $k = 9 To ($responseFrameLenght - 1)
+		$value &= Hex($responseFrameData[$k],2)
+	Next
+
+	Return $value
+EndFunc
+
+
+
 ;===============================================================================
 ;
 ; Function Name:
@@ -636,7 +689,9 @@ Func _GetFrameId()
 		$apiId += 1
 	EndIf
 	Return $apiId
-EndFunc
+EndFunc   ;==>_GetFrameId
+
+
 
 
 ;===============================================================================

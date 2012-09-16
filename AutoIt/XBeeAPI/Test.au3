@@ -11,13 +11,7 @@ Dim $apiframe
 
 _XbeeBegin(9, 9600)
 
-_SendATCommand("ID")
 
-ConsoleWrite($requestFrameLenght & @CRLF)
-For $k = 1 To $requestFrameLenght
-	ConsoleWrite(Hex($requestFrameData[$k],2))
-Next
-ConsoleWrite(@CRLF)
 
 #cs
 $requestFrameData[1] = 0x7E    ; ATSH command
@@ -52,15 +46,30 @@ ConsoleWrite(@CRLF)
 Sleep(500)
 #ce
 
+
+_SendATCommand("SH")
+
 Sleep(200)
+
 
 If _CheckIncomingFrame() Then
 	ConsoleWrite("API frame received" & @CRLF)
 Else
 	ConsoleWrite("Don't API frame received" & @CRLF)
 EndIf
+
+For $k=1 To $responseFrameLenght
+	ConsoleWrite(Hex($responseFrameData[$k],2))
+Next
+ConsoleWrite(@CRLF)
+
+If	_GetApiID() = $AT_RESPONSE Then
+	ConsoleWrite(_ReadATCommandResponseValue())
+EndIf
+
 _XbeeEnd()
 
+#cs
 For $k=1 To $responseFrameLenght
 	ConsoleWrite(Hex($responseFrameData[$k],2))
 Next
@@ -69,7 +78,7 @@ ConsoleWrite(@CRLF & $responseFrameLenght & @CRLF)
 $apiframe = _GetApiID()
 ConsoleWrite( Hex($apiframe,2) & @CRLF)
 
-#cs
+
 If _CheckRxFrameCheckSum() Then
 	ConsoleWrite("Checksum Correct" & @CRLF)
 Else
