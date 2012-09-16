@@ -9,6 +9,7 @@ Opt("mustdeclarevars", 1) ;testing only
 Const $LIB_VERSION = 'XBeeAPI.au3 V0.4.0'
 Global $debug = True
 #cs
+	Version 0.5.0	Add remote request data and remote AT command send functions
 	Version 0.4.0	Escaped byte detection while sending each byte no in frame generation function.
 					Created a function to calculate the sending checksum byte
 	Version 0.3.0	Implements Functions for reading status and data in a ATResponseFrame
@@ -123,12 +124,12 @@ Global $errorCode
 
 Global $frameId = 0x01
 
-Global $address64[4]
+Global $address64[8]
 ;Global $addressHight
 ;Global $addressLow
 Global $address16[2]
 
-Global $remoteAddress64[4]
+Global $remoteAddress64[8]
 ;Global $remoteAddressHight
 ;Global $remoteAddressLow
 Global $remoteAddress16[2]
@@ -145,14 +146,16 @@ Global $deliveryStatus
 Global $discoveryStatus
 
 ; Used in ZigBee Receive packect frame
-Global $option
+Global $option = 0x00
 
 ; Used in ZigBee Transmit packect frame
-Global $broadcastRadius
+Global $broadcastRadius = 0x00
 
 ; Used in AT command frame
 Global $atCommand
 Global $atCommandValue
+; Used in AT Remote command frame
+Global $ATOption = 0x02
 
 ; Used in RX status frames
 Global $status
@@ -327,15 +330,8 @@ Func _GenerateCheckSum($lenght)
 	Local $k
 	Local $checksum = 0x00
 
-	If $debug Then
-		ConsoleWrite("longitud de la trama = " & $lenght & @CRLF)
-	EndIf
-
 	For $k = 4 to $lenght
 		$checksum += $requestFrameData[$k]
-		If $debug Then
-			ConsoleWrite($requestFrameData[$k] & " " & $checksum & " " & Hex($checksum,2) & @CRLF)
-		EndIf
 	Next
 
 	Return (0xFF - $checksum)
@@ -400,7 +396,7 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	$requestFrameData[$k] = "0x" & Hex(2 + $comLenght + $valLenght, 2) ;Lenght Low Byte (2 = api byte + frame id byte)
 	$k += 1
 
-	$requestFrameData[$k] = $AT_COMMAND_REQUEST			; All byte from this one until the frame end are used in checksum calculation
+	$requestFrameData[$k] = $AT_COMMAND_REQUEST			; Set the API FRAME byte
 	$k += 1
 
 	If $ack = 0 Then				; Generate the FrameID byte
@@ -470,8 +466,83 @@ EndFunc   ;==>_SendATCommandQueue
 ; Returns;  on success - return 1
 ;           on error - return 0
 ;===============================================================================
-Func _SendRemoteATCommand()
+Func _SendRemoteATCommand($command, $value = 0, $ack = 1)
+	Local $com, $comLenght 	; command and command lenght
+	Local $val, $valLenght	; value and value lenght
+	Local $k = 0			; to calculate the real frame lenght
+	Local $j 				; counters
 
+	$com = StringSplit($command, "") ; Breaks the input string into an array of characters
+	$comLenght = $com[0]
+	$valLenght = 0;
+	If @NumParams > 1 Then
+		$val = StringSplit($value, ",")
+		$valLenght = $val[0]
+	EndIf
+
+	$k += 1
+	$requestFrameData[$k] = $START_BYTE
+	$k += 1
+	$requestFrameData[$k] = 0x00						; Lenght Hight byte
+	$k += 1
+	$requestFrameData[$k] = "0x" & Hex(13 + $comLenght + $valLenght, 2) ;Lenght Low Byte (13 = api byte + frame id byte)
+	$k += 1
+
+	$requestFrameData[$k] = $REMOTE_AT_REQUEST			; Set the API FRAME byte
+	$k += 1
+
+	If $ack = 0 Then				; Generate the FrameID byte
+		$requestFrameData[$k] = 0x00
+	Else
+		$requestFrameData[$k] = _GetFrameId()
+	EndIf
+	$k += 1
+
+	For $j = 0 To 7 								; Set the Destination 64bit address
+		$requestFrameData[$k] = $remoteAddress64[$j]
+		$k += 1
+	Next
+
+	$requestFrameData[$k] = $remoteAddress16[0]     ; Set the Destination 16bit address
+	$k += 1
+	$requestFrameData[$k] = $remoteAddress16[1]
+	$k += 1
+
+	$requestFrameData[$k] = $ATOption
+	$k += 1
+
+	If $debug Then
+		ConsoleWrite("AT command length is:" & $com[0] & @CRLF)
+	EndIf
+
+	For $j = 1 To $com[0] ; Set the AT command
+		$requestFrameData[$k] =  "0x" & Hex(Asc($com[$j]), 2)
+		$k += 1
+	Next
+
+	If @NumParams > 1 Then ; Is a value present?
+		If $debug Then
+			ConsoleWrite("AT value length is:" & $val[0] & @CRLF)
+			For $j = 1 To $val[0]
+				ConsoleWrite($val[$j])
+			Next
+			ConsoleWrite(@CRLF)
+		EndIf
+
+		For $j = 1 To $val[0] ;Set the AT Command value
+
+			$requestFrameData[$k] = "0x" & $val[$j]
+			If $debug Then
+				ConsoleWrite($requestFrameData[$k] & @CR)
+			EndIf
+			$k += 1
+		Next
+	EndIf
+
+	$requestFrameData[$k] = _GenerateCheckSum($k-1)
+	$requestFrameLenght = $k
+
+	_SendTxFrame()
 EndFunc   ;==>_SendRemoteATCommand
 
 
@@ -484,7 +555,58 @@ EndFunc   ;==>_SendRemoteATCommand
 ; Returns;  on success - return 1
 ;           on error - return 0
 ;===============================================================================
-Func _SendZBData()
+Func _SendZBData($data, $ack = 1)
+	Local $val, $valLenght	; value and value lenght
+	Local $k = 0
+	Local $j = 0
+
+	$val = StringSplit($data, ",") ; Breaks the input string into an array of characters
+	$valLenght = $val[0]
+
+	$k += 1
+	$requestFrameData[$k] = $START_BYTE
+	$k += 1
+	$requestFrameData[$k] = 0x00						; Lenght Hight byte
+	$k += 1
+	$requestFrameData[$k] = "0x" & Hex(14 + $valLenght, 2) ;Lenght Low Byte (14 = api byte + frame id byte + 64bit + 16bit + BrRadious + optipn)
+	$k += 1
+
+	$requestFrameData[$k] = $ZB_TX_REQUEST			; Set the API FRAME byte
+	$k += 1
+
+	If $ack = 0 Then								; Generate the FrameID byte
+		$requestFrameData[$k] = 0x00
+	Else
+		$requestFrameData[$k] = _GetFrameId()
+	EndIf
+	$k += 1
+
+	For $j = 0 To 7 								; Set the Destination 64bit address
+		$requestFrameData[$k] = $remoteAddress64[$j]
+		$k += 1
+	Next
+
+	$requestFrameData[$k] = $remoteAddress16[0]     ; Set the Destination 16bit address
+	$k += 1
+	$requestFrameData[$k] = $remoteAddress16[1]
+	$k += 1
+
+	$requestFrameData[$k] = $broadcastRadius		; Set the Broadcast Radius byte
+	$k += 1
+
+	$requestFrameData[$k] = $option					; Set the Option byte
+	$k += 1
+
+	For $j = 1 to $valLenght
+		$requestFrameData[$k] = "0x" & $val[$j]
+		$k += 1
+	Next
+
+	$requestFrameData[$k] = _GenerateCheckSum($k-1)
+	$requestFrameLenght = $k
+
+	_SendTxFrame()
+
 
 EndFunc   ;==>_SendZBData
 

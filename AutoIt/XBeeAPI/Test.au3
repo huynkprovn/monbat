@@ -11,79 +11,62 @@ Dim $apiframe
 
 _XbeeBegin(9, 9600)
 
-
-
 #cs
-$requestFrameData[1] = 0x7E    ; ATSH command
-$requestFrameData[2] = 0x00
-$requestFrameData[3] = 0x04
-$requestFrameData[4] = 0x08
-$requestFrameData[5] = 0x01
-$requestFrameData[6] = 0x53
-$requestFrameData[7] = 0x48
-$requestFrameData[8] = 0x5B
-
-$requestFrameLenght = 8
-
-_SendTxFrame()
-
-
-$send[1] = 0x7E
-$send[2] = 0x00
-$send[3] = 0x04
-$send[4] = 0x08
-$send[5] = 0x01
-$send[6] = 0x53
-$send[7] = 0x4C
-$send[8] = 0x57
-
-
-For $k = 1 To 8
-	_CommSendByte($send[$k],100)
-	ConsoleWrite(Hex($send[$k],2))
-Next
-ConsoleWrite(@CRLF)
-Sleep(500)
+$remoteAddress64[0] = 0x00
+$remoteAddress64[1] = 0x00
+$remoteAddress64[2] = 0x00
+$remoteAddress64[3] = 0x00
+$remoteAddress64[4] = 0x00
+$remoteAddress64[5] = 0x00
+$remoteAddress64[6] = 0xFF
+$remoteAddress64[7] = 0xFF
 #ce
 
+$remoteAddress64[0] = 0x00
+$remoteAddress64[1] = 0x13
+$remoteAddress64[2] = 0xA2
+$remoteAddress64[3] = 0x00
+$remoteAddress64[4] = 0x40
+$remoteAddress64[5] = 0x86
+$remoteAddress64[6] = 0xBF
+$remoteAddress64[7] = 0x1A
 
-_SendATCommand("SH")
+
+$remoteAddress64[0] = 0xFF
+$remoteAddress64[1] = 0xFE
+
+
+_SendATCommand("SL")
+;_SendZBData("07,D0")
 
 Sleep(200)
 
-
-If _CheckIncomingFrame() Then
+While _CheckIncomingFrame()
 	ConsoleWrite("API frame received" & @CRLF)
-Else
-	ConsoleWrite("Don't API frame received" & @CRLF)
-EndIf
-
-For $k=1 To $responseFrameLenght
-	ConsoleWrite(Hex($responseFrameData[$k],2))
-Next
-ConsoleWrite(@CRLF)
-
-If	_GetApiID() = $AT_RESPONSE Then
-	ConsoleWrite(_ReadATCommandResponseValue())
-EndIf
-
-_XbeeEnd()
-
-#cs
-For $k=1 To $responseFrameLenght
-	ConsoleWrite(Hex($responseFrameData[$k],2))
-Next
-ConsoleWrite(@CRLF & $responseFrameLenght & @CRLF)
-
-$apiframe = _GetApiID()
-ConsoleWrite( Hex($apiframe,2) & @CRLF)
 
 
-If _CheckRxFrameCheckSum() Then
-	ConsoleWrite("Checksum Correct" & @CRLF)
-Else
-	ConsoleWrite("Checksum Incorrect" & @CRLF)
-EndIf
+	For $k=1 To $responseFrameLenght
+		ConsoleWrite(Hex($responseFrameData[$k],2))
+	Next
+	ConsoleWrite(@CRLF)
+	Sleep(100)
+WEnd
 
-ConsoleWrite(Hex(0x0434,2))
-#ce
+ConsoleWrite("Don't API frame received" & @CRLF)
+
+_SendRemoteATCommand("ID")
+
+Sleep(200)
+
+While _CheckIncomingFrame()
+	ConsoleWrite("API frame received" & @CRLF)
+
+
+	For $k=1 To $responseFrameLenght
+		ConsoleWrite(Hex($responseFrameData[$k],2))
+	Next
+	ConsoleWrite(@CRLF)
+	Sleep(100)
+WEnd
+
+ConsoleWrite("Don't API frame received" & @CRLF)
