@@ -6,9 +6,11 @@
 
 Opt("mustdeclarevars", 1) ;testing only
 
-Const $LIB_VERSION = 'XBeeAPI.au3 V0.3.0'
+Const $LIB_VERSION = 'XBeeAPI.au3 V0.4.0'
 Global $debug = True
 #cs
+	Version 0.4.0	Escaped byte detection while sending each byte no in frame generation function.
+					Created a function to calculate the sending checksum byte
 	Version 0.3.0	Implements Functions for reading status and data in a ATResponseFrame
 	Version 0.2.3 	Fix error while checksum byte was a escaped one.
 	Version 0.2.2	Add secuential frameId funtionality
@@ -30,6 +32,7 @@ Global $debug = True
 	_XbeeEnd($port)
 	_CheckIncomingFrame()
 	_CheckRxFrameCheckSum()
+	_GenerateCheckSum()
 	_GetApiID()
 
 	_SendATCommand()
@@ -41,6 +44,9 @@ Global $debug = True
 	_SendTxFrame()
 
 	_ReadATCommandResponse()
+	_ReadATCommandResponseStatus()
+	_ReadATCommandResponseValue()
+
 	_ReadRemoteATCommandResponse()
 	_ReadModemStatusResponse()
 	_ReadZBDataResponse()
@@ -54,8 +60,8 @@ Global $debug = True
 
 ;********* CONST DEFINITION
 
-Const $MAX_FRAME_SIZE = 20 ;  74 data + 24 byte for a 0x12 Api command (Verify)
-Const $MAX_DATA_SIZE = 72; 72 	Bytes for maximum for the data to be sent or received
+Const $MAX_FRAME_SIZE = 96 ;  72 data + 24 byte for a 0x12 Api command (Verify)
+Const $MAX_DATA_SIZE = 74; 72 	Bytes for maximum for the data to be sent or received
 
 ; Escaped byte definition
 Const $START_BYTE = 0x7E
@@ -216,8 +222,6 @@ Func _XbeeEnd()
 EndFunc   ;==>_XbeeEnd
 
 
-
-
 ;===============================================================================
 ;
 ; Function Name:	_CheckIncomingFrame()
@@ -275,6 +279,7 @@ Func _CheckIncomingFrame()
 
 EndFunc   ;==>_CheckIncomingFrame
 
+
 ;===============================================================================
 ;
 ; Function Name:	_CheckRxFrameCheckSum()
@@ -310,10 +315,39 @@ EndFunc   ;==>_CheckRxFrameCheckSum
 
 ;===============================================================================
 ;
-; Function Name:?  _GetApiID()
-; Description:?  ?  Return the API ID byte in a API frame previosly received whith
+; Function Name:	 _GenerateCheckSum($lenght)
+; Description:		Calculate the checksum byte of a API frame contained in the
+;					the output frame variable and lenght $lenght
 ;
-; Parameters:?  ?  by Val. $frameID - variable to return API ID frame
+; Parameters:		$lenght - Lenght of the frame to calculete checksum
+; Returns;  on success - return the calculated checksum byte
+;           on error - return 0
+;===============================================================================
+Func _GenerateCheckSum($lenght)
+	Local $k
+	Local $checksum = 0x00
+
+	If $debug Then
+		ConsoleWrite("longitud de la trama = " & $lenght & @CRLF)
+	EndIf
+
+	For $k = 4 to $lenght
+		$checksum += $requestFrameData[$k]
+		If $debug Then
+			ConsoleWrite($requestFrameData[$k] & " " & $checksum & " " & Hex($checksum,2) & @CRLF)
+		EndIf
+	Next
+
+	Return (0xFF - $checksum)
+EndFunc   ;==>_GenerateCheckSum
+
+
+;===============================================================================
+;
+; Function Name:	_GetApiID()
+; Description:		Return the API ID byte in a API frame previosly received whith
+;
+; Parameters:
 ; Returns;  on success - return The API frame byte
 ;           on error - return 0
 ;===============================================================================
@@ -349,8 +383,6 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	Local $val, $valLenght	; value and value lenght
 	Local $k = 0			; to calculate the real frame lenght
 	Local $j 				; counters
-	Local $byte				; for contain each byte to analize if is a escaped one
-	Local $Checksum	= 0x00	;
 
 	$com = StringSplit($command, "") ; Breaks the input string into an array of characters
 	$comLenght = $com[0]
@@ -365,32 +397,16 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	$k += 1
 	$requestFrameData[$k] = 0x00						; Lenght Hight byte
 	$k += 1
-	$byte = "0x" & Hex(2 + $comLenght + $valLenght, 2) ;Lenght Low Byte (2 = api byte + frame id byte)
-	If _IsEscaped($byte) Then
-		$requestFrameData[$k] = $ESCAPE
-		$k += 1
-		$requestFrameData[$k] = "0x" & Hex(BitXOR($byte, 0x20), 2)
-	Else
-		$requestFrameData[$k] = $byte
-	EndIf
+	$requestFrameData[$k] = "0x" & Hex(2 + $comLenght + $valLenght, 2) ;Lenght Low Byte (2 = api byte + frame id byte)
 	$k += 1
 
 	$requestFrameData[$k] = $AT_COMMAND_REQUEST			; All byte from this one until the frame end are used in checksum calculation
-	$checksum += $AT_COMMAND_REQUEST
 	$k += 1
 
 	If $ack = 0 Then				; Generate the FrameID byte
-		$byte = 0x00
+		$requestFrameData[$k] = 0x00
 	Else
-		$byte = _GetFrameId()
-	EndIf
-	$checksum += $byte
-	If _IsEscaped($byte) Then
-		$requestFrameData[$k] = $ESCAPE
-		$k += 1
-		$requestFrameData[$k] = "0x" & BitXOR($byte, 0x20)
-	Else
-		$requestFrameData[$k] = $byte
+		$requestFrameData[$k] = _GetFrameId()
 	EndIf
 	$k += 1
 
@@ -399,20 +415,11 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	EndIf
 
 	For $j = 1 To $com[0] ; Set the AT command
-		$byte = "0x" & Hex(Asc($com[$j]), 2)
-		$checksum += $byte
-		If _IsEscaped($byte) Then
-			$requestFrameData[$k] = $ESCAPE
-			$k += 1
-			$requestFrameData[$k] = "0x" & BitXOR($byte, 0x20)
-		Else
-			$requestFrameData[$k] = $byte
-		EndIf
+		$requestFrameData[$k] =  "0x" & Hex(Asc($com[$j]), 2)
 		$k += 1
 	Next
 
 	If @NumParams > 1 Then ; Is a value present?
-
 		If $debug Then
 			ConsoleWrite("AT value length is:" & $val[0] & @CRLF)
 			For $j = 1 To $val[0]
@@ -422,46 +429,20 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 		EndIf
 
 		For $j = 1 To $val[0] ;Set the AT Command value
-			$byte = "0x" & $val[$j]
-			$checksum += $byte
-			If $debug Then
-				ConsoleWrite($byte & @CR)
-			EndIf
 
-			If _IsEscaped($byte) Then
-				$requestFrameData[$k] = $ESCAPE
-				$k += 1
-				$requestFrameData[$k] = "0x" & BitXOR($byte, 0x20)
-			Else
-				$requestFrameData[$k] = $byte
-				If $debug Then
-					ConsoleWrite($requestFrameData[$k] & @CR)
-				EndIf
+			$requestFrameData[$k] = "0x" & $val[$j]
+			If $debug Then
+				ConsoleWrite($requestFrameData[$k] & @CR)
 			EndIf
 			$k += 1
 		Next
 	EndIf
 
-	$checksum = 0xFF - $checksum
-	If _IsEscaped($checksum) Then
-		$requestFrameData[$k] = $ESCAPE
-		$k += 1
-		$requestFrameData[$k] = "0x" & BitXOR($checksum, 0x20)
-	Else
-		$requestFrameData[$k] = $checksum
-		If $debug Then
-			ConsoleWrite($requestFrameData[$k] & @CR)
-		EndIf
-	EndIf
-
-	If $debug Then
-		ConsoleWrite("Checksum byte is: " & Hex($checksum,2) & @CRLF)
-	EndIf
-
-	$requestFrameData[$k] = $checksum ;TODO : set the checksum byte
+	$requestFrameData[$k] = _GenerateCheckSum($k-1)
 	$requestFrameLenght = $k
 
 	_SendTxFrame()
+
 EndFunc   ;==>_SendATCommand
 
 
@@ -524,8 +505,9 @@ EndFunc   ;==>_SendZBDataExplicit
 
 ;===============================================================================
 ;
-; Function Name:?
-; Description:
+; Function Name:	 _SendTxFrame()
+; Description:		Send the previos calculated API frame set by each Send function
+;					Check for escaped bytes before sending the bytes
 ;
 ; Parameters:
 ; Returns;  on success - return 1
@@ -533,11 +515,19 @@ EndFunc   ;==>_SendZBDataExplicit
 ;===============================================================================
 Func _SendTxFrame()
 	Local $k
+	Local $timeout = 100
 
-	For $k = 1 To $requestFrameLenght
-		_CommSendByte($requestFrameData[$k], 100)
+	_CommSendByte($requestFrameData[1],$timeout)
+	For $k = 2 To $requestFrameLenght
+		If _IsEscaped($requestFrameData[$k]) Then
+			_CommSendByte(0x7D,$timeout)
+			_CommSendByte("0x" & BitXOR($requestFrameData[$k], 0x20))
+		Else
+			_CommSendByte($requestFrameData[$k], 100)
+		EndIf
 	Next
 EndFunc   ;==>_SendTxFrame
+
 
 ;===============================================================================
 ;
@@ -551,6 +541,7 @@ EndFunc   ;==>_SendTxFrame
 Func _ReadATCommandResponse()
 
 EndFunc   ;==>_ReadATCommandResponse
+
 
 ;===============================================================================
 ;
@@ -579,6 +570,7 @@ Func _ReadModemStatusResponse()
 
 EndFunc   ;==>_ReadModemStatusResponse
 
+
 ;===============================================================================
 ;
 ; Function Name:
@@ -592,6 +584,7 @@ Func _ReadZBDataResponse()
 
 EndFunc   ;==>_ReadZBDataResponse
 
+
 ;===============================================================================
 ;
 ; Function Name:
@@ -604,7 +597,6 @@ EndFunc   ;==>_ReadZBDataResponse
 Func _ReadZBStatusResponse()
 
 EndFunc   ;==>_ReadZBStatusResponse
-
 
 
 ;===============================================================================
@@ -658,7 +650,6 @@ Func _ReadATCommandResponseValue()
 EndFunc
 
 
-
 ;===============================================================================
 ;
 ; Function Name:
@@ -690,8 +681,6 @@ Func _GetFrameId()
 	EndIf
 	Return $apiId
 EndFunc   ;==>_GetFrameId
-
-
 
 
 ;===============================================================================
