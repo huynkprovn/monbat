@@ -6,9 +6,11 @@
 
 Opt("mustdeclarevars", 1) ;testing only
 
-Const $LIB_VERSION = 'XBeeAPI.au3 V0.4.0'
+Const $LIB_VERSION = 'XBeeAPI.au3 V0.6.0'
 Global $debug = True
 #cs
+	Version 0.6.0	Add function for reading data in RemoteAtCommandResponse frames
+	Version 0.5.1	Add function to set 64bits and 16bits remote address
 	Version 0.5.0	Add remote request data and remote AT command send functions
 	Version 0.4.0	Escaped byte detection while sending each byte no in frame generation function.
 					Created a function to calculate the sending checksum byte
@@ -49,6 +51,11 @@ Global $debug = True
 	_ReadATCommandResponseValue()
 
 	_ReadRemoteATCommandResponse()
+	_ReadRemoteATCommandResponseStatus()
+	_ReadRemoteATCommandResponseValue()
+	_ReadResponseAddress64()
+	_ReadResponseAddress16()
+
 	_ReadModemStatusResponse()
 	_ReadZBDataResponse()
 	_ReadZBStatusResponse()
@@ -783,6 +790,84 @@ Func _ReadATCommandResponseValue()
 	Local $value = ""
 
 	For $k = 9 To ($responseFrameLenght - 1)
+		$value &= Hex($responseFrameData[$k],2)
+	Next
+
+	Return $value
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:	_ReadRemoteATCommandResponseStatus()
+; Description:		Return the status byte in a RXRemoteAtCommandResponse previously checked
+;					With the _GetApiId function equal to 0x97
+;
+; Parameters:		None
+; Returns;  on success - return the status byte
+;           on error - return 0
+;===============================================================================
+Func _ReadRemoteATCommandResponseStatus()
+	Return $responseFrameData[18]
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadRemoteATCommandResponseValue()
+	Local $k
+	Local $value = ""
+
+	For $k = 19 To ($responseFrameLenght - 1)
+		$value &= Hex($responseFrameData[$k],2)
+	Next
+
+	Return $value
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadResponseAddress64()
+	Local $k
+	Local $value = ""
+
+	For $k = 6 To 13
+		$value &= Hex($responseFrameData[$k],2)
+	Next
+
+	Return $value
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadResponseAddress16()
+	Local $k
+	Local $value = ""
+
+	For $k = 14 To 15
 		$value &= Hex($responseFrameData[$k],2)
 	Next
 
