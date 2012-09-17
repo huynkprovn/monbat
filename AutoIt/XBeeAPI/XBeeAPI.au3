@@ -61,7 +61,7 @@ Global $debug = True
 
 ;********* CONST DEFINITION
 
-Const $MAX_FRAME_SIZE = 96 ;  72 data + 24 byte for a 0x12 Api command (Verify)
+Const $MAX_FRAME_SIZE = 30;  72 data + 24 byte for a 0x12 Api command (Verify)
 Const $MAX_DATA_SIZE = 74; 72 	Bytes for maximum for the data to be sent or received
 
 ; Escaped byte definition
@@ -170,6 +170,12 @@ If ($debug) Then
 EndIf
 
 
+;**** TEST CODE
+
+;****
+
+
+
 ;***************** FUNCTION DEFINITION ******************
 
 ;===============================================================================
@@ -267,12 +273,12 @@ Func _CheckIncomingFrame()
 			Next
 
 			$responseFrameLenght = $lenght + 4
-			If $debug Then
-				For $k = 1 To $lenght + 4
-					ConsoleWrite($responseFrameData[$k])
-				Next
-				ConsoleWrite(@CRLF)
-			EndIf
+			;If $debug Then
+			;	For $k = 1 To $lenght + 4
+			;		ConsoleWrite($responseFrameData[$k])
+			;	Next
+			;	ConsoleWrite(@CRLF)
+			;EndIf
 			Return 1
 
 		EndIf
@@ -304,9 +310,9 @@ Func _CheckRxFrameCheckSum()
 	For $k = 4 To $responseFrameLenght
 		$Sum += "0x" & Hex($responseFrameData[$k], 2)
 
-		If $debug Then
-			ConsoleWrite($responseFrameData[$k] & " " & Hex($responseFrameData[$k], 2) & " " & $Sum & " " & Hex(Int($Sum), 2) & @CRLF)
-		EndIf
+		;If $debug Then
+		;	ConsoleWrite($responseFrameData[$k] & " " & Hex($responseFrameData[$k], 2) & " " & $Sum & " " & Hex(Int($Sum), 2) & @CRLF)
+		;EndIf
 	Next
 
 	If "0x" & Hex(Int($Sum), 2) = 0xFF Then
@@ -427,9 +433,9 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 		For $j = 1 To $val[0] ;Set the AT Command value
 
 			$requestFrameData[$k] = "0x" & $val[$j]
-			If $debug Then
-				ConsoleWrite($requestFrameData[$k] & @CR)
-			EndIf
+			;If $debug Then
+			;	ConsoleWrite($requestFrameData[$k] & @CR)
+			;EndIf
 			$k += 1
 		Next
 	EndIf
@@ -640,12 +646,24 @@ Func _SendTxFrame()
 	Local $timeout = 100
 
 	_CommSendByte($requestFrameData[1],$timeout)
+	If $debug Then
+		ConsoleWrite(Hex($requestFrameData[1],2))
+	EndIf
 	For $k = 2 To $requestFrameLenght
 		If _IsEscaped($requestFrameData[$k]) Then
 			_CommSendByte(0x7D,$timeout)
 			_CommSendByte("0x" & BitXOR($requestFrameData[$k], 0x20))
+
+			If $debug Then
+				ConsoleWrite(Hex(0x7D,2))
+				ConsoleWrite(Hex(BitXOR($requestFrameData[$k],0x20),2))
+			EndIf
 		Else
 			_CommSendByte($requestFrameData[$k], 100)
+			If $debug Then
+				ConsoleWrite(Hex($requestFrameData[$k],2))
+			EndIf
+
 		EndIf
 	Next
 EndFunc   ;==>_SendTxFrame
@@ -828,5 +846,57 @@ Func _IsEscaped($byte)
 EndFunc   ;==>_IsEscaped
 
 
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _SetAddress64($addres)
+
+	Local $addr
+	Local $k
+
+	$addr = StringSplit($addres, ",") ; Breaks the input string into an array of characters
+
+	If $addr[0] > 8 Then
+		Return 0
+	Else
+		For $k = 1 To 8
+			$remoteAddress64[$k-1] = $addr[$k]
+		Next
+	EndIf
+	Return 1
+
+EndFunc   ;==>_SetAddress64
 
 
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _SetAddress16($addres)
+
+	Local $addr
+	Local $k
+
+	$addr = StringSplit($addres, ",") ; Breaks the input string into an array of characters
+
+	If $addr[0] > 2 Then
+		Return 0
+	Else
+		For $k = 1 To 2
+			$remoteAddress16[$k-1] = $addr[$k]
+		Next
+	EndIf
+	Return 1
+
+EndFunc   ;==>_SetAddress16
