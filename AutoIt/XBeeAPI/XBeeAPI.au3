@@ -6,10 +6,11 @@
 
 Opt("mustdeclarevars", 1) ;testing only
 
-Const $LIB_VERSION = 'XBeeAPI.au3 V0.6.0'
-Global $debug = True
+Const $LIB_VERSION = 'XBeeAPI.au3 V0.7.0'
+Global $debug = False
 #cs
-	Version 0.6.0	Add function for reading data in RemoteAtCommandResponse frames
+	Version 0.7.0	Add functions for reading data in statusResponses and DataResponses
+	Version 0.6.0	Add functions for reading data in RemoteAtCommandResponse frames
 	Version 0.5.1	Add function to set 64bits and 16bits remote address
 	Version 0.5.0	Add remote request data and remote AT command send functions
 	Version 0.4.0	Escaped byte detection while sending each byte no in frame generation function.
@@ -53,12 +54,21 @@ Global $debug = True
 	_ReadRemoteATCommandResponse()
 	_ReadRemoteATCommandResponseStatus()
 	_ReadRemoteATCommandResponseValue()
-	_ReadResponseAddress64()
-	_ReadResponseAddress16()
+	_ReadRemoteATCommandResponseAddress64()
+	_ReadRemoteATCommandResponseAddress16()
 
-	_ReadModemStatusResponse()
+	_ReadModemStatus()
+
 	_ReadZBDataResponse()
+	_ReadZBDataResponseOption()
+	_ReadZBDataResponseValue()
+	_ReadZBDataResponseAddress64()
+	_ReadZBDataResponseAddress16()
+
 	_ReadZBStatusResponse()
+	_ReadZBStatusReponseDeliveryStatus()
+	_ReadZBStatusReponseDiscoveryStatus()
+	_ReadZBStatusResponseAddress16()
 
 	_SetFrameId()
 	_IsEscaped($byte)
@@ -706,15 +716,16 @@ EndFunc   ;==>_ReadRemoteATCommandResponse
 
 ;===============================================================================
 ;
-; Function Name:
-; Description:
+; Function Name:	 _ReadModemStatus()
+; Description:		Read the status byte in a ModemStatusResponse previosly
+;					Checked with _GetApiID() = 0x8A
 ;
 ; Parameters:
 ; Returns;  on success - return 1
 ;           on error - return 0
 ;===============================================================================
-Func _ReadModemStatusResponse()
-
+Func _ReadModemStatus()
+	Return $responseFrameData[5]
 EndFunc   ;==>_ReadModemStatusResponse
 
 
@@ -842,7 +853,7 @@ EndFunc
 ; Returns;  on success - return 1
 ;           on error - return 0
 ;===============================================================================
-Func _ReadResponseAddress64()
+Func _ReadRemoteATCommandResponseAddress64()
 	Local $k
 	Local $value = ""
 
@@ -863,11 +874,140 @@ EndFunc
 ; Returns;  on success - return 1
 ;           on error - return 0
 ;===============================================================================
-Func _ReadResponseAddress16()
+Func _ReadRemoteATCommandResponseAddress16()
 	Local $k
 	Local $value = ""
 
 	For $k = 14 To 15
+		$value &= Hex($responseFrameData[$k],2)
+	Next
+
+	Return $value
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:	_ReadZBDataResponseOption()
+; Description:		Return the option byte in a RXZBDataResponse previously checked
+;					With the _GetApiId function equal to 0x90
+;
+; Parameters:		None
+; Returns;  on success - return the status byte
+;           on error - return 0
+;===============================================================================
+Func _ReadZBDataResponseOption()
+	Return $responseFrameData[15]
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadZBDataResponseValue()
+	Local $k
+	Local $value = ""
+
+	For $k = 16 To ($responseFrameLenght - 1)
+		$value &= Hex($responseFrameData[$k],2)
+	Next
+
+	Return $value
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadZBDataResponseAddress64()
+	Local $k
+	Local $value = ""
+
+	For $k = 5 To 12
+		$value &= Hex($responseFrameData[$k],2)
+	Next
+
+	Return $value
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadZBDataResponseAddress16()
+	Local $k
+	Local $value = ""
+
+	For $k = 13 To 14
+		$value &= Hex($responseFrameData[$k],2)
+	Next
+
+	Return $value
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:	_ReadZBStatusReponseDeliveryStatus()
+; Description:		Return the delivery status byte in a ZB TX status Response previously checked
+;					With the _GetApiId function equal to 0x8B
+;
+; Parameters:		None
+; Returns;  on success - return the status byte
+;           on error - return 0
+;===============================================================================
+Func _ReadZBStatusReponseDeliveryStatus()
+	Return $responseFrameData[9]
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:	_ReadZBStatusReponseDiscoveryStatus()
+; Description:		Return the discovery status byte in a ZB TX status Response previously checked
+;					With the _GetApiId function equal to 0x8B
+;
+; Parameters:		None
+; Returns;  on success - return the status byte
+;           on error - return 0
+;===============================================================================
+Func _ReadZBStatusReponseDiscoveryStatus()
+	Return $responseFrameData[10]
+EndFunc
+
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return 1
+;           on error - return 0
+;===============================================================================
+Func _ReadZBStatusReponseAddress16()
+	Local $k
+	Local $value = ""
+
+	For $k = 6 To 7
 		$value &= Hex($responseFrameData[$k],2)
 	Next
 

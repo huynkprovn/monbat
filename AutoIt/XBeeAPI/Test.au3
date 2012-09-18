@@ -5,68 +5,31 @@
 #include <WindowsConstants.au3>
 
 Dim $send[98]
-Dim $k
+Dim $k = 1
 Dim $lenght = 9
 Dim $apiframe
+Dim $ack = False
 
 _XbeeBegin(9, 9600)
-
-#cs
-$remoteAddress64[0] = 0x00
-$remoteAddress64[1] = 0x00
-$remoteAddress64[2] = 0x00
-$remoteAddress64[3] = 0x00
-$remoteAddress64[4] = 0x00
-$remoteAddress64[5] = 0x00
-$remoteAddress64[6] = 0xFF
-$remoteAddress64[7] = 0xFF
-#ce
-
-$remoteAddress64[0] = 0x00
-$remoteAddress64[1] = 0x13
-$remoteAddress64[2] = 0xA2
-$remoteAddress64[3] = 0x00
-$remoteAddress64[4] = 0x40
-$remoteAddress64[5] = 0x86
-$remoteAddress64[6] = 0xBF
-$remoteAddress64[7] = 0x1A
-
-
-$remoteAddress64[0] = 0xFF
-$remoteAddress64[1] = 0xFE
-
-
-_SendATCommand("SL")
-;_SendZBData("07,D0")
-
-Sleep(200)
-
-While _CheckIncomingFrame()
-	ConsoleWrite("API frame received" & @CRLF)
-
-
-	For $k=1 To $responseFrameLenght
-		ConsoleWrite(Hex($responseFrameData[$k],2))
-	Next
-	ConsoleWrite(@CRLF)
-	Sleep(100)
-WEnd
-
-ConsoleWrite("Don't API frame received" & @CRLF)
+_SetAddress64("00,13,A2,00,40,86,BF,1A")
+_SetAddress16("FF,FE")
 
 _SendRemoteATCommand("ID")
 
 Sleep(200)
+$ack = False
+While ($ack Or $k>20)
+	If _CheckIncomingFrame() Then
+		ConsoleWrite("API frame received" & @CRLF)
 
-While _CheckIncomingFrame()
-	ConsoleWrite("API frame received" & @CRLF)
-
-
-	For $k=1 To $responseFrameLenght
-		ConsoleWrite(Hex($responseFrameData[$k],2))
-	Next
-	ConsoleWrite(@CRLF)
-	Sleep(100)
+		If _GetApiID() = $ZB_TX_STATUS_RESPONSE Then
+			ConsoleWrite("DELIVERY STATUS = " & Hex(_ReadZBStatusReponseDeliveryStatus(),2) & @CRLF)
+			$ack = True
+		Else
+			ConsoleWrite("NO STATUS RESPONSE OBTAINED" & @CRLF)
+		EndIf
+	EndIf
+	ConsoleWrite("Don't API frame received" & @CRLF)
+	$k += 1
+	Sleep(1000)
 WEnd
-
-ConsoleWrite("Don't API frame received" & @CRLF)
