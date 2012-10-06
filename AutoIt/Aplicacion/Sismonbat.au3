@@ -5,6 +5,7 @@
 
  Script Function:
 
+ Version: 	0.1		Created main GUI
 #ce ----------------------------------------------------------------------------
 
 
@@ -13,6 +14,7 @@
 #include <array.au3>
 #include <CommMG.au3>
 #include <StaticConstants.au3>
+#include <ProgressConstants.au3>
 #include <GUIConstantsEx.au3>
 #include <WindowsConstants.au3>
 #include <ButtonConstants.au3>
@@ -21,52 +23,128 @@
 ; ******** MAIN ************
 
 
-
-Global $GUIWidth =1200, $GUIHeight = 700
-Global $GUIButtonWith = 40, $GUIButtonHeight = 40
+#cs
+* ***************
+*	MAIN FORM
+* ***************
+#ce
+Global $GUIWidth = @DesktopWidth-20, $GUIHeight = @DesktopHeight-40
+Global $ButtonWith = 40, $ButtonHeight = 40
 Global $GUIWidthSpacer = 20, $GUIHeigthSpacer = 10
 
 Global $myGui ; main GUI handler
 
-Global $filemenu, $editmenu, $helpmenu ; form menu vars
+Global $filemenu, $editmenu, $configmenu, $testmenu, $helpmenu ; form menu vars
 Global $searchbutton, $readbutton, $viewbutton, $savebutton, $printbutton, $exitbutton ; button vars
 Global $histotygraph ; Graph for histoy representation
+Global $status ; to show the operation status
+Global $charge ; to show the status charge of the current battery
+Global $tempalarm, $chargealarm, $levelalarm, $emptyalarm ; to show the alarms produced in the current battery
+Global $tempalarmbutton, $chargealarmbutton, $levelalarmbutton, $emptyalarmbutton ; to show the list of alarms
+Global $voltajecheck, $currentcheck, $levelcheck, $tempcheck ; to manage the data to visualize
+Global $truckmodel, $truckserial, $batterymodel, $batteryserial ; represent the data of actual battery bein analized
 ; Form creation
-$myGui = GUICreate("INTERFAZ", $GUIWidth, $GUIHeight, @DesktopWidth / 4, 20)
-GUISetState() ; Show the main GUI
+$myGui = GUICreate("Traction batteries monitor system", $GUIWidth, $GUIHeight, 0, 0)
+GUISetBkColor(0xf0f0f0)
 
 ; Form menu creation
 $filemenu = GUICtrlCreateMenu("File")
 $editmenu = GUICtrlCreateMenu("Edit")
+$configmenu = GUICtrlCreateMenu("Config")
+$testmenu = GUICtrlCreateMenu("Test")
 $helpmenu = GUICtrlCreateMenu("?")
 
 ; Buttons creation
 Dim $buttonxpos = 0, $buttonypos = 0
-$searchbutton = GUICtrlCreateButton("Batteries",$buttonxpos,$buttonypos,$GUIButtonWith,$GUIButtonHeight,$BS_ICON)
+$searchbutton = GUICtrlCreateButton("Batteries",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
 GUICtrlSetImage(-1, "shell32.dll", -23)
-$buttonxpos += $GUIButtonWith
+$buttonxpos += $ButtonWith
 
-$readbutton = GUICtrlCreateButton("Read Data",$buttonxpos,$buttonypos,$GUIButtonWith,$GUIButtonHeight,$BS_ICON)
+$readbutton = GUICtrlCreateButton("Read Data",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
 GUICtrlSetImage(-1, "shell32.dll", -13)
-$buttonxpos += $GUIButtonWith
+$buttonxpos += $ButtonWith
 
-$viewbutton = GUICtrlCreateButton("View History",$buttonxpos,$buttonypos,$GUIButtonWith,$GUIButtonHeight,$BS_ICON)
+$viewbutton = GUICtrlCreateButton("View History",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
 GUICtrlSetImage(-1, "shell32.dll", -94)
-$buttonxpos += $GUIButtonWith
+$buttonxpos += $ButtonWith
 
-$savebutton = GUICtrlCreateButton("Save History",$buttonxpos,$buttonypos,$GUIButtonWith,$GUIButtonHeight,$BS_ICON)
+$savebutton = GUICtrlCreateButton("Save History",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
 GUICtrlSetImage(-1, "shell32.dll", -9)
-$buttonxpos += $GUIButtonWith
+$buttonxpos += $ButtonWith
 
-$printbutton = GUICtrlCreateButton("Print",$buttonxpos,$buttonypos,$GUIButtonWith,$GUIButtonHeight,$BS_ICON)
+$printbutton = GUICtrlCreateButton("Print",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
 GUICtrlSetImage(-1, "shell32.dll", -137)
-$buttonxpos += $GUIButtonWith
+$buttonxpos += $ButtonWith
 
-$exitbutton = GUICtrlCreateButton("Exit",$buttonxpos,$buttonypos,$GUIButtonWith,$GUIButtonHeight,$BS_ICON)
+$exitbutton = GUICtrlCreateButton("Exit",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
 GUICtrlSetImage(-1, "shell32.dll", -28)
 
-; History graphic creation
-$histotygraph = GUICtrlCreateGraphic(0,$GUIButtonHeight,$GUIWidth/2,$GUIHeight-$GUIButtonHeight, $SS_BLACKFRAME)
+; Status output creation
+Dim $statusHeight = 50
+$status = GUICtrlCreateEdit("Status output..." & @CRLF & "line 2",0,$GUIHeight - $statusHeight,$GUIWidth, $statusHeight)
 
+; Checkbox to select data for display
+Dim $checkboxheight = 15
+Dim $checkboxwith = ($GUIWidth*3/16)
+Dim $xpos = 0
+GUICtrlCreateCheckbox("Voltage", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+$xpos += $checkboxwith
+GUICtrlCreateCheckbox("Current", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+$xpos += $checkboxwith
+GUICtrlCreateCheckbox("Level", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+$xpos += $checkboxwith
+GUICtrlCreateCheckbox("Temperature", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+
+; History graphic creation
+$histotygraph = GUICtrlCreateGraphic(0, $ButtonHeight, $GUIWidth*3/4, $GUIHeight-$ButtonHeight-$checkboxheight-$statusHeight, $SS_BLACKFRAME)
+
+; Batery charge indicator creation
+Dim $chargeWhith = $GUIWidth/4 - $GUIWidth/15
+$charge = GUICtrlCreatePic(".\images\default.jpg", $GUIWidth*3/4 + $GUIWidth/30, $ButtonHeight, $chargeWhith, $chargeWhith)
+
+; Alarm indicator creation
+Dim $alarmwith = ($GUIWidth/4 - $GUIWidth/20) / 4
+$tempalarm = GUICtrlCreateLabel("Temp", $GUIWidth*3/4 + $GUIWidth/40, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
+$buttonxpos = $GUIWidth*3/4 + $GUIWidth/40 + ($alarmwith - $ButtonWith)/2
+$tempalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_ICON)
+GUICtrlSetImage(-1, "shell32.dll", -23)
+
+$chargealarm = GUICtrlCreateLabel("Charge", $GUIWidth*3/4 + $GUIWidth/40 + $alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
+$buttonxpos += $alarmwith
+$tempalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_ICON)
+GUICtrlSetImage(-1, "shell32.dll", -23)
+
+$levelalarm = GUICtrlCreateLabel("Level", $GUIWidth*3/4 + $GUIWidth/40 + 2*$alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
+$buttonxpos += $alarmwith
+$tempalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_ICON)
+GUICtrlSetImage(-1, "shell32.dll", -23)
+
+$emptyalarm = GUICtrlCreateLabel("Empty", $GUIWidth*3/4 + $GUIWidth/40 + 3*$alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
+$buttonxpos += $alarmwith
+$tempalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_ICON)
+GUICtrlSetImage(-1, "shell32.dll", -23)
+
+; Truck and battery model and serie information representation
+Dim $ypos = 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20 + 50
+Dim $labelspacer = ($GUIHeight - $statusHeight - $ypos)/4
+Dim $labelwith = 70
+$xpos = $GUIWidth*3/4 + $GUIWidth/40
+GUICtrlCreateLabel("Truck model",$xpos, $ypos, $labelwith, 15)
+$truckmodel = GUICtrlCreateLabel("",$xpos + $labelwith, $ypos, $GUIWidth - $GUIWidth/40 -($xpos+$labelwith),15)
+GUICtrlSetBkColor(-1,0xffffff)
+$ypos += $labelspacer
+GUICtrlCreateLabel("Truck serial",$xpos, $ypos, $labelwith, 15)
+$truckserial = GUICtrlCreateLabel("",$xpos + $labelwith, $ypos, $GUIWidth - $GUIWidth/40 -($xpos+$labelwith),15)
+GUICtrlSetBkColor(-1,0xffffff)
+$ypos += $labelspacer
+GUICtrlCreateLabel("Battery model",$xpos, $ypos, $labelwith, 15)
+$batterymodel = GUICtrlCreateLabel("",$xpos + $labelwith, $ypos, $GUIWidth - $GUIWidth/40 -($xpos+$labelwith),15)
+GUICtrlSetBkColor(-1,0xffffff)
+$ypos += $labelspacer
+GUICtrlCreateLabel("Battery serial",$xpos, $ypos, $labelwith, 15)
+$batteryserial = GUICtrlCreateLabel("",$xpos + $labelwith, $ypos, $GUIWidth - $GUIWidth/40 -($xpos+$labelwith),15)
+GUICtrlSetBkColor(-1,0xffffff)
+
+GUISetState() ; Show the main GUI
 While 1
 WEnd
