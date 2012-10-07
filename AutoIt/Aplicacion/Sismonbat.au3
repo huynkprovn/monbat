@@ -1,3 +1,12 @@
+; *** Start added by AutoIt3Wrapper ***
+#include <ButtonConstants.au3>
+#include <ComboConstants.au3>
+#include <GUIConstantsEx.au3>
+#include <StaticConstants.au3>
+; *** End added by AutoIt3Wrapper ***
+#Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+#AutoIt3Wrapper_Add_Constants=n
+#EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
 #cs ----------------------------------------------------------------------------
 
  AutoIt Version: 3.3.8.1
@@ -5,7 +14,8 @@
 
  Script Function:
 
- Version: 	0.1.3 	Add COM port config form.
+ Version: 	0.1.4	Add functionality to COM port select form
+			0.1.3 	Add COM port config form.
 					group all button event in the same handler function
 			0.1.2  	Fixed error when cursor move over the button
 			0.1.1	Add buttons for show alarms and label to display help of
@@ -36,6 +46,10 @@ Const $PROGRAM_VERSION = "0.1.2"
 *	MAIN FORM
 * ***************
 #ce
+
+Global $comport, $baudrate, $databit, $parity, $stopbit, $flowcontrol ; to manage the serial port conection
+
+
 Global $GUIWidth = @DesktopWidth-20, $GUIHeight = @DesktopHeight-40
 Global $ButtonWith = 40, $ButtonHeight = 40
 Global $GUIWidthSpacer = 20, $GUIHeigthSpacer = 10
@@ -44,7 +58,7 @@ Global $myGui ; main GUI handler
 
 Global $filemenu, $filemenu_open, $filemenu_exit, $filemenu_save, $filemenu_printpreview, $filemenu_print
 Global $editmenu, $editmenu_copy, $editmenu_paste, $editmenu_cut
-Global $configmenu, $configmenu_serialport, $configmenu_database
+Global $configmenu, $configmenu_serialport, $configmenu_database, $configmenu_hardware, $configmenu_reset
 Global $testmenu, $testmenu_serialport, $testmenu_database
 Global $helpmenu, $helpmenu_help, $helpmenu_about, $helpmenu_version ; form menu vars
 Global $searchbutton, $readbutton, $viewbutton, $savebutton, $printbutton, $exitbutton ; button vars
@@ -57,10 +71,12 @@ Global $tempalarmbutton, $chargealarmbutton, $levelalarmbutton, $emptyalarmbutto
 Global $tempalarmbuttonehelp, $chargealarmbuttonhelp, $levelalarmbuttonhelp, $emptyalarmbuttonhelp ; to display contextual help
 Global $voltajecheck, $currentcheck, $levelcheck, $tempcheck ; to manage the data to visualize
 Global $truckmodel, $truckserial, $batterymodel, $batteryserial ; represent the data of actual battery bein analized
+
+
 ; Form creation
 $myGui = GUICreate("Traction batteries monitor system", $GUIWidth, $GUIHeight, 0, 0)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
-;GUISetOnEvent($GUI_EVENT_MOUSEMOVE, "_MouseMove")
+GUISetOnEvent($GUI_EVENT_MOUSEMOVE, "_MouseMove")
 GUISetBkColor(0xf0f0f0)
 GUISetState() ; Show the main GUI
 
@@ -87,6 +103,10 @@ $configmenu = GUICtrlCreateMenu("&Config")
 $configmenu_serialport = GUICtrlCreateMenuItem("Configure Serial Port", $configmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
 $configmenu_database = GUICtrlCreateMenuItem("Configure Database Access", $configmenu)
+GUICtrlSetOnEvent(-1, "_MenuClicked")
+$configmenu_hardware = GUICtrlCreateMenuItem("Set monitor identification", $configmenu)
+GUICtrlSetOnEvent(-1, "_MenuClicked")
+$configmenu_reset = GUICtrlCreateMenuItem("Reset monitor memory", $configmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
 $testmenu = GUICtrlCreateMenu("&Test")
 $testmenu_serialport = GUICtrlCreateMenuItem("Test Serial Port Conection", $testmenu)
@@ -174,7 +194,7 @@ $buttonxpos = $GUIWidth*3/4 + $GUIWidth/40 + ($alarmwith - $ButtonWith)/2
 $tempalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
 GUICtrlSetImage($tempalarmbutton, ".\images\noalarm.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$tempalarmbuttonehelp = GUICtrlCreateLabel("Show temperature alarms", $buttonxpos - $ButtonWith/2, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
+$tempalarmbuttonehelp = GUICtrlCreateLabel("Show temperature alarms", $buttonxpos - $ButtonWith, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
 GUICtrlSetState(-1,$GUI_HIDE)
 
 $chargealarm = GUICtrlCreateLabel("Charge", $GUIWidth*3/4 + $GUIWidth/40 + $alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
@@ -182,7 +202,7 @@ $buttonxpos += $alarmwith
 $chargealarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
 GUICtrlSetImage($chargealarmbutton, ".\images\noalarm.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$chargealarmbuttonhelp = GUICtrlCreateLabel("Show charge cycle alarms", $buttonxpos - $ButtonWith/2, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
+$chargealarmbuttonhelp = GUICtrlCreateLabel("Show charge cycle alarms", $buttonxpos - $ButtonWith, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
 GUICtrlSetState(-1,$GUI_HIDE)
 
 $levelalarm = GUICtrlCreateLabel("Level", $GUIWidth*3/4 + $GUIWidth/40 + 2*$alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
@@ -190,7 +210,7 @@ $buttonxpos += $alarmwith
 $levelalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
 GUICtrlSetImage($levelalarmbutton, ".\images\noalarm.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$levelalarmbuttonhelp = GUICtrlCreateLabel("Show electrolyte level alarms", $buttonxpos - $ButtonWith/2, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
+$levelalarmbuttonhelp = GUICtrlCreateLabel("Show electrolyte level alarms", $buttonxpos - $ButtonWith, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
 GUICtrlSetState(-1,$GUI_HIDE)
 
 $emptyalarm = GUICtrlCreateLabel("Empty", $GUIWidth*3/4 + $GUIWidth/40 + 3*$alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
@@ -198,7 +218,7 @@ $buttonxpos += $alarmwith
 $emptyalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
 GUICtrlSetImage($emptyalarmbutton, ".\images\noalarm.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$emptyalarmbuttonhelp = GUICtrlCreateLabel("Show voltage alarms", $buttonxpos - $ButtonWith/2, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
+$emptyalarmbuttonhelp = GUICtrlCreateLabel("Show voltage alarms", $buttonxpos - $ButtonWith, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
 GUICtrlSetState(-1,$GUI_HIDE)
 
 ; Truck and battery model and serie information representation
@@ -231,6 +251,7 @@ Global $alarmform
 Global $alarmoutput
 
 $alarmform = GUICreate("Alarm List",400,600)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 $alarmoutput = GUICtrlCreateEdit("", 10, 10, 380, 580)
 
 #cs
@@ -238,29 +259,34 @@ $alarmoutput = GUICtrlCreateEdit("", 10, 10, 380, 580)
 *	COM PORT SELEC FORM
 * ***************
 #ce
-Global $comportselectform, $comportselct, $baudrateselct, $databitselect, $dataparityselect, $stopbitselect, $flowcontrolselect
+Global $comportselectform, $comportselect, $baudrateselct, $databitselect, $dataparityselect, $stopbitselect, $flowcontrolselect
 Global $comselectokbutton, $comselectcancelbutton, $comselecthelpbutton
 
 $comportselectform = GUICreate("COM port Selection", 366, 215, 314, 132)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 GUICtrlCreateLabel("COM Port", 41, 15, 59, 25, $SS_CENTERIMAGE)
-$comportselct = GUICtrlCreateCombo("", 96, 15, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+$comportselect = GUICtrlCreateCombo("", 96, 15, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
 GUICtrlCreateLabel("Baud Rate", 40, 45, 59, 25, $SS_CENTERIMAGE)
 $baudrateselct = GUICtrlCreateCombo("", 96, 45, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+GUICtrlSetData(-1,"300|600|1200|2400|4800|9600|14400|19200|38400|57600|115200", "9600")
 GUICtrlCreateLabel("Data", 40, 75, 59, 25, $SS_CENTERIMAGE)
 $databitselect = GUICtrlCreateCombo("", 96, 75, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+GUICtrlSetData(-1,"7 bits|8 bits", "8 bits")
 GUICtrlCreateLabel("Parity", 40, 105, 59, 25, $SS_CENTERIMAGE)
-$dataparityselect = GUICtrlCreateCombo("dataparityselect", 96, 105, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+$dataparityselect = GUICtrlCreateCombo("", 96, 105, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+GUICtrlSetData(-1, "none|even|odd|mark|space", "none")
 GUICtrlCreateLabel("Stop", 40, 135, 59, 25, $SS_CENTERIMAGE)
-$stopbitselect = GUICtrlCreateCombo("stopbitselect", 96, 135, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+$stopbitselect = GUICtrlCreateCombo("", 96, 135, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+GUICtrlSetData(-1,"1 bit|1,5 bits|2 bits","1 bit")
 GUICtrlCreateLabel("Flow C.", 40, 165, 59, 25, $SS_CENTERIMAGE)
 $flowcontrolselect = GUICtrlCreateCombo("", 96, 165, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+GUICtrlSetData(-1,"Hardware|Xon/Xoff|none","none")
 $comselectokbutton = GUICtrlCreateButton("Ok", 220, 16, 89, 33)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $comselectcancelbutton = GUICtrlCreateButton("Cancel", 220, 76, 89, 33)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $comselecthelpbutton = GUICtrlCreateButton("Help", 220, 140, 89, 33)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-
 
 #cs
 * ***************
@@ -271,6 +297,7 @@ Dim $versionform
 Dim $versionformokbutton
 
 $versionform = GUICreate("Version", 200,150)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 GUICtrlCreateLabel("Traction batteries monitor system" & @CRLF & "Version: " & $PROGRAM_VERSION, 10,10)
 $versionformokbutton = GUICtrlCreateButton("Ok", 75, 110, 50, 30)
 GUIctrlSetOnEvent(-1, "_ButtonClicked")
@@ -292,7 +319,26 @@ EndFunc
 ;
 ;***************************************************************************************************
 Func _CLOSEClicked ()
-	Exit
+	Switch @GUI_WINHANDLE
+		Case $myGui
+			Exit
+
+		Case $versionform
+			GUISetState(@SW_HIDE, $versionform)
+
+		Case $alarmform
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$alarmform)
+
+		Case $comportselectform
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$comportselectform)
+		Case Else
+
+	EndSwitch
+
 EndFunc
 
 ;check if mouse is over a button to display a description
@@ -435,7 +481,9 @@ EndFunc
 
 
 Func _ButtonClicked ()
+
 	Switch @GUI_CtrlId
+
 		Case $searchbutton
 
 		Case $readbutton
@@ -481,9 +529,80 @@ Func _ButtonClicked ()
 			GUISetState(@SW_SHOW ,$myGui)
 			GUISetState(@SW_HIDE,$alarmform)
 
-		Case $comselectokbutton
+
+		Case $comselectokbutton    ; ********** Set the COM port configuration on his respective vars
+
+			$comport = StringReplace(GUICtrlRead($comportselect),'COM','') ; Eliminate the COM caracters to the comportselect text
+
+			$baudrate = GUICtrlRead($baudrateselct)
+
+			Switch GUICtrlRead($databitselect)
+				Case "7 bit"
+					$databit = 7
+				Case "8 bit"
+					$databit = 8
+				Case Else
+					$databit = 8
+			EndSwitch
+
+			Switch GUICtrlRead($dataparityselect)
+				Case "none"
+					$parity = 0
+
+				Case "odd"
+					$parity = 1
+
+				Case "even"
+					$parity = 2
+
+				Case "mark"
+					$parity = 3
+
+				Case "space"
+					$parity = 4
+
+				Case Else
+					$parity = 0
+			EndSwitch
+
+			Switch GUICtrlRead($stopbitselect)
+				Case "1 bit"
+					$stopbit = 1
+
+				Case "1,5 bits"
+					$stopbit = 15
+
+				Case "2 bits"
+					$stopbit = 2
+
+			Case Else
+					$stopbit = 1
+
+			EndSwitch
+
+			Switch GUICtrlRead($flowcontrolselect)
+				Case "none"
+					$flowcontrol = 2
+
+				Case "Xon/Xoff"
+					$flowcontrol = 1
+
+				Case "Hardware"
+					$flowcontrol = 0
+
+				Case Else
+					$flowcontrol = 2
+
+			EndSwitch
+
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$comportselectform)
 
 		Case $comselectcancelbutton
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$comportselectform)
 
 		Case $comselecthelpbutton
 
@@ -498,6 +617,8 @@ EndFunc
 
 
 Func _MenuClicked ()
+	Local $comportlist, $k ; Used in COM port detection
+
 	Switch @GUI_CTRLID
 		Case $filemenu_open
 
@@ -516,9 +637,24 @@ Func _MenuClicked ()
 
 		Case $editmenu_paste
 
-		Case $configmenu_serialport
+
+		Case $configmenu_serialport  ;****************************
+
+			$comportlist = _CommListPorts(0) ;find the available COM ports and write them into the COMportB combo
+											;$portlist[0] contain the $portlist[] lenght
+			For $k = 1 To $comportlist[0]
+				GUICtrlSetData($comportselect,$comportlist[$k]);add de list of detected COMports to the $comportselect combo
+			Next
+
+			GUISetState(@SW_DISABLE,$myGui)
+			GUISetState(@SW_SHOW ,$comportselectform)
+
 
 		Case $configmenu_database
+
+		Case $configmenu_hardware
+
+		Case $configmenu_reset
 
 		Case $testmenu_serialport
 
@@ -535,8 +671,4 @@ Func _MenuClicked ()
 
 	EndSwitch
 
-EndFunc
-
-Func _VersionFormOkButtonClicked ()
-	GUISetState(@SW_HIDE,$versionform)
 EndFunc
