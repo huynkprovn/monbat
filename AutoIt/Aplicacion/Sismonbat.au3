@@ -19,6 +19,7 @@
 #include <WindowsConstants.au3>
 #include <ButtonConstants.au3>
 
+Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
@@ -45,7 +46,9 @@ Global $voltajecheck, $currentcheck, $levelcheck, $tempcheck ; to manage the dat
 Global $truckmodel, $truckserial, $batterymodel, $batteryserial ; represent the data of actual battery bein analized
 ; Form creation
 $myGui = GUICreate("Traction batteries monitor system", $GUIWidth, $GUIHeight, 0, 0)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 GUISetBkColor(0xf0f0f0)
+GUISetState() ; Show the main GUI
 
 ; Form menu creation
 $filemenu = GUICtrlCreateMenu("File")
@@ -106,23 +109,27 @@ $charge = GUICtrlCreatePic(".\images\default.jpg", $GUIWidth*3/4 + $GUIWidth/30,
 Dim $alarmwith = ($GUIWidth/4 - $GUIWidth/20) / 4
 $tempalarm = GUICtrlCreateLabel("Temp", $GUIWidth*3/4 + $GUIWidth/40, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
 $buttonxpos = $GUIWidth*3/4 + $GUIWidth/40 + ($alarmwith - $ButtonWith)/2
-$tempalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_ICON)
-GUICtrlSetImage(-1, "shell32.dll", -23)
+$tempalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
+GUICtrlSetImage($tempalarmbutton, ".\images\noalarm.bmp")
+GUICtrlSetOnEvent($tempalarmbutton, "_TempAlarmButtonAClick")
 
 $chargealarm = GUICtrlCreateLabel("Charge", $GUIWidth*3/4 + $GUIWidth/40 + $alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
 $buttonxpos += $alarmwith
-$tempalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_ICON)
-GUICtrlSetImage(-1, "shell32.dll", -23)
+$chargealarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
+GUICtrlSetImage($chargealarmbutton, ".\images\noalarm.bmp")
+GUICtrlSetOnEvent($chargealarmbutton, "_ChargeAlarmButtonAClick")
 
 $levelalarm = GUICtrlCreateLabel("Level", $GUIWidth*3/4 + $GUIWidth/40 + 2*$alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
 $buttonxpos += $alarmwith
-$tempalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_ICON)
-GUICtrlSetImage(-1, "shell32.dll", -23)
+$levelalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
+GUICtrlSetImage($levelalarmbutton, ".\images\noalarm.bmp")
+GUICtrlSetOnEvent($levelalarmbutton, "_LevelAlarmButtonAClick")
 
 $emptyalarm = GUICtrlCreateLabel("Empty", $GUIWidth*3/4 + $GUIWidth/40 + 3*$alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
 $buttonxpos += $alarmwith
-$tempalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_ICON)
-GUICtrlSetImage(-1, "shell32.dll", -23)
+$emptyalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
+GUICtrlSetImage($emptyalarmbutton, ".\images\noalarm.bmp")
+GUICtrlSetOnEvent($emptyalarmbutton, "_EmptyAlarmButtonAClick")
 
 ; Truck and battery model and serie information representation
 Dim $ypos = 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20 + 50
@@ -145,6 +152,65 @@ GUICtrlCreateLabel("Battery serial",$xpos, $ypos, $labelwith, 15)
 $batteryserial = GUICtrlCreateLabel("",$xpos + $labelwith, $ypos, $GUIWidth - $GUIWidth/40 -($xpos+$labelwith),15)
 GUICtrlSetBkColor(-1,0xffffff)
 
-GUISetState() ; Show the main GUI
+#cs
+* ***************
+*	ALARM VISUALIZATION FORM
+* ***************
+#ce
+Dim $alarmform
+Dim $alarmoutput
+
+$alarmform = GUICreate("Alarm List",400,600)
+$alarmoutput = GUICtrlCreateEdit("", 10, 10, 380, 580)
+
 While 1
 WEnd
+
+;***************************************************************************************************
+;
+;
+;***************************************************************************************************
+Func _CLOSEClicked ()
+	Exit
+EndFunc
+
+Func _TempAlarmButtonAClick ()
+	GUISetState(@SW_DISABLE,$myGui)
+	GUISetState(@SW_SHOW ,$alarmform)
+	Sleep(2000)
+	GUISetState(@SW_ENABLE,$myGui)
+	GUISetState(@SW_SHOW ,$myGui)
+	GUISetState(@SW_HIDE,$alarmform)
+EndFunc
+
+
+Func _LevelAlarmButtonAClick ()
+	GUISetState(@SW_DISABLE,$myGui)
+	GUISetState(@SW_SHOW ,$alarmform)
+	Sleep(2000)
+	GUISetState(@SW_ENABLE,$myGui)
+	GUISetState(@SW_SHOW ,$myGui)
+	GUISetState(@SW_HIDE,$alarmform)
+EndFunc
+
+
+Func _ChargeAlarmButtonAClick ()
+	GUISetState(@SW_DISABLE,$myGui)
+	GUISetState(@SW_SHOW ,$alarmform)
+	Sleep(2000)
+	GUISetState(@SW_ENABLE,$myGui)
+	GUISetState(@SW_SHOW ,$myGui)
+	GUISetState(@SW_HIDE,$alarmform)
+
+EndFunc
+
+
+Func _EmptyAlarmButtonAClick ()
+	GUISetState(@SW_DISABLE,$myGui)
+	GUISetState(@SW_SHOW ,$alarmform)
+	Sleep(2000)
+	GUISetState(@SW_ENABLE,$myGui)
+	GUISetState(@SW_SHOW ,$myGui)
+	GUISetState(@SW_HIDE,$alarmform)
+
+EndFunc
