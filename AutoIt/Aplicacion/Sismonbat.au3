@@ -5,16 +5,17 @@
 
  Script Function:
 
- Version: 	0.1.1	Add buttons for show alarms and label to display help of
+ Version: 	0.1.2  	Fixed error when cursor move over the button
+			0.1.1	Add buttons for show alarms and label to display help of
 					buttons actions
 			0.1		Created main GUI
 #ce ----------------------------------------------------------------------------
 
 
 ; LIBRERIAS
-#include '..\XbeeAPI\XbeeAPI.au3'
-#include <array.au3>
-#include <CommMG.au3>
+;#include '..\XbeeAPI\XbeeAPI.au3'
+;#include <array.au3>
+;#include <CommMG.au3>
 #include <StaticConstants.au3>
 #include <ProgressConstants.au3>
 #include <GUIConstantsEx.au3>
@@ -56,11 +57,11 @@ GUISetBkColor(0xf0f0f0)
 GUISetState() ; Show the main GUI
 
 ; Form menu creation
-$filemenu = GUICtrlCreateMenu("File")
-$editmenu = GUICtrlCreateMenu("Edit")
-$configmenu = GUICtrlCreateMenu("Config")
-$testmenu = GUICtrlCreateMenu("Test")
-$helpmenu = GUICtrlCreateMenu("?")
+$filemenu = GUICtrlCreateMenu("F&ile")
+$editmenu = GUICtrlCreateMenu("E&dit")
+$configmenu = GUICtrlCreateMenu("C&onfig")
+$testmenu = GUICtrlCreateMenu("T&est")
+$helpmenu = GUICtrlCreateMenu("?&")
 
 ; Buttons creation
 Dim $buttonxpos = 0, $buttonypos = 0
@@ -188,8 +189,14 @@ Dim $alarmoutput
 $alarmform = GUICreate("Alarm List",400,600)
 $alarmoutput = GUICtrlCreateEdit("", 10, 10, 380, 580)
 
-While 1
-WEnd
+_Main()
+
+Func _Main ()
+
+	While 1
+		Sleep(10)
+	WEnd
+EndFunc
 
 ;***************************************************************************************************
 ;
@@ -203,31 +210,136 @@ EndFunc
 Func _MouseMove ()
 	Local $mouseinfo
 
-	$mouseinfo = GUIGetCursorInfo()
-	Switch @GUI_CTRLID
-		Case $searchbutton
+	$mouseinfo = GUIGetCursorInfo($myGui)
+	If @error Then
+		GUICtrlSetData($status,"e",1)
+	Else
+		Switch $mouseinfo[4]
+			Case $searchbutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_SHOW)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+			Case $readbutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_SHOW)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+			Case $viewbutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_SHOW)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+			Case $savebutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_SHOW)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+			Case $printbutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_SHOW)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+			Case $exitbutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_SHOW)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+			Case $tempalarmbutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_SHOW)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+			Case $chargealarmbutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_SHOW)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+			Case $levelalarmbutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_SHOW)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+			Case $emptyalarmbutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_SHOW)
+			case Else
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
 
-		Case $readbutton
+		EndSwitch
+	EndIf
 
-		Case $viewbutton
-
-		Case $savebutton
-
-		Case $printbutton
-
-		Case $exitbutton
-
-		Case $tempalarmbutton
-
-		Case $chargealarmbutton
-
-		Case $levelalarmbutton
-
-		Case $emptyalarmbutton
-
-		case Else
-
-	EndSwitch
 
 
 EndFunc
