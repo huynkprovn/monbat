@@ -5,7 +5,9 @@
 
  Script Function:
 
- Version: 	0.1		Created main GUI
+ Version: 	0.1.1	Add buttons for show alarms and label to display help of
+					buttons actions
+			0.1		Created main GUI
 #ce ----------------------------------------------------------------------------
 
 
@@ -37,16 +39,19 @@ Global $myGui ; main GUI handler
 
 Global $filemenu, $editmenu, $configmenu, $testmenu, $helpmenu ; form menu vars
 Global $searchbutton, $readbutton, $viewbutton, $savebutton, $printbutton, $exitbutton ; button vars
+Global $searchbuttonhelp, $readbuttonhelp, $viewbuttonhelp, $savebuttonhelp, $printbuttonhelp, $exitbuttonhelp; to display contextual help
 Global $histotygraph ; Graph for histoy representation
 Global $status ; to show the operation status
 Global $charge ; to show the status charge of the current battery
 Global $tempalarm, $chargealarm, $levelalarm, $emptyalarm ; to show the alarms produced in the current battery
 Global $tempalarmbutton, $chargealarmbutton, $levelalarmbutton, $emptyalarmbutton ; to show the list of alarms
+Global $tempalarmbuttonehelp, $chargealarmbuttonhelp, $levelalarmbuttonhelp, $emptyalarmbuttonhelp ; to display contextual help
 Global $voltajecheck, $currentcheck, $levelcheck, $tempcheck ; to manage the data to visualize
 Global $truckmodel, $truckserial, $batterymodel, $batteryserial ; represent the data of actual battery bein analized
 ; Form creation
 $myGui = GUICreate("Traction batteries monitor system", $GUIWidth, $GUIHeight, 0, 0)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
+GUISetOnEvent($GUI_EVENT_MOUSEMOVE, "_MouseMove")
 GUISetBkColor(0xf0f0f0)
 GUISetState() ; Show the main GUI
 
@@ -61,26 +66,38 @@ $helpmenu = GUICtrlCreateMenu("?")
 Dim $buttonxpos = 0, $buttonypos = 0
 $searchbutton = GUICtrlCreateButton("Batteries",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
 GUICtrlSetImage(-1, "shell32.dll", -23)
+$searchbuttonhelp =GUICtrlCreateLabel("search batteries monitored in range", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
+GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith
 
 $readbutton = GUICtrlCreateButton("Read Data",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
 GUICtrlSetImage(-1, "shell32.dll", -13)
+$readbuttonhelp =GUICtrlCreateLabel("Read data from selected battery monitor memory", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
+GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith
 
 $viewbutton = GUICtrlCreateButton("View History",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
 GUICtrlSetImage(-1, "shell32.dll", -94)
+$viewbuttonhelp =GUICtrlCreateLabel("Select date range to show", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
+GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith
 
 $savebutton = GUICtrlCreateButton("Save History",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
 GUICtrlSetImage(-1, "shell32.dll", -9)
+$savebuttonhelp =GUICtrlCreateLabel("Save history in database", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
+GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith
 
 $printbutton = GUICtrlCreateButton("Print",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
 GUICtrlSetImage(-1, "shell32.dll", -137)
+$printbuttonhelp =GUICtrlCreateLabel("Print current history and alarms", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
+GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith
 
 $exitbutton = GUICtrlCreateButton("Exit",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
 GUICtrlSetImage(-1, "shell32.dll", -28)
+$exitbuttonhelp =GUICtrlCreateLabel("Exit the application", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
+GUICtrlSetState(-1,$GUI_HIDE)
 
 ; Status output creation
 Dim $statusHeight = 50
@@ -112,24 +129,32 @@ $buttonxpos = $GUIWidth*3/4 + $GUIWidth/40 + ($alarmwith - $ButtonWith)/2
 $tempalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
 GUICtrlSetImage($tempalarmbutton, ".\images\noalarm.bmp")
 GUICtrlSetOnEvent($tempalarmbutton, "_TempAlarmButtonAClick")
+$tempalarmbuttonehelp = GUICtrlCreateLabel("Show temperature alarms", $buttonxpos - $ButtonWith/2, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
+GUICtrlSetState(-1,$GUI_HIDE)
 
 $chargealarm = GUICtrlCreateLabel("Charge", $GUIWidth*3/4 + $GUIWidth/40 + $alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
 $buttonxpos += $alarmwith
 $chargealarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
 GUICtrlSetImage($chargealarmbutton, ".\images\noalarm.bmp")
 GUICtrlSetOnEvent($chargealarmbutton, "_ChargeAlarmButtonAClick")
+$chargealarmbuttonhelp = GUICtrlCreateLabel("Show charge cycle alarms", $buttonxpos - $ButtonWith/2, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
+GUICtrlSetState(-1,$GUI_HIDE)
 
 $levelalarm = GUICtrlCreateLabel("Level", $GUIWidth*3/4 + $GUIWidth/40 + 2*$alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
 $buttonxpos += $alarmwith
 $levelalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
 GUICtrlSetImage($levelalarmbutton, ".\images\noalarm.bmp")
 GUICtrlSetOnEvent($levelalarmbutton, "_LevelAlarmButtonAClick")
+$levelalarmbuttonhelp = GUICtrlCreateLabel("Show electrolyte level alarms", $buttonxpos - $ButtonWith/2, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
+GUICtrlSetState(-1,$GUI_HIDE)
 
 $emptyalarm = GUICtrlCreateLabel("Empty", $GUIWidth*3/4 + $GUIWidth/40 + 3*$alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
 $buttonxpos += $alarmwith
 $emptyalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
 GUICtrlSetImage($emptyalarmbutton, ".\images\noalarm.bmp")
 GUICtrlSetOnEvent($emptyalarmbutton, "_EmptyAlarmButtonAClick")
+$emptyalarmbuttonhelp = GUICtrlCreateLabel("Show min voltage alarms", $buttonxpos - $ButtonWith/2, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
+GUICtrlSetState(-1,$GUI_HIDE)
 
 ; Truck and battery model and serie information representation
 Dim $ypos = 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20 + 50
@@ -172,6 +197,39 @@ WEnd
 ;***************************************************************************************************
 Func _CLOSEClicked ()
 	Exit
+EndFunc
+
+;check if mouse is over a button to display a description
+Func _MouseMove ()
+	Local $mouseinfo
+
+	$mouseinfo = GUIGetCursorInfo()
+	Switch @GUI_CTRLID
+		Case $searchbutton
+
+		Case $readbutton
+
+		Case $viewbutton
+
+		Case $savebutton
+
+		Case $printbutton
+
+		Case $exitbutton
+
+		Case $tempalarmbutton
+
+		Case $chargealarmbutton
+
+		Case $levelalarmbutton
+
+		Case $emptyalarmbutton
+
+		case Else
+
+	EndSwitch
+
+
 EndFunc
 
 Func _TempAlarmButtonAClick ()
