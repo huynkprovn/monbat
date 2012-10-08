@@ -1,12 +1,3 @@
-; *** Start added by AutoIt3Wrapper ***
-#include <ButtonConstants.au3>
-#include <ComboConstants.au3>
-#include <GUIConstantsEx.au3>
-#include <StaticConstants.au3>
-; *** End added by AutoIt3Wrapper ***
-#Region ;**** Directives created by AutoIt3Wrapper_GUI ****
-#AutoIt3Wrapper_Add_Constants=n
-#EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
 #cs ----------------------------------------------------------------------------
 
  AutoIt Version: 3.3.8.1
@@ -14,7 +5,8 @@
 
  Script Function:
 
- Version: 	0.1.4	Add functionality to COM port select form
+ Version: 	0.1.5	Add DDBB config and Hardware monitor identification form
+			0.1.4	Add functionality to COM port select form
 			0.1.3 	Add COM port config form.
 					group all button event in the same handler function
 			0.1.2  	Fixed error when cursor move over the button
@@ -30,6 +22,7 @@
 #include <CommMG.au3>
 #include <StaticConstants.au3>
 #include <ProgressConstants.au3>
+#include <EditConstants.au3>
 #include <GUIConstantsEx.au3>
 #include <WindowsConstants.au3>
 #include <ButtonConstants.au3>
@@ -39,7 +32,7 @@ Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
-Const $PROGRAM_VERSION = "0.1.2"
+Const $PROGRAM_VERSION = "0.1.5"
 
 #cs
 * ***************
@@ -82,43 +75,43 @@ GUISetState() ; Show the main GUI
 
 ; Form menu creation
 $filemenu = GUICtrlCreateMenu("&File")
-$filemenu_open = GUICtrlCreateMenuItem("Open",$filemenu)
+$filemenu_open = GUICtrlCreateMenuItem("&Open",$filemenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
-$filemenu_save = GUICtrlCreateMenuItem("Save",$filemenu)
+$filemenu_save = GUICtrlCreateMenuItem("&Save",$filemenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
-$filemenu_printpreview = GUICtrlCreateMenuItem("Print Preview", $filemenu)
+$filemenu_printpreview = GUICtrlCreateMenuItem("Pr&int Preview", $filemenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
-$filemenu_print = GUICtrlCreateMenuItem("Print", $filemenu)
+$filemenu_print = GUICtrlCreateMenuItem("&Print", $filemenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
-$filemenu_exit = GUICtrlCreateMenuItem("Exit", $filemenu)
+$filemenu_exit = GUICtrlCreateMenuItem("&Exit", $filemenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
 $editmenu = GUICtrlCreateMenu("&Edit")
-$editmenu_copy = GUICtrlCreateMenuItem("Copy",$editmenu)
+$editmenu_copy = GUICtrlCreateMenuItem("&Copy",$editmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
-$editmenu_cut = GUICtrlCreateMenuItem("Cut", $editmenu)
+$editmenu_cut = GUICtrlCreateMenuItem("&Cut", $editmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
-$editmenu_paste = GUICtrlCreateMenuItem("Paste", $editmenu)
+$editmenu_paste = GUICtrlCreateMenuItem("&Paste", $editmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
 $configmenu = GUICtrlCreateMenu("&Config")
-$configmenu_serialport = GUICtrlCreateMenuItem("Configure Serial Port", $configmenu)
+$configmenu_serialport = GUICtrlCreateMenuItem("Configure &Serial Port", $configmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
-$configmenu_database = GUICtrlCreateMenuItem("Configure Database Access", $configmenu)
+$configmenu_database = GUICtrlCreateMenuItem("Configure &Database Access", $configmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
-$configmenu_hardware = GUICtrlCreateMenuItem("Set monitor identification", $configmenu)
+$configmenu_hardware = GUICtrlCreateMenuItem("&Set Monitor Identification", $configmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
-$configmenu_reset = GUICtrlCreateMenuItem("Reset monitor memory", $configmenu)
+$configmenu_reset = GUICtrlCreateMenuItem("&Reset Monitor Memory", $configmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
 $testmenu = GUICtrlCreateMenu("&Test")
-$testmenu_serialport = GUICtrlCreateMenuItem("Test Serial Port Conection", $testmenu)
+$testmenu_serialport = GUICtrlCreateMenuItem("Test &Serial Port Conection", $testmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
-$testmenu_database = GUICtrlCreateMenuItem("Test Database Conection", $testmenu)
+$testmenu_database = GUICtrlCreateMenuItem("Test &Database Conection", $testmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
 $helpmenu = GUICtrlCreateMenu("&?")
-$helpmenu_help = GUICtrlCreateMenuItem("Help", $helpmenu)
+$helpmenu_help = GUICtrlCreateMenuItem("&Help", $helpmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
-$helpmenu_about = GUICtrlCreateMenuItem("About", $helpmenu)
+$helpmenu_about = GUICtrlCreateMenuItem("&About", $helpmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
-$helpmenu_version = GUICtrlCreateMenuItem("Version", $helpmenu)
+$helpmenu_version = GUICtrlCreateMenuItem("&Version", $helpmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
 
 ; Buttons creation
@@ -281,12 +274,65 @@ GUICtrlSetData(-1,"1 bit|1,5 bits|2 bits","1 bit")
 GUICtrlCreateLabel("Flow C.", 40, 165, 59, 25, $SS_CENTERIMAGE)
 $flowcontrolselect = GUICtrlCreateCombo("", 96, 165, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
 GUICtrlSetData(-1,"Hardware|Xon/Xoff|none","none")
-$comselectokbutton = GUICtrlCreateButton("Ok", 220, 16, 89, 33)
+$comselectokbutton = GUICtrlCreateButton("&Ok", 220, 16, 89, 33)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$comselectcancelbutton = GUICtrlCreateButton("Cancel", 220, 76, 89, 33)
+$comselectcancelbutton = GUICtrlCreateButton("&Cancel", 220, 76, 89, 33)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$comselecthelpbutton = GUICtrlCreateButton("Help", 220, 140, 89, 33)
+$comselecthelpbutton = GUICtrlCreateButton("&Help", 220, 140, 89, 33)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
+
+
+#cs
+* ***************
+*	DATABASE ACCESS CONFIG FORM
+* ***************
+#ce
+Global $databaseconfigform, $databaseselectokbutton, $databaseselectcancelbutton, $databaseselecthelpbutton
+Global $databaseselectdatabase, $databaseselectuser, $databaseselectpassword
+
+$databaseconfigform = GUICreate("Database access configuration", 367, 216, 304, 119)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
+GUICtrlCreateLabel("Database", 25, 8, 50, 17)
+$databaseselectdatabase = GUICtrlCreateInput("", 25, 24, 313, 21)
+GUICtrlCreateLabel("User", 25, 56, 26, 17)
+$databaseselectuser = GUICtrlCreateInput("", 25, 72, 313, 21)
+GUICtrlCreateLabel("Password", 25, 104, 50, 17)
+$databaseselectpassword = GUICtrlCreateInput("", 25, 120, 313, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_PASSWORD))
+$databaseselectokbutton = GUICtrlCreateButton("&OK", 25, 160, 89, 32)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$databaseselectcancelbutton = GUICtrlCreateButton("&Cancel", 136, 160, 89, 32)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$databaseselecthelpbutton = GUICtrlCreateButton("&Help", 248, 160, 89, 32)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+
+#cs
+* ***************
+*	HARDWARE DATA CONFIG FORM
+* ***************
+#ce
+Global $hardwaredataform, $dataconfigtruckmodel, $dataconfigtruckserial, $dataconfigbatterymodel, $dataconfigbatteryserial
+
+$hardwaredataform = GUICreate("Hardware monitor identifiacion values", 367, 216, 313, 163)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
+GUICtrlCreateGroup("Truck Data", 24, 8, 153, 137)
+GUICtrlCreateLabel("Model", 31, 32, 33, 17)
+$dataconfigtruckmodel = GUICtrlCreateInput("", 31, 48, 137, 21)
+$dataconfigtruckserial = GUICtrlCreateInput("", 31, 104, 137, 21)
+GUICtrlCreateLabel("Serial", 31, 88, 30, 17)
+;GUICtrlCreateGroup("", -99, -99, 1, 1)
+GUICtrlCreateGroup("Battery Data", 184, 8, 153, 137)
+GUICtrlCreateLabel("Model", 191, 32, 33, 17)
+$dataconfigbatterymodel = GUICtrlCreateInput("", 191, 48, 137, 21)
+GUICtrlCreateLabel("Serial", 191, 88, 33, 17)
+$dataconfigbatteryserial = GUICtrlCreateInput("", 191, 104, 137, 21)
+GUICtrlCreateGroup("", -99, -99, 1, 1)
+$dataconfigcancelbutton = GUICtrlCreateButton("&Cancel", 136, 160, 89, 32)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$dataconfigokbutton = GUICtrlCreateButton("&OK", 25, 160, 89, 32)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$dataconfighelpbutton = GUICtrlCreateButton("&Help", 248, 160, 89, 32)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+
 
 #cs
 * ***************
@@ -335,6 +381,17 @@ Func _CLOSEClicked ()
 			GUISetState(@SW_ENABLE,$myGui)
 			GUISetState(@SW_SHOW ,$myGui)
 			GUISetState(@SW_HIDE,$comportselectform)
+
+		Case $hardwaredataform
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$hardwaredataform)
+
+		Case $databaseconfigform
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$databaseconfigform)
+
 		Case Else
 
 	EndSwitch
@@ -606,6 +663,32 @@ Func _ButtonClicked ()
 
 		Case $comselecthelpbutton
 
+		Case $databaseselectokbutton
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$databaseconfigform)
+
+		Case $databaseselectcancelbutton
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$databaseconfigform)
+
+		Case $databaseselecthelpbutton
+
+
+		Case $dataconfigokbutton
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$hardwaredataform)
+
+		Case $dataconfigcancelbutton
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$hardwaredataform)
+
+		Case $dataconfighelpbutton
+
+
 		case $versionformokbutton
 			GUISetState(@SW_HIDE, $versionform)
 
@@ -651,8 +734,12 @@ Func _MenuClicked ()
 
 
 		Case $configmenu_database
+			GUISetState(@SW_DISABLE,$myGui)
+			GUISetState(@SW_SHOW ,$databaseconfigform)
 
 		Case $configmenu_hardware
+			GUISetState(@SW_DISABLE,$myGui)
+			GUISetState(@SW_SHOW ,$hardwaredataform)
 
 		Case $configmenu_reset
 
