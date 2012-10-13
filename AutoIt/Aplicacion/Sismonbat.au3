@@ -40,6 +40,15 @@ Const $PROGRAM_VERSION = "0.1.5"
 * ***************
 #ce
 
+;$dllpath = "commg.dll"
+
+Switch @OSArch
+	Case "X64"
+		_CommSetDllPath("c:\windows\syswow64\commg.dll")
+	Case Else
+		_CommSetDllPath("c:\windows\system32\commg.dll")
+EndSwitch
+
 Global $comport, $baudrate, $databit, $parity, $stopbit, $flowcontrol ; to manage the serial port conection
 
 
@@ -67,7 +76,7 @@ Global $truckmodel, $truckserial, $batterymodel, $batteryserial ; represent the 
 
 
 ; Form creation
-$myGui = GUICreate("Traction batteries monitor system", $GUIWidth, $GUIHeight, 0, 0)
+$myGui = GUICreate("Traction batteries monitor system", $GUIWidth, $GUIHeight, 5, 5)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 GUISetOnEvent($GUI_EVENT_MOUSEMOVE, "_MouseMove")
 GUISetBkColor(0xf0f0f0)
