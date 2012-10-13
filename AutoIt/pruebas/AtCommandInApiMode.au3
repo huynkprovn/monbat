@@ -85,47 +85,87 @@ Func _SendButtonClick()
 	Local $Address16[2]
 	Local $Option
 	Local $Data[72]    ; Max byte in data packet
-	Local $Msg[]
+	Local $Msg[255]
 	Local $Checksum
 	Local $GeneratedCheckSum
 	Local $ByteToSend
 
 	Local $K = 0; contador
-
+	Local $P = 1; contador
 
 	$K = 0
+	$P = 1
+	$Msg = ""
 	$GeneratedCheckSum = 0x00 ;Clear the checksum variable
 
 	$ByteToSend = $START_BYTE
 	;$ByteToSend = 0x7E
 	_CommSendByte($ByteToSend, 100); Send Start Byte
 	ConsoleWrite(Hex($ByteToSend,2) & " ")
+	;$Msg[$P] = Chr($ByteToSend)
+	$P += 1
 
-	#cs;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	;$Lenght = "0x"&Hex(StringLen(GUICtrlRead($CommandAT)),2)
-	;ConsoleWrite($Lenght & @CRLF)
-	$Data = StringSplit(GUICtrlRead($CommandAT),"")  ; Breaks the input string into an array of characters
+	$ByteToSend = 0x00 ; Send Lenght hight byte
+	If _IsEscaped($ByteToSend) Then
+		_CommSendByte(0x7D, 100) ; Send the escaped byte identifier
+		$Msg[$P] = 0x7D
+		$P += 1
+		$ByteToSend = "0x"&BitXOR($ByteToSend,0x20)
+		_CommSendByte($ByteToSend, 100) ; Send the corrected byte
+		ConsoleWrite(Hex(0x7D,2) & Hex($ByteToSend,2))
+	;	$Msg[$P] = $ByteToSend
+		$P += 1
+	Else
+		_CommSendByte($ByteToSend, 100) ; Send the byte without modification
+		ConsoleWrite(Hex($ByteToSend,2))
+	;	$Msg[$P] = $ByteToSend
+		$P += 1
+	EndIf
 
-	For $K = 1 to $Data[0]
-		ConsoleWrite("0x"&Hex(Asc($Data[$K]),2) & " ")
-	Next
-	ConsoleWrite(@CRLF)
-	#ce
 
-	$ByteToSend = 0x00
-	_CommSendByte($ByteToSend, 100) ; Send Lenght hight byte
-	ConsoleWrite(Hex($ByteToSend,2))
+	$ByteToSend = "0x"&Hex(StringLen(GUICtrlRead($CommandAT))+2,2) 		; Send the low byte lenght of the frame
+																		; Command Lenght + 2 byte (apiID and frameID)
+	If _IsEscaped($ByteToSend) Then
+		_CommSendByte(0x7D, 100) ; Send the escaped byte identifier
+	;	$Msg[$P] = 0x7D
+		$P += 1
+		$ByteToSend = "0x"&BitXOR($ByteToSend,0x20)
+		_CommSendByte($ByteToSend, 100) ; Send the corrected byte
+		ConsoleWrite(Hex(0x7D,2) & Hex($ByteToSend,2) & " ")
+	;	$Msg[$P] = $ByteToSend
+		$P += 1
+	Else
+		_CommSendByte($ByteToSend, 100) ; Send the byte without modification
+		ConsoleWrite(Hex($ByteToSend,2) & " ")
+	;	$Msg[$P] = $ByteToSend
+		$P += 1
+	EndIf
+
+	;_CommSendByte($ByteToSend, 100); Send Lenght low byte
+	;ConsoleWrite(Hex($ByteToSend,2) & " ")
 
 
-	$ByteToSend = "0x"&Hex(StringLen(GUICtrlRead($CommandAT))+2,2) ; Command Lenght + 2 byte (apiID and frameID)
-	_CommSendByte($ByteToSend, 100); Send Lenght low byte
-	ConsoleWrite(Hex($ByteToSend,2) & " ")
-
-	$ByteToSend = $ZBATCommand
-	;$ByteToSend = 0x08
-	_CommSendByte($ByteToSend, 100); Send Api Frame ID
-	ConsoleWrite(Hex($ByteToSend,2) & " ")
-	$GeneratedCheckSum += $ByteToSend
+	$ByteToSend = $ZBATCommand ; Send Api Frame ID
+	If _IsEscaped($ByteToSend) Then
+		_CommSendByte(0x7D, 100) ; Send the escaped byte identifier
+	;	$Msg[$P] = 0x7D
+		$P += 1
+		$ByteToSend = "0x"&BitXOR($ByteToSend,0x20)
+		_CommSendByte($ByteToSend, 100) ; Send the corrected byte
+		ConsoleWrite(Hex(0x7D,2) & Hex($ByteToSend,2) & " ")
+	;	$Msg[$P] = $ByteToSend
+		$P += 1
+		$GeneratedCheckSum = $GeneratedCheckSum + 0x7D + $ByteToSend
+	Else
+		_CommSendByte($ByteToSend, 100) ; Send the byte without modification
+		ConsoleWrite(Hex($ByteToSend,2) & " ")
+	;	$Msg[$P] = $ByteToSend
+		$P += 1
+		$GeneratedCheckSum += $ByteToSend
+	EndIf
+;	_CommSendByte($ByteToSend, 100)
+;	ConsoleWrite(Hex($ByteToSend,2) & " ")
+;	$GeneratedCheckSum += $ByteToSend
 
 	$ByteToSend = 0x01
 	_CommSendByte($ByteToSend, 100); Send the frame ID byte
@@ -135,12 +175,34 @@ Func _SendButtonClick()
 
 	$Data = StringSplit(GUICtrlRead($CommandAT),"")  ; Breaks the input string into an array of characters
 
+
 	For $K = 1 to $Data[0]
+
 		;ConsoleWrite("0x"&Hex(Asc($Data[$K]),2) & " ")
 		$ByteToSend = "0x"&Hex(Asc($Data[$K]),2)
-		_CommSendByte($ByteToSend, 100) ; Send AT command first caracter
-		ConsoleWrite(Hex($ByteToSend,2))
-		$GeneratedCheckSum += $ByteToSend
+
+		If _IsEscaped($ByteToSend) Then
+			_CommSendByte(0x7D, 100) ; Send the escaped byte identifier
+	;		$Msg[$P] = 0x7D
+			$P += 1
+			$ByteToSend = "0x"&BitXOR($ByteToSend,0x20)
+			_CommSendByte($ByteToSend, 100) ; Send the corrected byte
+			ConsoleWrite(Hex(0x7D,2) & Hex($ByteToSend,2) & " ")
+	;		$Msg[$P] = $ByteToSend
+			$P += 1
+			$GeneratedCheckSum = $GeneratedCheckSum + 0x7D + $ByteToSend
+		Else
+			_CommSendByte($ByteToSend, 100) ; Send the byte without modification
+			ConsoleWrite(Hex($ByteToSend,2) & " ")
+	;		$Msg[$P] = $ByteToSend
+			$P += 1
+			$GeneratedCheckSum += $ByteToSend
+		EndIf
+
+	;	_CommSendByte($ByteToSend, 100) ; Send AT command first caracter
+	;	ConsoleWrite(Hex($ByteToSend,2))
+	;	$GeneratedCheckSum += $ByteToSend
+
 	Next
 	ConsoleWrite(" ")
 
@@ -206,6 +268,23 @@ Func _IsEscaped($byte)
 	Return 0
 EndFunc
 
+
+;***************************************************************************************************
+;
+;
+;***************************************************************************************************
+Func _Checksum($Msg)
+	Local $j
+	Local $sum = 0x00
+
+	ConsoleWrite(StringLen($Msg))
+	For $j = 4 To $Msg[0]
+		$sum += $Msg[$j]
+	Next
+	Return (0xFF - $sum)
+EndFunc
+
+
 ;***************************************************************************************************
 ;
 ;
@@ -214,3 +293,4 @@ Func _CLOSEClicked ()
 	_CommClosePort()
 	Exit
 EndFunc
+
