@@ -18,36 +18,34 @@ void setup()
   pinMode(RedLED, OUTPUT);
   pinMode(InterruptPin, INPUT);
   digitalWrite(InterruptPin,HIGH);
-  attachInterrupt(0,interrupHandler,LOW);
+  attachInterrupt(0,interrupHandler,CHANGE);
   Serial.begin(9600);
 }
 
 void interrupHandler()
 {
-  detachInterrupt(0);
+  noInterrupts();
   switch(debounce(InterruptPin))
   {
   case HIGH:
-    //detachInterrupt(0);
-    digitalWrite(GreenLED,HIGH);
-    delay(1000);
-    digitalWrite(GreenLED,LOW);
-    //Serial.println("High level interrupt detection");
-    Serial.println("1");
-    attachInterrupt(0,interrupHandler,LOW);
+    Serial.print("s");
+    //digitalWrite(GreenLED,HIGH);
+    //delay(1000);
+    //digitalWrite(GreenLED,LOW);
+    Serial.print("1");
+    Serial.println("e");
     break;
-    //attachInterrupt(0,interrupHandler,LOW);
+
   case LOW:
-    //detachInterrupt(0);
-    digitalWrite(RedLED,HIGH);
-    delay(1000);
-    digitalWrite(RedLED,LOW);
-    //Serial.println("Low level interrupt detection");
-    Serial.println("0");
-    attachInterrupt(0,interrupHandler,HIGH);
+    Serial.print("s");
+    //digitalWrite(RedLED,HIGH);
+    //delay(1000);
+    //digitalWrite(RedLED,LOW);
+    Serial.print("0");
+    Serial.println("e");
     break;
   }
-    
+  interrupts();  
 }
 
 boolean debounce(int pin)
