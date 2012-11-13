@@ -407,7 +407,8 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	$comLenght = $com[0]
 	$valLenght = 0;
 	If @NumParams > 1 Then
-		$val = StringSplit($value, ",")
+		$val = _StringToByteArray($value) ; Breaks the input string into an array of bytes
+		;$val = StringSplit($value, ",")
 		$valLenght = $val[0]
 	EndIf
 
@@ -499,7 +500,8 @@ Func _SendRemoteATCommand($command, $value = 0, $ack = 1)
 	$comLenght = $com[0]
 	$valLenght = 0;
 	If @NumParams > 1 Then
-		$val = StringSplit($value, ",")
+		$val = _StringToByteArray($value) ; Breaks the input string into an array of bytes
+		;$val = StringSplit($value, ",")
 		$valLenght = $val[0]
 	EndIf
 
@@ -583,7 +585,8 @@ Func _SendZBData($data, $ack = 1)
 	Local $k = 0
 	Local $j = 0
 
-	$val = StringSplit($data, ",") ; Breaks the input string into an array of characters
+	$val = _StringToByteArray($data) ; Breaks the input string into an array of bytes
+	;$val = StringSplit($data, ",") ; Breaks the input string into an array of characters
 	$valLenght = $val[0]
 
 	$k += 1
@@ -1085,7 +1088,8 @@ Func _SetAddress64($addres)
 	Local $addr
 	Local $k
 
-	$addr = StringSplit($addres, ",") ; Breaks the input string into an array of characters
+	$addr = _StringToByteArray($addres) ; Breaks the input string into an array of bytes
+	;$addr = StringSplit($addres, ",") ; Breaks the input string into an array of characters
 
 	If $addr[0] > 8 Then
 		Return 0
@@ -1113,7 +1117,8 @@ Func _SetAddress16($addres)
 	Local $addr
 	Local $k
 
-	$addr = StringSplit($addres, ",") ; Breaks the input string into an array of characters
+	$addr = _StringToByteArray($addres) ; Breaks the input string into an array of bytes
+	;$addr = StringSplit($addres, ",") ; Breaks the input string into an array of characters
 
 	If $addr[0] > 2 Then
 		Return 0
@@ -1125,3 +1130,26 @@ Func _SetAddress16($addres)
 	Return 1
 
 EndFunc   ;==>_SetAddress16
+
+
+;===============================================================================
+;
+; Function Name:
+; Description:
+;
+; Parameters:
+; Returns;  on success - return an array with one byte for cell. Array lenght in pos 0
+;           on error - return 0
+;===============================================================================
+Func _StringToByteArray($string)
+	Local $k
+	Local $array[20]
+
+	For $k=1 To StringLen($string)/2
+		$array[$k] = StringMid($string,$k*2-1,2)
+	Next
+	$array[0] = $k-1
+
+	Return $array
+
+Endfunc    ;==>_StringToByteArray
