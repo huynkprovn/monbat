@@ -29,7 +29,7 @@ Global $setflow = 2				; Flow NONE
 Global $Aconnected
 Global $Bconnected
 
-#Region ### START Koda GUI section ### Form=C:\Users\asus\Documents\pfc\codigo\AutoIt\Aplicacion\forms\API test.kxf
+#Region ### START Koda GUI section ### ;Form=C:\Users\asus\Documents\pfc\codigo\AutoIt\Aplicacion\forms\API test.kxf
 $Form = GUICreate("Formulario de pruebas API Mode", 600, 703, 588, 9)
 
 
@@ -579,6 +579,7 @@ While 1
 				GUICtrlSetData($outputA, Hex($responseFrameData[$k],2),1)
 			Next
 			GUICtrlSetData($outputA, @CRLF, 1)
+			_PrintFrame($outputA)
 		EndIf
 	EndIf
 
@@ -589,7 +590,110 @@ While 1
 				GUICtrlSetData($outputB, Hex($responseFrameData[$k],2),1)
 			Next
 			GUICtrlSetData($outputB, @CRLF, 1)
+			_PrintFrame($outputB)
 		EndIf
 	EndIf
 
 WEnd
+
+
+Func _PrintFrame($output)
+
+	Switch _GetApiID()
+
+		Case $MODEM_STATUS_RESPONSE
+
+			GUICtrlSetData($output,"MStatus: ",1)
+			Switch _ReadModemStatus()
+				Case $HARDWARE_RESET
+					GUICtrlSetData($output,"Hw Reset" & @CRLF,1)
+				Case $WATCHDOG_TIMER_RESET
+					GUICtrlSetData($output,"WD Timer Reset" & @CRLF,1)
+				Case $ASSOCIATED
+					GUICtrlSetData($output,"Associated" & @CRLF,1)
+				Case $DISASSOCIATED
+					GUICtrlSetData($output,"Diassociated" & @CRLF,1)
+				Case $SYNCHRONIZATION_LOST
+					GUICtrlSetData($output,"Sync Lost" & @CRLF,1)
+				Case $COORDINATOR_REALIGNMENT
+					GUICtrlSetData($output,"Coord Realignment" & @CRLF,1)
+				Case $COORDINATOR_STARTED
+					GUICtrlSetData($output,"Coord Started" & @CRLF,1)
+			EndSwitch
+
+
+		Case $ZB_TX_STATUS_RESPONSE
+			GUICtrlSetData($output,"TxStatus: From: " & _ReadZBStatusReponseAddress16() & ", ",1)
+			Switch _ReadZBStatusReponseDeliveryStatus()
+				Case $SUCCESS
+					GUICtrlSetData($output,"DeliveryST: Success, ",1)
+				Case $MAC_ACK_FAILURE
+					GUICtrlSetData($output,"DeliveryST: Mac Ack Failure, ",1)
+				Case $CCA_FAILURE
+					GUICtrlSetData($output,"DeliveryST: CCA Failure, ",1)
+				Case $INVALID_DESTINATION_ENDPOINT
+					GUICtrlSetData($output,"DeliveryST: Invalid Des Endpoint, ",1)
+				Case $NETWORK_ACK_FAILURE
+					GUICtrlSetData($output,"DeliveryST: Network ACK Failure, ",1)
+				Case $NOT_JOINED_TO_NETWORK
+					GUICtrlSetData($output,"DeliveryST: Not Joined to Net, ",1)
+				Case $SELF_ADDRESSED
+					GUICtrlSetData($output,"DeliveryST: Self Addressed, ",1)
+				Case $ADDRESS_NOT_FOUND
+					GUICtrlSetData($output,"DeliveryST: Addr Not Found, ",1)
+				Case $ROUTE_NOT_FOUND
+					GUICtrlSetData($output,"DeliveryST: Route Not Found, ",1)
+				Case $PAYLOAD_TOO_LARGE
+					GUICtrlSetData($output,"DeliveryST: Playload Too Large, ",1)
+				Case $INDIRECT_MESSAGE_UNREQUESTED
+					GUICtrlSetData($output,"DeliveryST: Indirect MSG Unreq, ",1)
+				Case Else
+					GUICtrlSetData($output,"DeliveryST: " & _ReadZBStatusReponseDeliveryStatus() & ", ",1)
+			EndSwitch
+
+			Switch _ReadZBStatusReponseDiscoveryStatus()
+				Case $NO_DISCOVERY_OVERHEAD
+					GUICtrlSetData($output,"DiscoveryST: No Discovery Overhead" & @CRLF,1)
+				Case $ADDRESS_DISCOVERY
+					GUICtrlSetData($output,"DiscoveryST: Addr Discovery" & @CRLF,1)
+				Case $ROUTE_DISCOVERY
+					GUICtrlSetData($output,"DiscoveryST: Route Discovery" & @CRLF,1)
+				Case $ADDRESS_AND_ROUTE
+					GUICtrlSetData($output,"DiscoveryST: Addr & Route" & @CRLF,1)
+				Case $EXTENDED_TIMEOUT_DISCOVERY
+					GUICtrlSetData($output,"DiscoveryST: Extend Timeout Discovery" & @CRLF,1)
+				Case Else
+					GUICtrlSetData($output,"DiscoveryST: " & _ReadZBStatusReponseDiscoveryStatus() & @CRLF,1)
+			EndSwitch
+
+
+		Case $ZB_RX_RESPONSE
+			GUICtrlSetData($output,"DataRx: " & _ReadZBDataResponseValue(),1)
+			GUICtrlSetData($output," From: " & _ReadZBDataResponseAddress16() & " / " & _ReadZBDataResponseAddress64(),1)
+			GUICtrlSetData($output,", Rx Option: " & _ReadZBDataResponseOption() & @crlf,1)
+
+		Case $AT_COMMAND_RESPONSE
+			GUICtrlSetData($output,"AtComRx: Command: " & _ReadATCommandResponseCommand(),1)
+			GUICtrlSetData($output,", Status: ",1)
+			Switch _ReadATCommandResponseStatus()
+				Case 0
+					GUICtrlSetData($output,"OK, ",1)
+				Case 1
+					GUICtrlSetData($output,"ERROR, ",1)
+				Case 2
+					GUICtrlSetData($output,"Invalid Command, ",1)
+				Case 3
+					GUICtrlSetData($output,"Invalid Parameter, ",1)
+				Case 4
+					GUICtrlSetData($output,"Tx Failure, ",1)
+			EndSwitch
+			GUICtrlSetData($output,"Value: " & _ReadATCommandResponseValue() & @crlf,1)
+
+		Case $REMOTE_AT_COMMAND_RESPONSE
+			GUICtrlSetData($output,"RAtComRx: "& @CRLF,1)
+
+	EndSwitch
+
+
+
+EndFunc
