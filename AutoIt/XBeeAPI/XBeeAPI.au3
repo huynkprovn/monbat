@@ -1,14 +1,18 @@
 #include-once
 
+#include "XbeeConstants.au3"
 #include <array.au3>
 #include <CommMG.au3>
 
 
 Opt("mustdeclarevars", 1) ;testing only
 
-Const $LIB_VERSION = 'XBeeAPI.au3 V0.7.0'
+Const $LIB_VERSION = 'XBeeAPI.au3 V0.8.0'
 Global $debug = False
 #cs
+	Version 0.8.0	Add XbeeConstants library for Const
+	Version 0.7.2 	Add Constants for status bytes in rx frames
+	Version 0.7.1	Add function to convert string to an array byte. Modify send frames functions
 	Version 0.7.0	Add functions for reading data in statusResponses and DataResponses
 	Version 0.6.0	Add functions for reading data in RemoteAtCommandResponse frames
 	Version 0.5.1	Add function to set 64bits and 16bits remote address
@@ -23,7 +27,7 @@ Global $debug = False
 	Version 0.1.1	Check received escaped byte
 	Version 0.1.0	Add functions body definition
 	Version 0.0.1	Add Begin and End funtion to initialize the serial port where XBee modem are conected
-	Add _CheckIncomingFrame() and  _CheckRxFrameCheckSum()
+					Add _CheckIncomingFrame() and  _CheckRxFrameCheckSum()
 	Version 0.0		Const and var definition
 
 	AutoIt Version: 3.3.8.1
@@ -48,6 +52,7 @@ Global $debug = False
 	_SendTxFrame()
 
 	_ReadATCommandResponse()
+	_ReadATCommandResponseCommand()
 	_ReadATCommandResponseStatus()
 	_ReadATCommandResponseValue()
 
@@ -73,113 +78,12 @@ Global $debug = False
 	_SetFrameId()
 	_IsEscaped($byte)
 
+	_SetAddress64($address)
+	_SetAddress16($address)
+
 	Author: Antonio Morales
 #ce
 
-;********* CONST DEFINITION
-
-Const $MAX_FRAME_SIZE = 30;  72 data + 24 byte for a 0x12 Api command (Verify)
-Const $MAX_DATA_SIZE = 74; 72 	Bytes for maximum for the data to be sent or received
-
-; Escaped byte definition
-Const $START_BYTE = 0x7E
-Const $ESCAPE = 0x7D
-Const $XON = 0x11
-Const $XOFF = 0x13
-
-; Define API id constants.
-Const $AT_COMMAND_REQUEST = 0x08
-Const $AT_COMMAND_QUEUE_REQUEST = 0x09
-Const $REMOTE_AT_REQUEST = 0x17
-Const $ZB_TX_REQUEST = 0x10
-Const $ZB_EXPLICIT_TX_REQUEST = 0x11
-Const $ZB_BINDIND_TABLE_COMMAND = 0x12 ; ******** look for info about this frame
-Const $AT_RESPONSE = 0x88
-;Const TX_STATUS_RESPONSE 0x89  ; ******** look for info about this frame
-Const $MODEM_STATUS_RESPONSE = 0x8A
-Const $ZB_TX_STATUS_RESPONSE = 0x8B ; When a TX request is complete, the module sends a TX Status Message. This message will indicate if the packet was transmitted successfully
-Const $ADVANCED_MODEM_STATUS_RESPONSE = 0x8C
-Const $ZB_RX_RESPONSE = 0x90 ; When the modem receive an RF packet, it is sent out the UART using this message type.
-Const $ZB_EXPLICIT_RX_RESPONSE = 0x91 ; When the modem receives a ZigBee FR packet it is sent out the UART using this message type if the EXPLICIT_RECEIVE_OPTION bit is set in AO
-Const $ZB_IO_SAMPLE_RESPONSE = 0x92
-Const $ZB_IO_NODE_IDENTIFIER_RESPONSE = 0x95 ; ******** look for info about this frame
-Const $AT_COMMAND_RESPONSE = 0x88
-Const $REMOTE_AT_COMMAND_RESPONSE = 0x97
-
-; Define TX STATUS constants. Returned in a TX Status API fram (0x8B)
-Const $SUCCESS = 0x00
-Const $MAC_ACK_FAILURE = 0x01
-Const $CCA_FAILURE = 0x02
-Const $INVALID_DESTINATION_ENDPOINT = 0x15
-Const $NETWORK_ACK_FAILURE = 0x21
-Const $NOT_JOINED_TO_NETWORK = 0x22
-Const $SELF_ADDRESSED = 0x23
-Const $ADDRESS_NOT_FOUND = 0x24
-Const $ROUTE_NOT_FOUND = 0x25
-Const $PAYLOAD_TOO_LARGE = 0x74
-Const $INDIRECT_MESSAGE_UNREQUESTED = 0x75
-
-; Define MODEM STATUS constants. Returned in a Modem Status API frame (0x8A)
-Const $HARDWARE_RESET = 0
-Const $WATCHDOG_TIMER_RESET = 1
-Const $ASSOCIATED = 2
-Const $DISASSOCIATED = 3
-Const $SYNCHRONIZATION_LOST = 4
-Const $COORDINATOR_REALIGNMENT = 5
-Const $COORDINATOR_STARTED = 6
-
-
-;*********** GLOBAL VARIABLES DEFINITION
-
-Global $apiId
-Global $msbLength
-Global $lsbLength
-Global $checksum = 0x00
-Global $frameLength
-Global $complete
-Global $errorCode
-
-Global $frameId = 0x01
-
-Global $address64[8]
-;Global $addressHight
-;Global $addressLow
-Global $address16[2]
-
-Global $remoteAddress64[8]
-;Global $remoteAddressHight
-;Global $remoteAddressLow
-Global $remoteAddress16[2]
-
-Global $responseFrameData[$MAX_FRAME_SIZE]
-Global $responseFrameLenght
-
-Global $requestFrameData[$MAX_FRAME_SIZE]
-Global $requestFrameLenght
-
-; Used in ZigBee Tx Status frame
-Global $transmitRetryCount
-Global $deliveryStatus
-Global $discoveryStatus
-
-; Used in ZigBee Receive packect frame
-Global $option = 0x00
-
-; Used in ZigBee Transmit packect frame
-Global $broadcastRadius = 0x00
-
-; Used in AT command frame
-Global $atCommand
-Global $atCommandValue
-; Used in AT Remote command frame
-Global $ATOption = 0x02
-
-; Used in RX status frames
-Global $status
-
-
-; Used in serial comm library
-Global $sportSetError = ''
 
 
 If ($debug) Then
@@ -390,8 +294,7 @@ EndFunc   ;==>_GetApiID
 ;		be set with the XXXXX function
 ;
 ; Parameters: 	$command - The AT command without the AT prefix
-;				$value - (optional) if <> 0 then set the value of the property sent with $command
-;									must be a byte comma separated string
+;				$value - (optional) if <> 0 then set the value of the property sent
 ;				$ack - (optional) if <> 0 a byte frame byte is set to an automatically valor.
 ;							else is set to 0 (no at command response is will be given)
 ; Returns;  on success - return 1
@@ -408,7 +311,6 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	$valLenght = 0;
 	If @NumParams > 1 Then
 		$val = _StringToByteArray($value) ; Breaks the input string into an array of bytes
-		;$val = StringSplit($value, ",")
 		$valLenght = $val[0]
 	EndIf
 
@@ -484,7 +386,7 @@ EndFunc   ;==>_SendATCommandQueue
 ;
 ; Function Name:?  _SendRemoteATCommand()
 ; Description:		Equal to _SendATCommand.
-;			The remote Address must be set with the XXXX function.
+;			The remote Address must be set with the _SetAddress16($address) and _SetAddress64($address) function.
 ;
 ; Parameters:
 ; Returns;  on success - return 1
@@ -501,7 +403,6 @@ Func _SendRemoteATCommand($command, $value = 0, $ack = 1)
 	$valLenght = 0;
 	If @NumParams > 1 Then
 		$val = _StringToByteArray($value) ; Breaks the input string into an array of bytes
-		;$val = StringSplit($value, ",")
 		$valLenght = $val[0]
 	EndIf
 
@@ -580,13 +481,12 @@ EndFunc   ;==>_SendRemoteATCommand
 ; Returns;  on success - return 1
 ;           on error - return 0
 ;===============================================================================
-Func _SendZBData($data, $ack = 1)
+Func _SendZBData($data, $ack = 1, $br = 0x00, $op = 0x00)
 	Local $val, $valLenght	; value and value lenght
 	Local $k = 0
 	Local $j = 0
 
 	$val = _StringToByteArray($data) ; Breaks the input string into an array of bytes
-	;$val = StringSplit($data, ",") ; Breaks the input string into an array of characters
 	$valLenght = $val[0]
 
 	$k += 1
@@ -617,10 +517,10 @@ Func _SendZBData($data, $ack = 1)
 	$requestFrameData[$k] = $remoteAddress16[1]
 	$k += 1
 
-	$requestFrameData[$k] = $broadcastRadius		; Set the Broadcast Radius byte
+	$requestFrameData[$k] = 0x00						; Set the Broadcast Radius byte
 	$k += 1
 
-	$requestFrameData[$k] = $option					; Set the Option byte
+	$requestFrameData[$k] = 0x00						; Set the Option byte
 	$k += 1
 
 	For $j = 1 to $valLenght
@@ -773,6 +673,21 @@ Func _ReadFrameId()
 
 
 EndFunc   ;==>_ReadFrameId
+
+
+;===============================================================================
+;
+; Function Name:	_ReadATCommandResponseCommand()
+; Description:		Return the command indicates in a RXAtCommandResponse previously checked
+;					With the _GetApiId function equal to 0x88
+;
+; Parameters:		None
+; Returns;  on success - return a char with de command
+;           on error - return 0
+;===============================================================================
+Func _ReadATCommandResponseCommand()
+	Return (Chr($responseFrameData[6]) & Chr($responseFrameData[7]))
+EndFunc
 
 
 ;===============================================================================
@@ -1083,13 +998,12 @@ EndFunc   ;==>_IsEscaped
 ; Returns;  on success - return 1
 ;           on error - return 0
 ;===============================================================================
-Func _SetAddress64($addres)
+Func _SetAddress64($address)
 
 	Local $addr
 	Local $k
 
-	$addr = _StringToByteArray($addres) ; Breaks the input string into an array of bytes
-	;$addr = StringSplit($addres, ",") ; Breaks the input string into an array of characters
+	$addr = _StringToByteArray($address) ; Breaks the input string into an array of bytes
 
 	If $addr[0] > 8 Then
 		Return 0
@@ -1112,13 +1026,12 @@ EndFunc   ;==>_SetAddress64
 ; Returns;  on success - return 1
 ;           on error - return 0
 ;===============================================================================
-Func _SetAddress16($addres)
+Func _SetAddress16($address)
 
 	Local $addr
 	Local $k
 
-	$addr = _StringToByteArray($addres) ; Breaks the input string into an array of bytes
-	;$addr = StringSplit($addres, ",") ; Breaks the input string into an array of characters
+	$addr = _StringToByteArray($address) ; Breaks the input string into an array of bytes
 
 	If $addr[0] > 2 Then
 		Return 0
