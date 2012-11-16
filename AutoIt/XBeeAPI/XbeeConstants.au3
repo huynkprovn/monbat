@@ -1,6 +1,6 @@
 ;********* CONST DEFINITION
 
-Const $MAX_FRAME_SIZE = 30;  72 data + 24 byte for a 0x12 Api command (Verify)
+Const $MAX_FRAME_SIZE = 96;  72 data + 24 byte for a 0x12 Api command (Verify)
 Const $MAX_DATA_SIZE = 74; 72 	Bytes for maximum for the data to be sent or received
 
 ; Escaped byte definition
@@ -215,8 +215,25 @@ Func _PrintFrame()
 			EndSwitch
 #ce
 			$msg &= "Value: " & _ReadATCommandResponseValue() & @CRLF
+
+
 		Case $REMOTE_AT_COMMAND_RESPONSE
-			$msg &= "RAtComRx: "& @CRLF
+			$msg &= "ReAtComRx: Command: " & _ReadRemoteATCommandResponseCommand()
+			$msg &= ", Status: "
+			Switch _ReadRemoteATCommandResponseStatus()
+				Case 0
+					$msg &= "OK, "
+				Case 1
+					$msg &= "ERROR, "
+				Case 2
+					$msg &= "Invalid Command, "
+				Case 3
+					$msg &= "Invalid Parameter, "
+				Case 4
+					$msg &= "Tx Failure, "
+			EndSwitch
+
+			$msg &= "Value: " & _ReadATCommandResponseValue() & @CRLF
 
 	EndSwitch
 

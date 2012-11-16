@@ -10,7 +10,8 @@ Opt("mustdeclarevars", 1) ;testing only
 Const $LIB_VERSION = 'XBeeAPI.au3 V0.9.0'
 Global $debug = True
 #cs
-	Version 0.9.0	Fix an erro in SendZBData with remote address, Now it´s work ok
+	Version 0.9.1	Fix error in SendRemoteAtCommand function. Now it´s work ok
+	Version 0.9.0	Fix an error in SendZBData with remote address, Now it´s work ok
 					TODO fix the same error in RemoteAtCommand funct
 	Version 0.8.0	Add XbeeConstants library for Const
 	Version 0.7.2 	Add Constants for status bytes in rx frames
@@ -344,13 +345,13 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	Next
 
 	If @NumParams > 1 Then ; Is a value present?
-		If $debug Then
-			ConsoleWrite("AT value length is:" & $val[0] & @CRLF)
-			For $j = 1 To $val[0]
-				ConsoleWrite($val[$j])
-			Next
-			ConsoleWrite(@CRLF)
-		EndIf
+;		If $debug Then
+;			ConsoleWrite("AT value length is:" & $val[0] & @CRLF)
+;			For $j = 1 To $val[0]
+;				ConsoleWrite($val[$j])
+;			Next
+;			ConsoleWrite(@CRLF)
+;		EndIf
 
 		For $j = 1 To $val[0] ;Set the AT Command value
 
@@ -426,6 +427,7 @@ Func _SendRemoteATCommand($command, $value = 0, $ack = 1)
 	EndIf
 	$k += 1
 
+
 	For $j = 0 To 7 								; Set the Destination 64bit address
 		$requestFrameData[$k] = "0x" & $remoteAddress64[$j]
 		$k += 1
@@ -436,7 +438,7 @@ Func _SendRemoteATCommand($command, $value = 0, $ack = 1)
 	$requestFrameData[$k] = "0x" & $remoteAddress16[1]
 	$k += 1
 
-	$requestFrameData[$k] = $ATOption
+	$requestFrameData[$k] = 0x02 ;$ATOption
 	$k += 1
 
 ;	If $debug Then
@@ -728,6 +730,20 @@ Func _ReadATCommandResponseValue()
 	Next
 
 	Return $value
+EndFunc
+
+;===============================================================================
+;
+; Function Name:	_ReadRemoteATCommandResponseCommand()
+; Description:		Return the command indicates in a RXRemoteAtCommandResponse previously checked
+;					With the _GetApiId function equal to 0x97
+;
+; Parameters:		None
+; Returns;  on success - return a char with de command
+;           on error - return 0
+;===============================================================================
+Func _ReadRemoteATCommandResponseCommand()
+	Return (Chr($responseFrameData[16]) & Chr($responseFrameData[17]))
 EndFunc
 
 
