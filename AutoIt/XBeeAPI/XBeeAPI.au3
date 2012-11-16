@@ -7,9 +7,11 @@
 
 Opt("mustdeclarevars", 1) ;testing only
 
-Const $LIB_VERSION = 'XBeeAPI.au3 V0.8.0'
-Global $debug = False
+Const $LIB_VERSION = 'XBeeAPI.au3 V0.9.0'
+Global $debug = True
 #cs
+	Version 0.9.0	Fix an erro in SendZBData with remote address, Now it´s work ok
+					TODO fix the same error in RemoteAtCommand funct
 	Version 0.8.0	Add XbeeConstants library for Const
 	Version 0.7.2 	Add Constants for status bytes in rx frames
 	Version 0.7.1	Add function to convert string to an array byte. Modify send frames functions
@@ -182,9 +184,9 @@ Func _CheckIncomingFrame()
 
 			$lenght = $responseFrameData[3] ; hight byte always be 00
 
-			If $debug Then
-				ConsoleWrite($lenght & @CRLF)
-			EndIf
+			;If $debug Then
+			;	ConsoleWrite($lenght & @CRLF)
+			;EndIf
 
 			For $k = 1 To $lenght + 1
 				$responseFrameData[$k + 3] = _CommReadByte($timeout)
@@ -224,9 +226,9 @@ Func _CheckRxFrameCheckSum()
 	Local $k
 	Local $Sum = 0x0
 
-	If $debug Then
-		ConsoleWrite("In CheckSum functrion, Lenght is: " & $responseFrameLenght & @CRLF)
-	EndIf
+	;If $debug Then
+	;	ConsoleWrite("In CheckSum functrion, Lenght is: " & $responseFrameLenght & @CRLF)
+	;EndIf
 
 	For $k = 4 To $responseFrameLenght
 		$Sum += "0x" & Hex($responseFrameData[$k], 2)
@@ -332,9 +334,9 @@ Func _SendATCommand($command, $value = 0, $ack = 1)
 	EndIf
 	$k += 1
 
-	If $debug Then
-		ConsoleWrite("AT command length is:" & $com[0] & @CRLF)
-	EndIf
+;	If $debug Then
+;		ConsoleWrite("AT command length is:" & $com[0] & @CRLF)
+;	EndIf
 
 	For $j = 1 To $com[0] ; Set the AT command
 		$requestFrameData[$k] =  "0x" & Hex(Asc($com[$j]), 2)
@@ -425,21 +427,21 @@ Func _SendRemoteATCommand($command, $value = 0, $ack = 1)
 	$k += 1
 
 	For $j = 0 To 7 								; Set the Destination 64bit address
-		$requestFrameData[$k] = $remoteAddress64[$j]
+		$requestFrameData[$k] = "0x" & $remoteAddress64[$j]
 		$k += 1
 	Next
 
-	$requestFrameData[$k] = $remoteAddress16[0]     ; Set the Destination 16bit address
+	$requestFrameData[$k] = "0x" & $remoteAddress16[0]     ; Set the Destination 16bit address
 	$k += 1
-	$requestFrameData[$k] = $remoteAddress16[1]
+	$requestFrameData[$k] = "0x" & $remoteAddress16[1]
 	$k += 1
 
 	$requestFrameData[$k] = $ATOption
 	$k += 1
 
-	If $debug Then
-		ConsoleWrite("AT command length is:" & $com[0] & @CRLF)
-	EndIf
+;	If $debug Then
+;		ConsoleWrite("AT command length is:" & $com[0] & @CRLF)
+;	EndIf
 
 	For $j = 1 To $com[0] ; Set the AT command
 		$requestFrameData[$k] =  "0x" & Hex(Asc($com[$j]), 2)
@@ -447,20 +449,20 @@ Func _SendRemoteATCommand($command, $value = 0, $ack = 1)
 	Next
 
 	If @NumParams > 1 Then ; Is a value present?
-		If $debug Then
-			ConsoleWrite("AT value length is:" & $val[0] & @CRLF)
-			For $j = 1 To $val[0]
-				ConsoleWrite($val[$j])
-			Next
-			ConsoleWrite(@CRLF)
-		EndIf
+;		If $debug Then
+;			ConsoleWrite("AT value length is:" & $val[0] & @CRLF)
+;			For $j = 1 To $val[0]
+;				ConsoleWrite($val[$j])
+;			Next
+;			ConsoleWrite(@CRLF)
+;		EndIf
 
 		For $j = 1 To $val[0] ;Set the AT Command value
 
 			$requestFrameData[$k] = "0x" & $val[$j]
-			If $debug Then
-				ConsoleWrite($requestFrameData[$k] & @CR)
-			EndIf
+;			If $debug Then
+;				ConsoleWrite($requestFrameData[$k] & @CR)
+;			EndIf
 			$k += 1
 		Next
 	EndIf
@@ -508,13 +510,13 @@ Func _SendZBData($data, $ack = 1, $br = 0x00, $op = 0x00)
 	$k += 1
 
 	For $j = 0 To 7 								; Set the Destination 64bit address
-		$requestFrameData[$k] = $remoteAddress64[$j]
+		$requestFrameData[$k] = "0x" & $remoteAddress64[$j]
 		$k += 1
 	Next
 
-	$requestFrameData[$k] = $remoteAddress16[0]     ; Set the Destination 16bit address
+	$requestFrameData[$k] = "0x" & $remoteAddress16[0]     ; Set the Destination 16bit address
 	$k += 1
-	$requestFrameData[$k] = $remoteAddress16[1]
+	$requestFrameData[$k] = "0x" & $remoteAddress16[1]
 	$k += 1
 
 	$requestFrameData[$k] = 0x00						; Set the Broadcast Radius byte
@@ -567,7 +569,7 @@ Func _SendTxFrame()
 
 	_CommSendByte($requestFrameData[1],$timeout)
 	If $debug Then
-		ConsoleWrite(Hex($requestFrameData[1],2))
+		ConsoleWrite($requestFrameData[1] & " ")
 	EndIf
 	For $k = 2 To $requestFrameLenght
 		If _IsEscaped($requestFrameData[$k]) Then
@@ -575,17 +577,20 @@ Func _SendTxFrame()
 			_CommSendByte("0x" & BitXOR($requestFrameData[$k], 0x20))
 
 			If $debug Then
-				ConsoleWrite(Hex(0x7D,2))
-				ConsoleWrite(Hex(BitXOR($requestFrameData[$k],0x20),2))
+				ConsoleWrite(0x7D & " ")
+				ConsoleWrite(BitXOR($requestFrameData[$k],0x20) & " ")
 			EndIf
 		Else
 			_CommSendByte($requestFrameData[$k], 100)
 			If $debug Then
-				ConsoleWrite(Hex($requestFrameData[$k],2))
+				ConsoleWrite($requestFrameData[$k] & " ")
 			EndIf
 
 		EndIf
 	Next
+	If $debug Then
+		ConsoleWrite(@CRLF)
+	EndIf
 EndFunc   ;==>_SendTxFrame
 
 
@@ -978,9 +983,9 @@ EndFunc   ;==>_GetFrameId
 Func _IsEscaped($byte)
 
 	If ($byte == $START_BYTE Or $byte == $ESCAPE Or $byte == $XON Or $byte == $XOFF) Then
-		If $debug Then
-			ConsoleWrite("escaped byte" & @CRLF)
-		EndIf
+		;If $debug Then
+		;	ConsoleWrite("escaped byte" & @CRLF)
+		;EndIf
 		Return 1
 	Else
 		Return 0
