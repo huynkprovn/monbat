@@ -219,6 +219,7 @@ Func _PrintFrame()
 
 		Case $REMOTE_AT_COMMAND_RESPONSE
 			$msg &= "ReAtComRx: Command: " & _ReadRemoteATCommandResponseCommand()
+			$msg &= " From: " & _ReadRemoteATCommandResponseAddress16() & " / " & _ReadRemoteATCommandResponseAddress64()
 			$msg &= ", Status: "
 			Switch _ReadRemoteATCommandResponseStatus()
 				Case 0
@@ -233,7 +234,10 @@ Func _PrintFrame()
 					$msg &= "Tx Failure, "
 			EndSwitch
 
-			$msg &= "Value: " & _ReadATCommandResponseValue() & @CRLF
+			$msg &= "Value: " & _ReadRemoteATCommandResponseValue() & @CRLF
+
+		Case Else
+			$msg = "Other Frame ID" & @CRLF
 
 	EndSwitch
 

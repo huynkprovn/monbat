@@ -575,9 +575,9 @@ While 1
 	If $Aconnected = True Then
 		_CommSwitch(1)
 		If _CheckIncomingFrame() Then
-			For $k = 1 To $responseFrameLenght
-				GUICtrlSetData($outputA, Hex($responseFrameData[$k],2),1)
-			Next
+			;For $k = 1 To $responseFrameLenght
+			;	GUICtrlSetData($outputA, Hex($responseFrameData[$k],2),1)
+			;Next
 			GUICtrlSetData($outputA, @CRLF, 1)
 			GUICtrlSetData($outputA,_PrintFrame(),1)
 		EndIf
@@ -586,9 +586,9 @@ While 1
 	If $Bconnected = True Then  ; for representing modem status frame
 		_CommSwitch(2)
 		If _CheckIncomingFrame() Then
-			For $k = 1 To $responseFrameLenght
-				GUICtrlSetData($outputB, Hex($responseFrameData[$k],2),1)
-			Next
+			;For $k = 1 To $responseFrameLenght
+			;	GUICtrlSetData($outputB, Hex($responseFrameData[$k],2),1)
+			;Next
 			GUICtrlSetData($outputB, @CRLF, 1)
 			GUICtrlSetData($outputB,_PrintFrame(),1)
 		EndIf

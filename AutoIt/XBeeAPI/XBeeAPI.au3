@@ -7,9 +7,10 @@
 
 Opt("mustdeclarevars", 1) ;testing only
 
-Const $LIB_VERSION = 'XBeeAPI.au3 V0.9.0'
+Const $LIB_VERSION = 'XBeeAPI.au3 V0.9.2'
 Global $debug = True
 #cs
+	Version 0.9.2	Fix error in SendFrame function when send the "0x7D" byte previous a escaped byte
 	Version 0.9.1	Fix error in SendRemoteAtCommand function. Now it´s work ok
 	Version 0.9.0	Fix an error in SendZBData with remote address, Now it´s work ok
 					TODO fix the same error in RemoteAtCommand funct
@@ -576,7 +577,7 @@ Func _SendTxFrame()
 	For $k = 2 To $requestFrameLenght
 		If _IsEscaped($requestFrameData[$k]) Then
 			_CommSendByte(0x7D,$timeout)
-			_CommSendByte("0x" & BitXOR($requestFrameData[$k], 0x20))
+			_CommSendByte("0x" & Hex(BitXOR($requestFrameData[$k], 0x20),2))
 
 			If $debug Then
 				ConsoleWrite(0x7D & " ")
