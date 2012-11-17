@@ -84,7 +84,7 @@ void pin3int()
   sleep_disable();         // first thing after waking from sleep:
                             // disable sleep...
 
-  
+  power_all_enable();
 
   attachInterrupt(1,pin3int,FALLING);
 }
