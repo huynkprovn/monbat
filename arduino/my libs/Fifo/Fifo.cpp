@@ -22,12 +22,27 @@ Fifo::Fifo(byte Eeprom_ID, unsigned int max_Lenght, unsigned int frame_Lenght)
     _EEPROM_ID = Eeprom_ID;
     _MAX_LENGHT = max_Lenght;
     _FRAME_LENGHT = frame_Lenght; 
+    _b_address = 0;
     _t_address = 0;
     _h_address = 0;     
     _empty = true;
     _full = false;
     _busy = false;
 }
+
+Fifo::Fifo(byte Eeprom_ID, unsigned int base_Add, unsigned int max_Lenght, unsigned int frame_Lenght)
+{
+    _EEPROM_ID = Eeprom_ID;
+    _MAX_LENGHT = max_Lenght;
+    _FRAME_LENGHT = frame_Lenght; 
+    _b_address = base_Add;
+    _t_address = base_Add;
+    _h_address = base_Add;     
+    _empty = true;
+    _full = false;
+    _busy = false;
+}
+
 
 // PUBLIC METODS
 
@@ -47,15 +62,15 @@ void Fifo::Write(byte data)
     delay (5);
     _h_address++;
   
-    if (_h_address > _MAX_LENGHT) {  //have reach the higer mem address
-        _h_address = 0;
+    if (_h_address > _MAX_LENGHT) {  //have reach the highest mem address
+        _h_address = _b_address;
     }
 
     if (_empty) _empty = false; // if FIFO was empty, now not.
     if (_h_address == _t_address) { // FIFO full
         _full = true;
         _t_address += _FRAME_LENGHT; // Increment address to the next valid frame
-        if (_t_address > _MAX_LENGHT) _t_address = (_t_address % _MAX_LENGHT) - 1; // Reset the value
+        if (_t_address > _MAX_LENGHT) _t_address = (_t_address % _MAX_LENGHT) - 1 + _b_address; // Reset the value
     } 
 }
 
@@ -76,8 +91,8 @@ byte Fifo::Read()
   
     _t_address++;
   
-    if (_t_address > _MAX_LENGHT) {  //have reach the higer mem address
-        _t_address = 0;
+    if (_t_address > _MAX_LENGHT) {  //have reach the highest mem address
+        _t_address = _b_address;
     }
   
     if (_full) _full = false; // If FIFO was full, now not.
