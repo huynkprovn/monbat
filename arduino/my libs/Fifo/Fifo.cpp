@@ -53,12 +53,14 @@ void Fifo::Write(byte data)
     Wire.write((int)lowByte(_h_address));
     Wire.write(data);
     Wire.endTransmission();
+    /*
     Serial.print("t_add: ");
     Serial.print(_t_address, DEC);
     Serial.print(", h_add: ");
     Serial.print(_h_address, DEC);
     Serial.print(", data: ");
     Serial.println(data, DEC);
+    */
     delay (5);
     _h_address++;
   
