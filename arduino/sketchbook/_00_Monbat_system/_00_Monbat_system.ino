@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.0.2   Add debug mode conf for sending stored data for Serial port
  *              Version 0.0.1   Add digital and analog pins definition and first version of capturedata()
  *              Version 0.0.0   Initial structure and include files
  *
@@ -28,6 +29,8 @@ char VERSION[] = "MonBat system V0.0.1";
 boolean debug = true;
 
 // ******** XBEE PARAMETER DEFINITION ********
+boolean ConnToApp = false;     // Used to determinate when an Xbee connection with the 
+                              // PC app is established  
 XBee xbee = XBee();  // Xbee object to manage the xbee connection 
 // state capturated by the arduino. 4 bytes for time, 2 bytes for V+, 2 bytes for V-
 // 2 byte for Amperaje, 2 bytes for Tª, 1 byte for level and alarms.
@@ -48,8 +51,8 @@ const int FRAME_LENGHT = 13;   // Frame write in FIFO
 const unsigned int MAX_LENGHT = 256; //EEPROM Max lenght in bytes
 const unsigned int FIFO_BASE = 16; 
 
-Fifo fifo(EEPROM_ID, MAX_LENGHT, FRAME_LENGHT);
-Fifo fifo2(EEPROM_ID, FIFO_BASE, MAX_LENGHT, FRAME_LENGHT);
+Fifo fifo(EEPROM_ID, FIFO_BASE, MAX_LENGHT, FRAME_LENGHT);
+
 
 // ******** SENSORS PIN DEFINITION ********
 const int vUpPin = 0;    // Voltaje behind + terminal and central terminal adapted to 3.3Vdc range
@@ -59,6 +62,8 @@ const int tempPin = 3;   // External battery temperature
 const int levPin = 4;    // Digital signal representing the electrolyte level 0 = level fault
 const int aliAlarmPin = 2;    // Digital signal repersenting the alimentation fault for the levels adaptation board 
 
+const int fullLED = 11;    // FIFO state in debug mode
+const int emptyLED = 12;
 
 /* ===============================================================================
  *
@@ -71,12 +76,18 @@ const int aliAlarmPin = 2;    // Digital signal repersenting the alimentation fa
  * =============================================================================== */
 void setup()
 {
-  //xbee.begin(9600);
-  Serial.begin(9600);      // TODO: Must convert to NewSoftSerial connection
+  if (debug) {
+    Serial.begin(9600);      // TODO: Must convert to NewSoftSerial connection
+  } else {
+    xbee.begin(9600);
+  }
   Wire.begin();           // Start the FIFO connection
   
+  pinMode(fullLED, OUTPUT);
+  pinMode(emptyLED, OUTPUT);
+  
   pinMode(levPin, INPUT_PULLUP);
-  pinMode(aliAlarmPin, INPUT);
+  pinMode(aliAlarmPin, INPUT_PULLUP);
   
   setTime(11,0,0,17,11,2012);
   Alarm.timerRepeat(2,captureData);  // Periodic function for reading sensors values
@@ -95,7 +106,59 @@ void setup()
  * =============================================================================== */
 void serialEvent()
 {
+  byte data;
   
+  if (debug) {
+    while(Serial.available())
+    {
+      while (fifo.Busy()) // FIFO is not being accesed
+        ;
+      fifo.Block(true); //  
+    
+      char ch = Serial.read();
+      if (ch == 'D') {
+        if (fifo.Empty()){
+          Serial.println("FIFO is empty");
+          fifo.Block(false);
+          return;
+        }
+        Serial.print("At ");
+        data = fifo.Read();
+        Serial.print(data);
+        data = fifo.Read();
+        Serial.print(data);
+        data = fifo.Read();
+        Serial.print(data);
+        data = fifo.Read();
+        Serial.print(data);
+        Serial.print("   sensor V+:");
+        data = fifo.Read();
+        Serial.print(data);
+        data = fifo.Read();
+        Serial.print(data);
+        Serial.print("   sensor V-:");
+        data = fifo.Read();
+        Serial.print(data);
+        data = fifo.Read();
+        Serial.print(data);
+        Serial.print("   sensor A:");
+        data = fifo.Read();
+        Serial.print(data);
+        data = fifo.Read();
+        Serial.print(data);
+        Serial.print("   sensor T:");
+        data = fifo.Read();
+        Serial.print(data);
+        data = fifo.Read();
+        Serial.print(data);
+        Serial.print("   sensor T:");
+        data = fifo.Read();
+        Serial.println(data);
+        //
+      }
+    fifo.Block(false);    
+    }      // while(Serial.available())
+  }        // if (debug)
 }
 
 
@@ -125,12 +188,12 @@ void captureData()
   sensorT = analogRead(tempPin);
   state = 0;
   bitWrite(state,0,digitalRead(levPin));  
+  fecha = now();  // get the current date
   
   while (fifo.Busy()) // FIFO is  being accesed
       ;
   fifo.Block(true); //  Block the FIFO access
-  
-  fecha = now();  // get the current date
+
   while (fecha != 0 ){         // and store it in the FIFO converting the date
     fifo.Write(fecha%255);     // in a byte data succesion
     fecha /= 255;
@@ -160,7 +223,9 @@ void captureData()
  * =============================================================================== */
 void loop()
 {
- 
+  digitalWrite(emptyLED, fifo.Empty());
+  digitalWrite(fullLED, fifo.Full());
+  Alarm.delay(10); // Necesary for the periodic event function. ¿¿??
 } 
 
 
