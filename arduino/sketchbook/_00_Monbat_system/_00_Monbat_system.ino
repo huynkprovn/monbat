@@ -9,9 +9,11 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
- *              Version 0.0.2   Add debug mode conf for sending stored data for Serial port
- *              Version 0.0.1   Add digital and analog pins definition and first version of capturedata()
- *              Version 0.0.0   Initial structure and include files
+ *              Version 0.1.0    Add Xbee connection functionality. Send the oldest data stored in the FIFO
+ *                               a ZBRx packet is recieved
+ *              Version 0.0.2    Add debug mode conf for sending stored data for Serial port
+ *              Version 0.0.1    Add digital and analog pins definition and first version of capturedata()
+ *              Version 0.0.0    Initial structure and include files
  *
  */
  
@@ -25,8 +27,8 @@
 #include <Streaming.h>
 #include <NewSoftSerial.h>  // Used for a serial debug connection
 
-char VERSION[] = "MonBat system V0.0.1";
-boolean debug = true;
+char VERSION[] = "MonBat system V0.1.0";
+boolean debug = false;
 
 // ******** XBEE PARAMETER DEFINITION ********
 boolean ConnToApp = false;     // Used to determinate when an Xbee connection with the 
@@ -57,8 +59,8 @@ Fifo fifo(EEPROM_ID, FIFO_BASE, MAX_LENGHT, FRAME_LENGHT);
 // ******** SENSORS PIN DEFINITION ********
 const int vUpPin = 0;    // Voltaje behind + terminal and central terminal adapted to 3.3Vdc range
 const int vLowPin = 1;   // Voltaje behind central terminal and - terminal adapted to 3.3Vdc range
-const int ampPin = 2;    // Amperaje charging or drain the battery
-const int tempPin = 3;   // External battery temperature 
+const int ampPin = 0;    // Amperaje charging or drain the battery
+const int tempPin = 1;   // External battery temperature 
 const int levPin = 4;    // Digital signal representing the electrolyte level 0 = level fault
 const int aliAlarmPin = 2;    // Digital signal repersenting the alimentation fault for the levels adaptation board 
 
@@ -158,7 +160,43 @@ void serialEvent()
       }
     fifo.Block(false);    
     }      // while(Serial.available())
-  }        // if (debug)
+  } else {        // if  not (debug)     *************************
+    xbee.readPacket();              // Look for a packet sent by the PC app 
+    
+    if (xbee.getResponse().isAvailable()) {
+      // got something
+    
+      if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {   // the PC APP send data to Arduino
+        // got a zb rx packet
+      
+        // now fill our zb rx class
+        xbee.getResponse().getZBRxResponse(rx);
+          
+        /* if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED) {
+            // the sender got an ACK
+          
+        } else {
+            // we got it (obviously) but sender didn't get an ACK
+        }
+        */  //  This is not important now    
+      
+        while (fifo.Busy()) // FIFO is not being accesed
+          ;
+        fifo.Block(true); //
+          // Fill the payload
+        for (int k = 0; k < 13  ; k++) {
+          payload[k] = fifo.Read();
+        }
+        fifo.Block(false); //
+        
+        xbee.send(zbTx);
+              
+      }
+    } else if (xbee.getResponse().isError()) {
+                  //nss.print("Error reading packet.  Error code: ");  
+                //nss.println(xbee.getResponse().getErrorCode());
+    }
+  }  
 }
 
 
