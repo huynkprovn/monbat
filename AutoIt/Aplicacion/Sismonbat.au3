@@ -5,7 +5,9 @@
 
  Script Function:
 
- Version: 	0.1.5	Add DDBB config and Hardware monitor identification form
+ Version: 	0.2.0	Add Comport connection functionality in the comportselectform. Add a new form for detecting xbee moden in coordinator range.
+					Add Xbee modems search functionality in the $searchform, and modems address representation in it.
+			0.1.5	Add DDBB config and Hardware monitor identification form
 			0.1.4	Add functionality to COM port select form
 			0.1.3 	Add COM port config form.
 					group all button event in the same handler function
@@ -17,7 +19,7 @@
 
 
 ; LIBRERIAS
-;#include '..\XbeeAPI\XbeeAPI.au3'
+#include '..\XbeeAPI\XbeeAPI.au3'
 #include <array.au3>
 #include <CommMG.au3>
 #include <StaticConstants.au3>
@@ -49,7 +51,7 @@ Switch @OSArch
 		_CommSetDllPath("c:\windows\system32\commg.dll")
 EndSwitch
 
-Global $comport, $baudrate, $databit, $parity, $stopbit, $flowcontrol ; to manage the serial port conection
+Global $comport, $baudrate, $databit, $parity, $stopbit, $flowcontrol, $sportSetError, $serialconnected ; to manage the serial port conection
 
 
 Global $GUIWidth = @DesktopWidth-20, $GUIHeight = @DesktopHeight-40
@@ -244,6 +246,27 @@ GUICtrlCreateLabel("Battery serial",$xpos, $ypos, $labelwith, 15)
 $batteryserial = GUICtrlCreateLabel("",$xpos + $labelwith, $ypos, $GUIWidth - $GUIWidth/40 -($xpos+$labelwith),15)
 GUICtrlSetBkColor(-1,0xffffff)
 
+
+#cs
+* ***************
+*	SCAN MONITORIZED BATTERIES FORM
+* ***************
+#ce
+Global $searchform, $monitorlist, $searchmonitorconnectbutton, $searchmonitorscanbutton
+
+$searchform = GUICreate("Truck/Battery Selection", 325, 443, 192, 124)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
+$monitorlist = GUICtrlCreateList("", 40, 48, 241, 331)
+;GUICtrlSetData(-1, "H2X386U34432|W4X131R05445|W4X131S00453")
+$searchmonitorscanbutton = GUICtrlCreateButton("Scan", 40, 400, 75, 25)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$searchmonitorconnectbutton = GUICtrlCreateButton("Connect", 208, 400, 75, 25)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+GUICtrlCreateLabel("Detected trucks/batteries monitorized ", 40, 8, 234, 34, BitOR($SS_CENTER,$SS_CENTERIMAGE))
+
+
+
+
 #cs
 * ***************
 *	ALARM VISUALIZATION FORM
@@ -320,6 +343,7 @@ GUICtrlSetOnEvent(-1, "_ButtonClicked")
 * ***************
 #ce
 Global $hardwaredataform, $dataconfigtruckmodel, $dataconfigtruckserial, $dataconfigbatterymodel, $dataconfigbatteryserial
+Global $dataconfigcancelbutton, $dataconfigokbutton, $dataconfighelpbutton
 
 $hardwaredataform = GUICreate("Hardware monitor identifiacion values", 367, 216, 313, 163)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
@@ -376,6 +400,9 @@ EndFunc
 Func _CLOSEClicked ()
 	Switch @GUI_WINHANDLE
 		Case $myGui
+			If ($serialconnected) Then      ;If a serial port is open close it before exit application
+				_CommClosePort()
+			EndIf
 			Exit
 
 		Case $versionform
@@ -400,6 +427,11 @@ Func _CLOSEClicked ()
 			GUISetState(@SW_ENABLE,$myGui)
 			GUISetState(@SW_SHOW ,$myGui)
 			GUISetState(@SW_HIDE,$databaseconfigform)
+
+		Case $searchform
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$searchform)
 
 		Case Else
 
@@ -551,6 +583,26 @@ Func _ButtonClicked ()
 	Switch @GUI_CtrlId
 
 		Case $searchbutton
+			GUISetState(@SW_DISABLE,$myGui)
+			GUISetState(@SW_SHOW ,$searchform)
+
+		Case $searchmonitorscanbutton				;SCAN FOR XBEE MODEM IN RANGE
+			_SetAddress64("000000000000FFFF")  ;Send a broadcast remote AT request with the "AI" command
+			_SetAddress16("FFFE")				; All associated Xbee modem send to coordinator a response frame
+			_SendRemoteATCommand("AI")
+			Sleep(1000)
+
+			While _CheckIncomingFrame()
+				If (_GetApiID() = $REMOTE_AT_COMMAND_RESPONSE) Then
+					GUICtrlSetData($monitorlist, _ReadRemoteATCommandResponseAddress64() & " / " & _ReadRemoteATCommandResponseAddress16())
+				EndIf
+			WEnd
+
+		Case $searchmonitorconnectbutton
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$searchform)
+
 
 		Case $readbutton
 
@@ -561,6 +613,9 @@ Func _ButtonClicked ()
 		Case $printbutton
 
 		Case $exitbutton
+			If ($serialconnected) Then      ;If a serial port is open close it before exit application
+				_CommClosePort()
+			EndIf
 			Exit
 
 		Case $tempalarmbutton
@@ -660,6 +715,11 @@ Func _ButtonClicked ()
 					$flowcontrol = 2
 
 			EndSwitch
+
+			_CommSetPort($comport, $sportSetError, $baudrate, $databit, $parity, $stopbit, $flowcontrol) ; Open the port
+
+			;TODO look for error in com connection. Now ok connection is assumed
+			$serialconnected = True
 
 			GUISetState(@SW_ENABLE,$myGui)
 			GUISetState(@SW_SHOW ,$myGui)
