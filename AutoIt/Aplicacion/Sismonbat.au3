@@ -5,7 +5,8 @@
 
  Script Function:
 
- Version: 	0.2.0	Add Comport connection functionality in the comportselectform. Add a new form for detecting xbee moden in coordinator range.
+ Version: 	0.3.0	add functionality to the graphic (in progress). TODO: add buttons to scale and move graphics. add cursors
+			0.2.0	Add Comport connection functionality in the comportselectform. Add a new form for detecting xbee moden in coordinator range.
 					Add Xbee modems search functionality in the $searchform, and modems address representation in it.
 			0.1.5	Add DDBB config and Hardware monitor identification form
 			0.1.4	Add functionality to COM port select form
@@ -54,9 +55,9 @@ EndSwitch
 Global $comport, $baudrate, $databit, $parity, $stopbit, $flowcontrol, $sportSetError, $serialconnected ; to manage the serial port conection
 
 
-Global $GUIWidth = @DesktopWidth-20, $GUIHeight = @DesktopHeight-40
-Global $ButtonWith = 40, $ButtonHeight = 40
-Global $GUIWidthSpacer = 20, $GUIHeigthSpacer = 10
+Const $GUIWidth = @DesktopWidth-20, $GUIHeight = @DesktopHeight-40
+Const $ButtonWith = 40, $ButtonHeight = 40
+Const $GUIWidthSpacer = 20, $GUIHeigthSpacer = 10
 
 Global $myGui ; main GUI handler
 
@@ -67,7 +68,7 @@ Global $testmenu, $testmenu_serialport, $testmenu_database
 Global $helpmenu, $helpmenu_help, $helpmenu_about, $helpmenu_version ; form menu vars
 Global $searchbutton, $readbutton, $viewbutton, $savebutton, $printbutton, $exitbutton ; button vars
 Global $searchbuttonhelp, $readbuttonhelp, $viewbuttonhelp, $savebuttonhelp, $printbuttonhelp, $exitbuttonhelp; to display contextual help
-Global $histotygraph ; Graph for histoy representation
+Global $historygraph[5] ; Graph for histoy representation. One graph for each sensor
 Global $status ; to show the operation status
 Global $charge ; to show the status charge of the current battery
 Global $tempalarm, $chargealarm, $levelalarm, $emptyalarm ; to show the alarms produced in the current battery
@@ -169,30 +170,70 @@ $exitbuttonhelp =GUICtrlCreateLabel("Exit the application", $buttonxpos+$ButtonW
 GUICtrlSetState(-1,$GUI_HIDE)
 
 ; Status output creation
-Dim $statusHeight = 50
+Const $statusHeight = 50
 $status = GUICtrlCreateEdit("",0,$GUIHeight - $statusHeight,$GUIWidth, $statusHeight)
 
 ; Checkbox to select data for display
-Dim $checkboxheight = 15
-Dim $checkboxwith = ($GUIWidth*3/16)
+Const $checkboxheight = 15
+Const $checkboxwith = ($GUIWidth*3/16)
 Dim $xpos = 0
-GUICtrlCreateCheckbox("Voltage", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+$voltajecheck = GUICtrlCreateCheckbox("Voltage", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+GUICtrlSetState(-1, $GUI_CHECKED)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $xpos += $checkboxwith
-GUICtrlCreateCheckbox("Current", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+$currentcheck = GUICtrlCreateCheckbox("Current", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+GUICtrlSetState(-1, $GUI_CHECKED)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $xpos += $checkboxwith
-GUICtrlCreateCheckbox("Level", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+$tempcheck = GUICtrlCreateCheckbox("Temperature", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+GUICtrlSetState(-1, $GUI_CHECKED)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $xpos += $checkboxwith
-GUICtrlCreateCheckbox("Temperature", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+$levelcheck = GUICtrlCreateCheckbox("Level", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+GUICtrlSetState(-1, $GUI_CHECKED)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
 
 ; History graphic creation
-$histotygraph = GUICtrlCreateGraphic(0, $ButtonHeight, $GUIWidth*3/4, $GUIHeight-$ButtonHeight-$checkboxheight-$statusHeight, $SS_BLACKFRAME)
+Const $xmax = $GUIWidth*3/4
+Const $ymax	= $GUIHeight-$ButtonHeight-$checkboxheight-$statusHeight
+Global $sensor[6][$xmax] ; sensors signals for representation [date,v+,v-,a,t,l]
+Global $offset[5] = [0,0,$ymax/2,$ymax/10,$ymax/10]; offset off each sensor representation
+Global $yscale[5] = [1,1,1,1,1]	 ; scale of each sensor representation
+Global $colours[5] = [0xff0000, 0x000000, 0xffff00, 0x0000ff, 0xff00ff] ; Sensor representation colours
+Global $xscale
+
+;********************** ONLY FOR TEST ***** REMOVE
+For $k = 0 To $xmax -1
+	$sensor[1][$k] = Sin($k/50)
+Next
+
+For $k = 0 To $xmax -1
+	$sensor[2][$k] = Sin($k/30)
+Next
+
+For $k = 0 To $xmax -1
+	$sensor[0][$k] = Tan($k/30)
+Next
+
+For $k = 0 To $xmax -1
+	$sensor[4][$k] = Cos($k/30)
+Next
+;***************************************** REMOVE
+
+
+$historygraph[0] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ;V+
+$historygraph[1] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ;V-
+$historygraph[2] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ;A
+$historygraph[3] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ;T
+$historygraph[4] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ;L
+
 
 ; Batery charge indicator creation
-Dim $chargeWhith = $GUIWidth/4 - $GUIWidth/15
+Const $chargeWhith = $GUIWidth/4 - $GUIWidth/15
 $charge = GUICtrlCreatePic(".\images\default.jpg", $GUIWidth*3/4 + $GUIWidth/30, $ButtonHeight, $chargeWhith, $chargeWhith)
 
 ; Alarm indicator creation
-Dim $alarmwith = ($GUIWidth/4 - $GUIWidth/20) / 4
+Const $alarmwith = ($GUIWidth/4 - $GUIWidth/20) / 4
 $tempalarm = GUICtrlCreateLabel("Temp", $GUIWidth*3/4 + $GUIWidth/40, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
 $buttonxpos = $GUIWidth*3/4 + $GUIWidth/40 + ($alarmwith - $ButtonWith)/2
 $tempalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
@@ -385,10 +426,19 @@ GUIctrlSetOnEvent(-1, "_ButtonClicked")
 _Main()
 
 Func _Main ()
+	Local $k, $x
 
 	While 1
+		For $j=0 To 4
+			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_MOVE, 0, $yscale[$j]*$sensor[$j+1][0]+$offset[$j]) ;posicionate at inic of draw
+			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_COLOR, $colours[$j])						; Set the appropiate colour
+			For $x = 0 To $xmax -1
+				GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, $x, $ymax - ($yscale[$j]*$sensor[$j+1][$x]+$offset[$j]))
+			Next
+			GUICtrlSetColor($historygraph[$j], 0xffffff)
+		Next
 
-		Sleep(10)
+		Sleep(5000)
 	WEnd
 EndFunc
 
@@ -617,6 +667,38 @@ Func _ButtonClicked ()
 				_CommClosePort()
 			EndIf
 			Exit
+
+
+		Case $voltajecheck
+			If (GUICtrlRead($voltajecheck) = $GUI_CHECKED) Then
+				GUICtrlSetState($historygraph[0], $GUI_SHOW)
+				GUICtrlSetState($historygraph[1], $GUI_SHOW)
+			Else
+				GUICtrlSetState($historygraph[0], $GUI_HIDE)
+				GUICtrlSetState($historygraph[0], $GUI_HIDE)
+			EndIf
+
+		Case $currentcheck
+			If (GUICtrlRead($currentcheck) = $GUI_CHECKED) Then
+				GUICtrlSetState($historygraph[2], $GUI_SHOW)
+			Else
+				GUICtrlSetState($historygraph[2], $GUI_HIDE)
+			EndIf
+
+		Case $tempcheck
+			If (GUICtrlRead($tempcheck) = $GUI_CHECKED) Then
+				GUICtrlSetState($historygraph[3], $GUI_SHOW)
+			Else
+				GUICtrlSetState($historygraph[3], $GUI_HIDE)
+			EndIf
+
+		Case $levelcheck
+			If (GUICtrlRead($levelcheck) = $GUI_CHECKED) Then
+				GUICtrlSetState($historygraph[4], $GUI_SHOW)
+			Else
+				GUICtrlSetState($historygraph[4], $GUI_HIDE)
+			EndIf
+
 
 		Case $tempalarmbutton
 			GUISetState(@SW_DISABLE,$myGui)
