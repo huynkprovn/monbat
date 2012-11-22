@@ -5,7 +5,8 @@
 
  Script Function:
 
- Version: 	0.3.0	add functionality to the graphic (in progress). TODO: add buttons to scale and move graphics. add cursors
+ Version: 	0.3.1	Add buttons to scale and move graphics. Error Don´t print the graphics
+			0.3.0	add functionality to the graphic (in progress). TODO: add buttons to scale and move graphics. add cursors
 			0.2.0	Add Comport connection functionality in the comportselectform. Add a new form for detecting xbee moden in coordinator range.
 					Add Xbee modems search functionality in the $searchform, and modems address representation in it.
 			0.1.5	Add DDBB config and Hardware monitor identification form
@@ -68,6 +69,8 @@ Global $testmenu, $testmenu_serialport, $testmenu_database
 Global $helpmenu, $helpmenu_help, $helpmenu_about, $helpmenu_version ; form menu vars
 Global $searchbutton, $readbutton, $viewbutton, $savebutton, $printbutton, $exitbutton ; button vars
 Global $searchbuttonhelp, $readbuttonhelp, $viewbuttonhelp, $savebuttonhelp, $printbuttonhelp, $exitbuttonhelp; to display contextual help
+Global $zoominbutton, $zoomoutbutton, $zoomfitbutton, $showcursorsbutton
+Global $zoominbuttonhelp, $zoomoutbuttonhelp, $zoomfitbuttonhelp,$showcursorsbuttonhelp
 Global $historygraph[5] ; Graph for histoy representation. One graph for each sensor
 Global $status ; to show the operation status
 Global $charge ; to show the status charge of the current battery
@@ -168,6 +171,35 @@ GUICtrlSetImage(-1, "shell32.dll", -28)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $exitbuttonhelp =GUICtrlCreateLabel("Exit the application", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
 GUICtrlSetState(-1,$GUI_HIDE)
+$buttonxpos += $ButtonWith*8
+
+$zoominbutton = GUICtrlCreateButton("Zoom In",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
+GUICtrlSetImage(-1, "shell32.dll", -28)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$zoominbuttonhelp =GUICtrlCreateLabel("Zoom In", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
+GUICtrlSetState(-1,$GUI_HIDE)
+$buttonxpos += $ButtonWith
+
+$zoomoutbutton = GUICtrlCreateButton("Zoom Out",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
+GUICtrlSetImage(-1, "shell32.dll", -28)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$zoomoutbuttonhelp =GUICtrlCreateLabel("Zoom Out", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
+GUICtrlSetState(-1,$GUI_HIDE)
+$buttonxpos += $ButtonWith
+
+$zoomfitbutton = GUICtrlCreateButton("Zoom Fit",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
+GUICtrlSetImage(-1, "shell32.dll", -28)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$zoomfitbuttonhelp =GUICtrlCreateLabel("Zoom Fit", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
+GUICtrlSetState(-1,$GUI_HIDE)
+$buttonxpos += $ButtonWith
+
+$showcursorsbutton = GUICtrlCreateButton("Show Cursors",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
+GUICtrlSetImage(-1, "shell32.dll", -28)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$showcursorsbuttonhelp =GUICtrlCreateLabel("Show Cursors", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
+GUICtrlSetState(-1,$GUI_HIDE)
+
 
 ; Status output creation
 Const $statusHeight = 50
@@ -227,6 +259,25 @@ $historygraph[2] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORD
 $historygraph[3] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ;T
 $historygraph[4] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ;L
 
+Global $cursor[2]
+$cursor[0] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER)
+$cursor[1] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER)
+
+Global $xoff_m, $xoff_p, $yoff_m, $yoff_p
+
+$xoff_m = GUICtrlCreateButton("",$xmax - 80,$ButtonHeight,20,20)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$xoff_p = GUICtrlCreateButton("",$xmax - 40,$ButtonHeight,20,20)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$yoff_p = GUICtrlCreateButton("",$xmax - 20,$ButtonHeight + 20, 20, 20)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$yoff_m = GUICtrlCreateButton("",$xmax - 20,$ButtonHeight + 60, 20, 20)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+
+Global $xoffset = 0
+Global $yoffset = 0
+Global $xgain = 1
+Global $ygain = 1
 
 ; Batery charge indicator creation
 Const $chargeWhith = $GUIWidth/4 - $GUIWidth/15
@@ -426,19 +477,10 @@ GUIctrlSetOnEvent(-1, "_ButtonClicked")
 _Main()
 
 Func _Main ()
-	Local $k, $x
-
+	_Draw()
 	While 1
-		For $j=0 To 4
-			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_MOVE, 0, $yscale[$j]*$sensor[$j+1][0]+$offset[$j]) ;posicionate at inic of draw
-			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_COLOR, $colours[$j])						; Set the appropiate colour
-			For $x = 0 To $xmax -1
-				GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, $x, $ymax - ($yscale[$j]*$sensor[$j+1][$x]+$offset[$j]))
-			Next
-			GUICtrlSetColor($historygraph[$j], 0xffffff)
-		Next
 
-		Sleep(5000)
+		Sleep(50)
 	WEnd
 EndFunc
 
@@ -509,6 +551,10 @@ Func _MouseMove ()
 				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
 			Case $readbutton
 				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($readbuttonhelp, $GUI_SHOW)
@@ -520,6 +566,10 @@ Func _MouseMove ()
 				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
 			Case $viewbutton
 				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
@@ -531,6 +581,10 @@ Func _MouseMove ()
 				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
 			Case $savebutton
 				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
@@ -542,6 +596,10 @@ Func _MouseMove ()
 				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
 			Case $printbutton
 				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
@@ -553,6 +611,10 @@ Func _MouseMove ()
 				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
 			Case $exitbutton
 				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
@@ -564,6 +626,10 @@ Func _MouseMove ()
 				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
 			Case $tempalarmbutton
 				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
@@ -575,6 +641,10 @@ Func _MouseMove ()
 				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
 			Case $chargealarmbutton
 				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
@@ -586,6 +656,10 @@ Func _MouseMove ()
 				GUICtrlSetState($chargealarmbuttonhelp, $GUI_SHOW)
 				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
 			Case $levelalarmbutton
 				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
@@ -597,6 +671,10 @@ Func _MouseMove ()
 				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($levelalarmbuttonhelp, $GUI_SHOW)
 				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
 			Case $emptyalarmbutton
 				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
@@ -608,6 +686,72 @@ Func _MouseMove ()
 				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_SHOW)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
+			Case $zoominbutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_SHOW)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
+
+			Case $zoomoutbutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_SHOW)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
+
+			Case $zoomfitbutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_SHOW)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
+			Case $showcursorsbutton
+				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($viewbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($savebuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($printbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($exitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($tempalarmbuttonehelp, $GUI_HIDE)
+				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_SHOW)
 			case Else
 				GUICtrlSetState($searchbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($readbuttonhelp, $GUI_HIDE)
@@ -619,6 +763,11 @@ Func _MouseMove ()
 				GUICtrlSetState($chargealarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($levelalarmbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($emptyalarmbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoominbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomoutbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
+				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
+
 
 		EndSwitch
 	EndIf
@@ -675,7 +824,7 @@ Func _ButtonClicked ()
 				GUICtrlSetState($historygraph[1], $GUI_SHOW)
 			Else
 				GUICtrlSetState($historygraph[0], $GUI_HIDE)
-				GUICtrlSetState($historygraph[0], $GUI_HIDE)
+				GUICtrlSetState($historygraph[1], $GUI_HIDE)
 			EndIf
 
 		Case $currentcheck
@@ -698,6 +847,85 @@ Func _ButtonClicked ()
 			Else
 				GUICtrlSetState($historygraph[4], $GUI_HIDE)
 			EndIf
+
+		Case $zoominbutton
+			Switch $xgain
+				Case 0.2
+					$xgain = 0.25
+					$ygain = 0.25
+				Case 0.25
+					$xgain = 0.33
+					$ygain = 0.33
+				Case 0.33
+					$xgain = 0.5
+					$ygain = 0.5
+				Case 0.5
+					$xgain = 1
+					$ygain = 1
+				Case 1
+					$xgain = 2
+					$ygain = 2
+				Case 2
+					$xgain = 3
+					$ygain = 3
+				Case 3
+					$xgain = 4
+					$ygain = 4
+				Case 4
+					$xgain = 5
+					$ygain = 5
+			EndSwitch
+			_Draw()
+
+		Case $zoomoutbutton
+			Switch $xgain
+				Case 0.25
+					$xgain = 0.2
+					$ygain = 0.2
+				Case 0.33
+					$xgain = 0.25
+					$ygain = 0.25
+				Case 0.5
+					$xgain = 0.33
+					$ygain = 0.33
+				Case 1
+					$xgain = 0.5
+					$ygain = 0.5
+				Case 2
+					$xgain = 1
+					$ygain = 1
+				Case 3
+					$xgain = 2
+					$ygain = 2
+				Case 4
+					$xgain = 3
+					$ygain = 3
+				Case 5
+					$xgain = 4
+					$ygain = 4
+
+			EndSwitch
+			_Draw()
+
+		Case $zoomfitbutton
+			$xoffset = 0
+			$yoffset = 0
+			$xgain = 1
+			$ygain = 1
+			_Draw()
+
+		Case $xoff_p
+			$xoffset += 20
+			_Draw()
+		Case $xoff_m
+			$xoffset -= 20
+			_Draw()
+		Case $yoff_p
+			$yoffset += 20
+			_Draw()
+		Case $yoff_m
+			$yoffset -= 20
+			_Draw()
 
 
 		Case $tempalarmbutton
@@ -908,5 +1136,41 @@ Func _MenuClicked ()
 		Case Else
 
 	EndSwitch
+
+EndFunc
+
+
+;****************** GRAPHICAL REPRESENTATION FUNCTIONS **********************
+Func _Draw()
+	Local $k, $x
+	For $j=0 To 4
+		GUICtrlDelete($historygraph[$j])      ; Delete previous graphic handle
+		$historygraph[$j] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ; create a new one
+		_PrintInGraphic($historygraph[$j], $j+1, $xmax, $ymax, $xgain, $yscale[$j]*$ygain, $xoffset, $offset[$j] + $yoffset, $colours[$j])
+	Next
+
+
+EndFunc
+
+
+Func _PrintInGraphic($graphic, $data, $xmax, $ymax, $xgain, $ygain, $xoff, $yoff, $color)
+	Local $x, $xeff, $y
+	Local $first = True                   ; is the first value in range to represent
+
+	;GUICtrlSetGraphic($graphic, $GUI_GR_PENSIZE, 3)
+	GUICtrlSetGraphic($graphic, $GUI_GR_COLOR, $color)						; Set the appropiate colour
+	For $x = 0 To $xmax -1
+		If ((($x/$xgain)+$xoff) >= 0) And ((($x/$xgain)+$xoff) < ($xmax -1)) Then							; Don´t exceeded the $sensor[$j] range
+			If $first Then         ; is the first value to represent in the graphic
+				GUICtrlSetGraphic($graphic, $GUI_GR_MOVE, $x, $ymax - ($yoff*$sensor[$data][($x/$xgain)+$xoff]+$yoff)) ;posicionate at inic of draw
+				$first = False
+			EndIf
+			$y=$ymax - ($ygain*$sensor[$data][($x/$xgain)+$xoff]+$yoff)
+			If ($y > 0) And ($y < $ymax) Then
+				GUICtrlSetGraphic($graphic, $GUI_GR_LINE, $x, $ymax - ($ygain*$sensor[$data][($x/$xgain)+$xoff]+$yoff))
+			EndIf
+		EndIf
+	Next
+	GUICtrlSetColor($graphic, 0xffffff)
 
 EndFunc
