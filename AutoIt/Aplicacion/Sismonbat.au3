@@ -208,8 +208,8 @@ GUICtrlSetOnEvent(-1, "_ButtonClicked")
 *	VERSION FORM
 * ***************
 #ce
-Dim $versionform
-Dim $versionformokbutton
+Global $versionform
+Global $versionformokbutton
 
 $versionform = GUICreate("Version", 200,150)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
@@ -370,7 +370,12 @@ Global $sensor[6][$xmax] ; sensors signals for representation [date,v+,v-,a,t,l]
 Global $offset[5] = [0,Int($ymax/2),Int($ymax/2),Int($ymax/10),Int($ymax/10)]; offset off each sensor representation
 Global $yscale[5] = [200,200,200,200,200]	 ; scale of each sensor representation
 Global $colours[5] = [0xff0000, 0x000000, 0xffff00, 0x0000ff, 0xff00ff] ; Sensor representation colours
+Global $visible[5]
 Global $xscale
+
+For $k=0 To 4
+	$visible[$k]=True
+Next
 
 ;********************** ONLY FOR TEST ***** REMOVE
 For $k = 0 To $xmax -1
@@ -390,8 +395,16 @@ For $k = 0 To $xmax -1
 Next
 ;***************************************** REMOVE
 
-Global $history = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax)
+Global $xoff_m, $xoff_p, $yoff_m, $yoff_p
 
+$xoff_m = GUICtrlCreateButton("",$xmax - 80,$ButtonHeight,20,20)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$xoff_p = GUICtrlCreateButton("",$xmax - 40,$ButtonHeight,20,20)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$yoff_p = GUICtrlCreateButton("",$xmax - 20,$ButtonHeight + 20, 20, 20)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$yoff_m = GUICtrlCreateButton("",$xmax - 20,$ButtonHeight + 60, 20, 20)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
 
 $historygraph[0] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;V+
 $historygraph[1] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;V-
@@ -404,16 +417,7 @@ Global $cursor[2]
 $cursor[0] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER)
 $cursor[1] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER)
 
-Global $xoff_m, $xoff_p, $yoff_m, $yoff_p
 
-$xoff_m = GUICtrlCreateButton("",$xmax - 80,$ButtonHeight,20,20)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$xoff_p = GUICtrlCreateButton("",$xmax - 40,$ButtonHeight,20,20)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$yoff_p = GUICtrlCreateButton("",$xmax - 20,$ButtonHeight + 20, 20, 20)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$yoff_m = GUICtrlCreateButton("",$xmax - 20,$ButtonHeight + 60, 20, 20)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
 
 Global $xoffset = 0
 Global $yoffset = 0
@@ -828,33 +832,47 @@ Func _ButtonClicked ()
 
 		Case $voltajecheck
 			If (GUICtrlRead($voltajecheck) = $GUI_CHECKED) Then
-				GUICtrlSetState($historygraph[0], $GUI_SHOW)
-				GUICtrlSetState($historygraph[1], $GUI_SHOW)
+				$visible[0] = True
+				$visible[1] = True
+				;GUICtrlSetState($historygraph[0], $GUI_SHOW)
+				;GUICtrlSetState($historygraph[1], $GUI_SHOW)
 			Else
-				GUICtrlSetState($historygraph[0], $GUI_HIDE)
-				GUICtrlSetState($historygraph[1], $GUI_HIDE)
+				$visible[0] = False
+				$visible[1] = False
+				;GUICtrlSetState($historygraph[0], $GUI_HIDE)
+				;GUICtrlSetState($historygraph[1], $GUI_HIDE)
 			EndIf
+			_Draw()
 
 		Case $currentcheck
 			If (GUICtrlRead($currentcheck) = $GUI_CHECKED) Then
-				GUICtrlSetState($historygraph[2], $GUI_SHOW)
+				$visible[2] = True
+				;GUICtrlSetState($historygraph[2], $GUI_SHOW)
 			Else
-				GUICtrlSetState($historygraph[2], $GUI_HIDE)
+				$visible[2] = False
+				;GUICtrlSetState($historygraph[2], $GUI_HIDE)
 			EndIf
+			_Draw()
 
 		Case $tempcheck
 			If (GUICtrlRead($tempcheck) = $GUI_CHECKED) Then
-				GUICtrlSetState($historygraph[3], $GUI_SHOW)
+				$visible[3] = True
+				;GUICtrlSetState($historygraph[3], $GUI_SHOW)
 			Else
-				GUICtrlSetState($historygraph[3], $GUI_HIDE)
+				$visible[3] = False
+				;GUICtrlSetState($historygraph[3], $GUI_HIDE)
 			EndIf
+			_Draw()
 
 		Case $levelcheck
 			If (GUICtrlRead($levelcheck) = $GUI_CHECKED) Then
-				GUICtrlSetState($historygraph[4], $GUI_SHOW)
+				$visible[4] = True
+				;GUICtrlSetState($historygraph[4], $GUI_SHOW)
 			Else
-				GUICtrlSetState($historygraph[4], $GUI_HIDE)
+				$visible[4] = False
+				;GUICtrlSetState($historygraph[4], $GUI_HIDE)
 			EndIf
+			_Draw()
 
 		Case $zoominbutton
 			Switch $xgain
@@ -1162,52 +1180,33 @@ Func _Draw()
 	Local $first = True                   ; is the first value in range to represent
 
 	For $j=0 To 4
-		GUICtrlDelete($historygraph[$j])      ; Delete previous graphic handle
-		$historygraph[$j] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ; create a new one
+		If $visible[$j] = True Then
+			GUICtrlSetState($historygraph[$j], $GUI_SHOW)
+			GUICtrlDelete($historygraph[$j])      ; Delete previous graphic handle
+			$historygraph[$j] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ; create a new one
 
-		;_PrintInGraphic($historygraph[$j], $j+1, $xmax, $ymax, $xgain, $yscale[$j]*$ygain, $xoffset, $offset[$j] + $yoffset, $colours[$j])
+			;_PrintInGraphic($historygraph[$j], $j+1, $xmax, $ymax, $xgain, $yscale[$j]*$ygain, $xoffset, $offset[$j] + $yoffset, $colours[$j])
 
-		;GUICtrlSetGraphic($historygraph[$j], $GUI_GR_PENSIZE, 3)
-		GUICtrlSetGraphic($historygraph[$j], $GUI_GR_COLOR, $colours[$j])						; Set the appropiate colour
-		For $x = 0 To $xmax -1
-			If (Int(($x/$xgain)+$xoffset) >= 0) And (Int(($x/$xgain)+$xoffset) < ($xmax -1)) Then							; Don�t exceeded the $sensor[$j] range
-				If $first Then         ; is the first value to represent in the graphic
-					GUICtrlSetGraphic($historygraph[$j], $GUI_GR_MOVE, $x, Int($ymax - ($yscale[$j]*$ygain*$sensor[$j+1][Int(($x/$xgain)+$xoffset)]+$offset[$j] + $yoffset))) ;posicionate at inic of draw
-					$first = False
+			;GUICtrlSetGraphic($historygraph[$j], $GUI_GR_PENSIZE, 3)
+			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_COLOR, $colours[$j])						; Set the appropiate colour
+			For $x = 40 To $xmax -1 -40
+				If (Int(($x/$xgain)+$xoffset) >= 0) And (Int(($x/$xgain)+$xoffset) < ($xmax -1)) Then							; Don�t exceeded the $sensor[$j] range
+					If $first Then         ; is the first value to represent in the graphic
+						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_MOVE, $x, Int($ymax - ($yscale[$j]*$ygain*$sensor[$j+1][Int(($x/$xgain)+$xoffset)]+$offset[$j] + $yoffset))) ;posicionate at inic of draw
+						$first = False
+					EndIf
+					$y=$ymax - ($yscale[$j]*$ygain*$sensor[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
+					If ($y > 0) Then
+						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, $x, $y)
+					EndIf
 				EndIf
-				$y=$ymax - ($yscale[$j]*$ygain*$sensor[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
-				If ($y > 0) Then
-					GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, $x, $y)
-				EndIf
-			EndIf
-		Next
-		GUICtrlSetColor($historygraph[$j], 0xffffff)
-		$first = True
-	Next
-
-
-EndFunc
-
-#cs
-Func _PrintInGraphic($graphic, $data, $xmax, $ymax, $xgain, $ygain, $xoff, $yoff, $color)
-	Local $x, $xeff,
-	Local $first = True                   ; is the first value in range to represent
-
-	;GUICtrlSetGraphic($graphic, $GUI_GR_PENSIZE, 3)
-	GUICtrlSetGraphic($graphic, $GUI_GR_COLOR, $color)						; Set the appropiate colour
-	For $x = 0 To $xmax -1
-		If ((($x/$xgain)+$xoff) >= 0) And ((($x/$xgain)+$xoff) < ($xmax -1)) Then							; Don�t exceeded the $sensor[$j] range
-			If $first Then         ; is the first value to represent in the graphic
-				GUICtrlSetGraphic($graphic, $GUI_GR_MOVE, $x, $ymax - ($yoff*$sensor[$data][($x/$xgain)+$xoff]+$yoff)) ;posicionate at inic of draw
-				$first = False
-			EndIf
-			$y=$ymax - ($ygain*$sensor[$data][($x/$xgain)+$xoff]+$yoff)
-			If ($y > 0) And ($y < $ymax) Then
-				GUICtrlSetGraphic($graphic, $GUI_GR_LINE, $x, $ymax - ($ygain*$sensor[$data][($x/$xgain)+$xoff]+$yoff))
-			EndIf
+			Next
+			GUICtrlSetColor($historygraph[$j], 0xffffff)
+			$first = True
+		Else
+			GUICtrlSetState($historygraph[$j], $GUI_HIDE)
 		EndIf
 	Next
-	;GUICtrlSetColor($graphic, 0xffffff)
+
 
 EndFunc
-#ce
