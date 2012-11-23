@@ -1,11 +1,12 @@
-#cs ----------------------------------------------------------------------------
+ï»¿#cs ----------------------------------------------------------------------------
 
  AutoIt Version: 3.3.8.1
  Author:         myName
 
  Script Function:
 
- Version: 	0.3.1	Add buttons to scale and move graphics. Error Don´t print the graphics
+ Version: 	0.3.2	Fix error when printing the graphics with multiple forms app. GUISwitch($myGui) needed
+			0.3.1	Add buttons to scale and move graphics. Error Donï¿½t print the graphics
 			0.3.0	add functionality to the graphic (in progress). TODO: add buttons to scale and move graphics. add cursors
 			0.2.0	Add Comport connection functionality in the comportselectform. Add a new form for detecting xbee moden in coordinator range.
 					Add Xbee modems search functionality in the $searchform, and modems address representation in it.
@@ -36,7 +37,7 @@ Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
-Const $PROGRAM_VERSION = "0.1.5"
+Const $PROGRAM_VERSION = "0.3.2"
 
 #cs
 * ***************
@@ -81,11 +82,148 @@ Global $voltajecheck, $currentcheck, $levelcheck, $tempcheck ; to manage the dat
 Global $truckmodel, $truckserial, $batterymodel, $batteryserial ; represent the data of actual battery bein analized
 
 
+
+#cs
+* ***************
+*	SCAN MONITORIZED BATTERIES FORM
+* ***************
+#ce
+Global $searchform, $monitorlist, $searchmonitorconnectbutton, $searchmonitorscanbutton
+
+$searchform = GUICreate("Truck/Battery Selection", 325, 443, 192, 124)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
+$monitorlist = GUICtrlCreateList("", 40, 48, 241, 331)
+;GUICtrlSetData(-1, "H2X386U34432|W4X131R05445|W4X131S00453")
+$searchmonitorscanbutton = GUICtrlCreateButton("Scan", 40, 400, 75, 25)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$searchmonitorconnectbutton = GUICtrlCreateButton("Connect", 208, 400, 75, 25)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+GUICtrlCreateLabel("Detected trucks/batteries monitorized ", 40, 8, 234, 34, BitOR($SS_CENTER,$SS_CENTERIMAGE))
+
+
+
+
+#cs
+* ***************
+*	ALARM VISUALIZATION FORM
+* ***************
+#ce
+Global $alarmform
+Global $alarmoutput
+
+$alarmform = GUICreate("Alarm List",400,600)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
+$alarmoutput = GUICtrlCreateEdit("", 10, 10, 380, 580)
+
+#cs
+* ***************
+*	COM PORT SELEC FORM
+* ***************
+#ce
+Global $comportselectform, $comportselect, $baudrateselct, $databitselect, $dataparityselect, $stopbitselect, $flowcontrolselect
+Global $comselectokbutton, $comselectcancelbutton, $comselecthelpbutton
+
+$comportselectform = GUICreate("COM port Selection", 366, 215, 314, 132)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
+GUICtrlCreateLabel("COM Port", 41, 15, 59, 25, $SS_CENTERIMAGE)
+$comportselect = GUICtrlCreateCombo("", 96, 15, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+GUICtrlCreateLabel("Baud Rate", 40, 45, 59, 25, $SS_CENTERIMAGE)
+$baudrateselct = GUICtrlCreateCombo("", 96, 45, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+GUICtrlSetData(-1,"300|600|1200|2400|4800|9600|14400|19200|38400|57600|115200", "9600")
+GUICtrlCreateLabel("Data", 40, 75, 59, 25, $SS_CENTERIMAGE)
+$databitselect = GUICtrlCreateCombo("", 96, 75, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+GUICtrlSetData(-1,"7 bits|8 bits", "8 bits")
+GUICtrlCreateLabel("Parity", 40, 105, 59, 25, $SS_CENTERIMAGE)
+$dataparityselect = GUICtrlCreateCombo("", 96, 105, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+GUICtrlSetData(-1, "none|even|odd|mark|space", "none")
+GUICtrlCreateLabel("Stop", 40, 135, 59, 25, $SS_CENTERIMAGE)
+$stopbitselect = GUICtrlCreateCombo("", 96, 135, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+GUICtrlSetData(-1,"1 bit|1,5 bits|2 bits","1 bit")
+GUICtrlCreateLabel("Flow C.", 40, 165, 59, 25, $SS_CENTERIMAGE)
+$flowcontrolselect = GUICtrlCreateCombo("", 96, 165, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+GUICtrlSetData(-1,"Hardware|Xon/Xoff|none","none")
+$comselectokbutton = GUICtrlCreateButton("&Ok", 220, 16, 89, 33)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$comselectcancelbutton = GUICtrlCreateButton("&Cancel", 220, 76, 89, 33)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$comselecthelpbutton = GUICtrlCreateButton("&Help", 220, 140, 89, 33)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+
+
+#cs
+* ***************
+*	DATABASE ACCESS CONFIG FORM
+* ***************
+#ce
+Global $databaseconfigform, $databaseselectokbutton, $databaseselectcancelbutton, $databaseselecthelpbutton
+Global $databaseselectdatabase, $databaseselectuser, $databaseselectpassword
+
+$databaseconfigform = GUICreate("Database access configuration", 367, 216, 304, 119)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
+GUICtrlCreateLabel("Database", 25, 8, 50, 17)
+$databaseselectdatabase = GUICtrlCreateInput("", 25, 24, 313, 21)
+GUICtrlCreateLabel("User", 25, 56, 26, 17)
+$databaseselectuser = GUICtrlCreateInput("", 25, 72, 313, 21)
+GUICtrlCreateLabel("Password", 25, 104, 50, 17)
+$databaseselectpassword = GUICtrlCreateInput("", 25, 120, 313, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_PASSWORD))
+$databaseselectokbutton = GUICtrlCreateButton("&OK", 25, 160, 89, 32)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$databaseselectcancelbutton = GUICtrlCreateButton("&Cancel", 136, 160, 89, 32)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$databaseselecthelpbutton = GUICtrlCreateButton("&Help", 248, 160, 89, 32)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+
+#cs
+* ***************
+*	HARDWARE DATA CONFIG FORM
+* ***************
+#ce
+Global $hardwaredataform, $dataconfigtruckmodel, $dataconfigtruckserial, $dataconfigbatterymodel, $dataconfigbatteryserial
+Global $dataconfigcancelbutton, $dataconfigokbutton, $dataconfighelpbutton
+
+$hardwaredataform = GUICreate("Hardware monitor identifiacion values", 367, 216, 313, 163)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
+GUICtrlCreateGroup("Truck Data", 24, 8, 153, 137)
+GUICtrlCreateLabel("Model", 31, 32, 33, 17)
+$dataconfigtruckmodel = GUICtrlCreateInput("", 31, 48, 137, 21)
+$dataconfigtruckserial = GUICtrlCreateInput("", 31, 104, 137, 21)
+GUICtrlCreateLabel("Serial", 31, 88, 30, 17)
+;GUICtrlCreateGroup("", -99, -99, 1, 1)
+GUICtrlCreateGroup("Battery Data", 184, 8, 153, 137)
+GUICtrlCreateLabel("Model", 191, 32, 33, 17)
+$dataconfigbatterymodel = GUICtrlCreateInput("", 191, 48, 137, 21)
+GUICtrlCreateLabel("Serial", 191, 88, 33, 17)
+$dataconfigbatteryserial = GUICtrlCreateInput("", 191, 104, 137, 21)
+GUICtrlCreateGroup("", -99, -99, 1, 1)
+$dataconfigcancelbutton = GUICtrlCreateButton("&Cancel", 136, 160, 89, 32)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$dataconfigokbutton = GUICtrlCreateButton("&OK", 25, 160, 89, 32)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$dataconfighelpbutton = GUICtrlCreateButton("&Help", 248, 160, 89, 32)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+
+
+#cs
+* ***************
+*	VERSION FORM
+* ***************
+#ce
+Dim $versionform
+Dim $versionformokbutton
+
+$versionform = GUICreate("Version", 200,150)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
+GUICtrlCreateLabel("Traction batteries monitor system" & @CRLF & "Version: " & $PROGRAM_VERSION, 10,10)
+$versionformokbutton = GUICtrlCreateButton("Ok", 75, 110, 50, 30)
+GUIctrlSetOnEvent(-1, "_ButtonClicked")
+
+
+
 ; Form creation
 $myGui = GUICreate("Traction batteries monitor system", $GUIWidth, $GUIHeight, 5, 5)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 GUISetOnEvent($GUI_EVENT_MOUSEMOVE, "_MouseMove")
-GUISetBkColor(0xf0f0f0)
+;GUISetBkColor(0xf0f0f0)
 GUISetState() ; Show the main GUI
 
 ; Form menu creation
@@ -226,11 +364,11 @@ GUICtrlSetState(-1, $GUI_CHECKED)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 
 ; History graphic creation
-Const $xmax = $GUIWidth*3/4
-Const $ymax	= $GUIHeight-$ButtonHeight-$checkboxheight-$statusHeight
+Const $xmax = Int($GUIWidth*3/4)
+Const $ymax	= Int($GUIHeight-$ButtonHeight-$checkboxheight-$statusHeight)
 Global $sensor[6][$xmax] ; sensors signals for representation [date,v+,v-,a,t,l]
-Global $offset[5] = [0,0,$ymax/2,$ymax/10,$ymax/10]; offset off each sensor representation
-Global $yscale[5] = [1,1,1,1,1]	 ; scale of each sensor representation
+Global $offset[5] = [0,Int($ymax/2),Int($ymax/2),Int($ymax/10),Int($ymax/10)]; offset off each sensor representation
+Global $yscale[5] = [200,200,200,200,200]	 ; scale of each sensor representation
 Global $colours[5] = [0xff0000, 0x000000, 0xffff00, 0x0000ff, 0xff00ff] ; Sensor representation colours
 Global $xscale
 
@@ -252,12 +390,15 @@ For $k = 0 To $xmax -1
 Next
 ;***************************************** REMOVE
 
+Global $history = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax)
 
-$historygraph[0] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ;V+
-$historygraph[1] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ;V-
-$historygraph[2] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ;A
-$historygraph[3] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ;T
-$historygraph[4] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ;L
+
+$historygraph[0] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;V+
+$historygraph[1] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;V-
+$historygraph[2] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;A
+$historygraph[3] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;T
+$historygraph[4] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;L
+
 
 Global $cursor[2]
 $cursor[0] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER)
@@ -339,149 +480,16 @@ $batteryserial = GUICtrlCreateLabel("",$xpos + $labelwith, $ypos, $GUIWidth - $G
 GUICtrlSetBkColor(-1,0xffffff)
 
 
-#cs
-* ***************
-*	SCAN MONITORIZED BATTERIES FORM
-* ***************
-#ce
-Global $searchform, $monitorlist, $searchmonitorconnectbutton, $searchmonitorscanbutton
-
-$searchform = GUICreate("Truck/Battery Selection", 325, 443, 192, 124)
-GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
-$monitorlist = GUICtrlCreateList("", 40, 48, 241, 331)
-;GUICtrlSetData(-1, "H2X386U34432|W4X131R05445|W4X131S00453")
-$searchmonitorscanbutton = GUICtrlCreateButton("Scan", 40, 400, 75, 25)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$searchmonitorconnectbutton = GUICtrlCreateButton("Connect", 208, 400, 75, 25)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-GUICtrlCreateLabel("Detected trucks/batteries monitorized ", 40, 8, 234, 34, BitOR($SS_CENTER,$SS_CENTERIMAGE))
-
-
-
-
-#cs
-* ***************
-*	ALARM VISUALIZATION FORM
-* ***************
-#ce
-Global $alarmform
-Global $alarmoutput
-
-$alarmform = GUICreate("Alarm List",400,600)
-GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
-$alarmoutput = GUICtrlCreateEdit("", 10, 10, 380, 580)
-
-#cs
-* ***************
-*	COM PORT SELEC FORM
-* ***************
-#ce
-Global $comportselectform, $comportselect, $baudrateselct, $databitselect, $dataparityselect, $stopbitselect, $flowcontrolselect
-Global $comselectokbutton, $comselectcancelbutton, $comselecthelpbutton
-
-$comportselectform = GUICreate("COM port Selection", 366, 215, 314, 132)
-GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
-GUICtrlCreateLabel("COM Port", 41, 15, 59, 25, $SS_CENTERIMAGE)
-$comportselect = GUICtrlCreateCombo("", 96, 15, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
-GUICtrlCreateLabel("Baud Rate", 40, 45, 59, 25, $SS_CENTERIMAGE)
-$baudrateselct = GUICtrlCreateCombo("", 96, 45, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
-GUICtrlSetData(-1,"300|600|1200|2400|4800|9600|14400|19200|38400|57600|115200", "9600")
-GUICtrlCreateLabel("Data", 40, 75, 59, 25, $SS_CENTERIMAGE)
-$databitselect = GUICtrlCreateCombo("", 96, 75, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
-GUICtrlSetData(-1,"7 bits|8 bits", "8 bits")
-GUICtrlCreateLabel("Parity", 40, 105, 59, 25, $SS_CENTERIMAGE)
-$dataparityselect = GUICtrlCreateCombo("", 96, 105, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
-GUICtrlSetData(-1, "none|even|odd|mark|space", "none")
-GUICtrlCreateLabel("Stop", 40, 135, 59, 25, $SS_CENTERIMAGE)
-$stopbitselect = GUICtrlCreateCombo("", 96, 135, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
-GUICtrlSetData(-1,"1 bit|1,5 bits|2 bits","1 bit")
-GUICtrlCreateLabel("Flow C.", 40, 165, 59, 25, $SS_CENTERIMAGE)
-$flowcontrolselect = GUICtrlCreateCombo("", 96, 165, 81, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
-GUICtrlSetData(-1,"Hardware|Xon/Xoff|none","none")
-$comselectokbutton = GUICtrlCreateButton("&Ok", 220, 16, 89, 33)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$comselectcancelbutton = GUICtrlCreateButton("&Cancel", 220, 76, 89, 33)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$comselecthelpbutton = GUICtrlCreateButton("&Help", 220, 140, 89, 33)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-
-
-#cs
-* ***************
-*	DATABASE ACCESS CONFIG FORM
-* ***************
-#ce
-Global $databaseconfigform, $databaseselectokbutton, $databaseselectcancelbutton, $databaseselecthelpbutton
-Global $databaseselectdatabase, $databaseselectuser, $databaseselectpassword
-
-$databaseconfigform = GUICreate("Database access configuration", 367, 216, 304, 119)
-GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
-GUICtrlCreateLabel("Database", 25, 8, 50, 17)
-$databaseselectdatabase = GUICtrlCreateInput("", 25, 24, 313, 21)
-GUICtrlCreateLabel("User", 25, 56, 26, 17)
-$databaseselectuser = GUICtrlCreateInput("", 25, 72, 313, 21)
-GUICtrlCreateLabel("Password", 25, 104, 50, 17)
-$databaseselectpassword = GUICtrlCreateInput("", 25, 120, 313, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_PASSWORD))
-$databaseselectokbutton = GUICtrlCreateButton("&OK", 25, 160, 89, 32)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$databaseselectcancelbutton = GUICtrlCreateButton("&Cancel", 136, 160, 89, 32)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$databaseselecthelpbutton = GUICtrlCreateButton("&Help", 248, 160, 89, 32)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-
-#cs
-* ***************
-*	HARDWARE DATA CONFIG FORM
-* ***************
-#ce
-Global $hardwaredataform, $dataconfigtruckmodel, $dataconfigtruckserial, $dataconfigbatterymodel, $dataconfigbatteryserial
-Global $dataconfigcancelbutton, $dataconfigokbutton, $dataconfighelpbutton
-
-$hardwaredataform = GUICreate("Hardware monitor identifiacion values", 367, 216, 313, 163)
-GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
-GUICtrlCreateGroup("Truck Data", 24, 8, 153, 137)
-GUICtrlCreateLabel("Model", 31, 32, 33, 17)
-$dataconfigtruckmodel = GUICtrlCreateInput("", 31, 48, 137, 21)
-$dataconfigtruckserial = GUICtrlCreateInput("", 31, 104, 137, 21)
-GUICtrlCreateLabel("Serial", 31, 88, 30, 17)
-;GUICtrlCreateGroup("", -99, -99, 1, 1)
-GUICtrlCreateGroup("Battery Data", 184, 8, 153, 137)
-GUICtrlCreateLabel("Model", 191, 32, 33, 17)
-$dataconfigbatterymodel = GUICtrlCreateInput("", 191, 48, 137, 21)
-GUICtrlCreateLabel("Serial", 191, 88, 33, 17)
-$dataconfigbatteryserial = GUICtrlCreateInput("", 191, 104, 137, 21)
-GUICtrlCreateGroup("", -99, -99, 1, 1)
-$dataconfigcancelbutton = GUICtrlCreateButton("&Cancel", 136, 160, 89, 32)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$dataconfigokbutton = GUICtrlCreateButton("&OK", 25, 160, 89, 32)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$dataconfighelpbutton = GUICtrlCreateButton("&Help", 248, 160, 89, 32)
-GUICtrlSetOnEvent(-1, "_ButtonClicked")
-
-
-#cs
-* ***************
-*	VERSION FORM
-* ***************
-#ce
-Dim $versionform
-Dim $versionformokbutton
-
-$versionform = GUICreate("Version", 200,150)
-GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
-GUICtrlCreateLabel("Traction batteries monitor system" & @CRLF & "Version: " & $PROGRAM_VERSION, 10,10)
-$versionformokbutton = GUICtrlCreateButton("Ok", 75, 110, 50, 30)
-GUIctrlSetOnEvent(-1, "_ButtonClicked")
-
 
 _Main()
 
 Func _Main ()
+
 	_Draw()
 	While 1
-
-		Sleep(50)
+		Sleep(10)
 	WEnd
+
 EndFunc
 
 
@@ -875,6 +883,7 @@ Func _ButtonClicked ()
 					$xgain = 5
 					$ygain = 5
 			EndSwitch
+			GUISwitch($myGui)
 			_Draw()
 
 		Case $zoomoutbutton
@@ -905,9 +914,11 @@ Func _ButtonClicked ()
 					$ygain = 4
 
 			EndSwitch
+			GUISwitch($myGui)
 			_Draw()
 
 		Case $zoomfitbutton
+			GUISwitch($myGui)
 			$xoffset = 0
 			$yoffset = 0
 			$xgain = 1
@@ -916,15 +927,20 @@ Func _ButtonClicked ()
 
 		Case $xoff_p
 			$xoffset += 20
+			GUISwitch($myGui)
 			_Draw()
 		Case $xoff_m
 			$xoffset -= 20
+			GUISwitch($myGui)
 			_Draw()
 		Case $yoff_p
 			$yoffset += 20
+			GUISwitch($myGui)
 			_Draw()
 		Case $yoff_m
+			GUISwitch($myGui)
 			$yoffset -= 20
+			GUISwitch($myGui)
 			_Draw()
 
 
@@ -1142,25 +1158,45 @@ EndFunc
 
 ;****************** GRAPHICAL REPRESENTATION FUNCTIONS **********************
 Func _Draw()
-	Local $k, $x
+	Local $j, $x, $y
+	Local $first = True                   ; is the first value in range to represent
+
 	For $j=0 To 4
 		GUICtrlDelete($historygraph[$j])      ; Delete previous graphic handle
-		$historygraph[$j] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER) ; create a new one
-		_PrintInGraphic($historygraph[$j], $j+1, $xmax, $ymax, $xgain, $yscale[$j]*$ygain, $xoffset, $offset[$j] + $yoffset, $colours[$j])
+		$historygraph[$j] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ; create a new one
+
+		;_PrintInGraphic($historygraph[$j], $j+1, $xmax, $ymax, $xgain, $yscale[$j]*$ygain, $xoffset, $offset[$j] + $yoffset, $colours[$j])
+
+		;GUICtrlSetGraphic($historygraph[$j], $GUI_GR_PENSIZE, 3)
+		GUICtrlSetGraphic($historygraph[$j], $GUI_GR_COLOR, $colours[$j])						; Set the appropiate colour
+		For $x = 0 To $xmax -1
+			If (Int(($x/$xgain)+$xoffset) >= 0) And (Int(($x/$xgain)+$xoffset) < ($xmax -1)) Then							; Donï¿½t exceeded the $sensor[$j] range
+				If $first Then         ; is the first value to represent in the graphic
+					GUICtrlSetGraphic($historygraph[$j], $GUI_GR_MOVE, $x, Int($ymax - ($yscale[$j]*$ygain*$sensor[$j+1][Int(($x/$xgain)+$xoffset)]+$offset[$j] + $yoffset))) ;posicionate at inic of draw
+					$first = False
+				EndIf
+				$y=$ymax - ($yscale[$j]*$ygain*$sensor[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
+				If ($y > 0) Then
+					GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, $x, $y)
+				EndIf
+			EndIf
+		Next
+		GUICtrlSetColor($historygraph[$j], 0xffffff)
+		$first = True
 	Next
 
 
 EndFunc
 
-
+#cs
 Func _PrintInGraphic($graphic, $data, $xmax, $ymax, $xgain, $ygain, $xoff, $yoff, $color)
-	Local $x, $xeff, $y
+	Local $x, $xeff,
 	Local $first = True                   ; is the first value in range to represent
 
 	;GUICtrlSetGraphic($graphic, $GUI_GR_PENSIZE, 3)
 	GUICtrlSetGraphic($graphic, $GUI_GR_COLOR, $color)						; Set the appropiate colour
 	For $x = 0 To $xmax -1
-		If ((($x/$xgain)+$xoff) >= 0) And ((($x/$xgain)+$xoff) < ($xmax -1)) Then							; Don´t exceeded the $sensor[$j] range
+		If ((($x/$xgain)+$xoff) >= 0) And ((($x/$xgain)+$xoff) < ($xmax -1)) Then							; Donï¿½t exceeded the $sensor[$j] range
 			If $first Then         ; is the first value to represent in the graphic
 				GUICtrlSetGraphic($graphic, $GUI_GR_MOVE, $x, $ymax - ($yoff*$sensor[$data][($x/$xgain)+$xoff]+$yoff)) ;posicionate at inic of draw
 				$first = False
@@ -1171,6 +1207,7 @@ Func _PrintInGraphic($graphic, $data, $xmax, $ymax, $xgain, $ygain, $xoff, $yoff
 			EndIf
 		EndIf
 	Next
-	GUICtrlSetColor($graphic, 0xffffff)
+	;GUICtrlSetColor($graphic, 0xffffff)
 
 EndFunc
+#ce
