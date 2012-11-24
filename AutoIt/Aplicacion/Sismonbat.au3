@@ -5,7 +5,8 @@
 
  Script Function:
 
- Version: 	0.6.0	Add Label for sensonr measurements at cursor pos
+ Version: 	0.6.1	Show and hide values when cursors are visible or hidden
+			0.6.0	Add Label for sensor measurements at cursor pos
 			0.5.0 	Add Cursos and buttons icon
 			0.4.0	Add Grid and rule with values. TODO dinamic asignation of rule value
 			0.3.3 	Fix error with cursors buttons
@@ -382,16 +383,24 @@ GUICtrlSetOnEvent(-1, "_ButtonClicked")
 Global $sensorvalue[5][2]
 $xpos = 0
 $sensorvalue[0][0] = GUICtrlCreateLabel("C1:xx.xxV", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetState(-1, $GUI_HIDE)
 $sensorvalue[0][1] = GUICtrlCreateLabel("C2:xx.xxV", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetState(-1, $GUI_HIDE)
 $xpos += $checkboxwith
-$sensorvalue[2][0] = GUICtrlCreateLabel("C1:xxx.xA", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
-$sensorvalue[2][1] = GUICtrlCreateLabel("C2:xxx.xA", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+$sensorvalue[1][0] = GUICtrlCreateLabel("C1:xxx.xA", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetState(-1, $GUI_HIDE)
+$sensorvalue[1][1] = GUICtrlCreateLabel("C2:xxx.xA", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetState(-1, $GUI_HIDE)
 $xpos += $checkboxwith
-$sensorvalue[3][0] = GUICtrlCreateLabel("C1:+xx.xºC", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
-$sensorvalue[3][1] = GUICtrlCreateLabel("C2:-xx.xºC", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+$sensorvalue[2][0] = GUICtrlCreateLabel("C1:+xx.xºC", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetState(-1, $GUI_HIDE)
+$sensorvalue[2][1] = GUICtrlCreateLabel("C2:-xx.xºC", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetState(-1, $GUI_HIDE)
 $xpos += $checkboxwith
-$sensorvalue[4][0] = GUICtrlCreateLabel("C1: Ok", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
-$sensorvalue[4][1] = GUICtrlCreateLabel("C2: No Ok", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+$sensorvalue[3][0] = GUICtrlCreateLabel("C1: Ok", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetState(-1, $GUI_HIDE)
+$sensorvalue[3][1] = GUICtrlCreateLabel("C2: No Ok", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetState(-1, $GUI_HIDE)
 
 ; Status output creation
 $status = GUICtrlCreateEdit("",0,$GUIHeight - $statusHeight,$GUIWidth, $statusHeight)
@@ -963,6 +972,7 @@ Func _ButtonClicked ()
 				;GUICtrlSetState($historygraph[1], $GUI_HIDE)
 			EndIf
 			_Draw()
+			_ShowCursorsValues()
 
 		Case $currentcheck
 			If (GUICtrlRead($currentcheck) = $GUI_CHECKED) Then
@@ -973,6 +983,7 @@ Func _ButtonClicked ()
 				;GUICtrlSetState($historygraph[2], $GUI_HIDE)
 			EndIf
 			_Draw()
+			_ShowCursorsValues()
 
 		Case $tempcheck
 			If (GUICtrlRead($tempcheck) = $GUI_CHECKED) Then
@@ -983,6 +994,7 @@ Func _ButtonClicked ()
 				;GUICtrlSetState($historygraph[3], $GUI_HIDE)
 			EndIf
 			_Draw()
+			_ShowCursorsValues()
 
 		Case $levelcheck
 			If (GUICtrlRead($levelcheck) = $GUI_CHECKED) Then
@@ -993,6 +1005,7 @@ Func _ButtonClicked ()
 				;GUICtrlSetState($historygraph[4], $GUI_HIDE)
 			EndIf
 			_Draw()
+			_ShowCursorsValues()
 
 		Case $zoominbutton
 			Switch $xgain
@@ -1073,6 +1086,7 @@ Func _ButtonClicked ()
 				GUICtrlSetState($cursor[1], $GUI_SHOW)
 				_DrawCursors()
 				$cursorvisible = True
+				_ShowCursorsValues()
 			EndIf
 
 		Case $showgridbutton
@@ -1393,4 +1407,40 @@ Func _DrawCursors()
 	GUICtrlSetGraphic($cursor[1], $GUI_GR_LINE, $cursor2, $ymax)
 	GUICtrlSetColor($cursor[1], 0xffffff)
 
+EndFunc
+
+Func _ShowCursorsValues()
+	If $cursorvisible Then
+		If (GUICtrlRead($voltajecheck) = $GUI_CHECKED) Then
+			GUICtrlSetState($sensorvalue[0][0], $GUI_SHOW)
+			GUICtrlSetState($sensorvalue[0][1], $GUI_SHOW)
+		Else
+			GUICtrlSetState($sensorvalue[0][0], $GUI_HIDE)
+			GUICtrlSetState($sensorvalue[0][0], $GUI_HIDE)
+		EndIf
+
+		If (GUICtrlRead($currentcheck) = $GUI_CHECKED) Then
+			GUICtrlSetState($sensorvalue[1][0], $GUI_SHOW)
+			GUICtrlSetState($sensorvalue[1][1], $GUI_SHOW)
+		Else
+			GUICtrlSetState($sensorvalue[1][0], $GUI_HIDE)
+			GUICtrlSetState($sensorvalue[1][1], $GUI_HIDE)
+		EndIf
+
+		If (GUICtrlRead($tempcheck) = $GUI_CHECKED) Then
+			GUICtrlSetState($sensorvalue[2][0], $GUI_SHOW)
+			GUICtrlSetState($sensorvalue[2][1], $GUI_SHOW)
+		Else
+			GUICtrlSetState($sensorvalue[2][0], $GUI_HIDE)
+			GUICtrlSetState($sensorvalue[2][1], $GUI_HIDE)
+		EndIf
+
+		If (GUICtrlRead($levelcheck) = $GUI_CHECKED) Then
+			GUICtrlSetState($sensorvalue[3][0], $GUI_SHOW)
+			GUICtrlSetState($sensorvalue[3][1], $GUI_SHOW)
+		Else
+			GUICtrlSetState($sensorvalue[3][0], $GUI_HIDE)
+			GUICtrlSetState($sensorvalue[3][1], $GUI_HIDE)
+		EndIf
+	EndIf
 EndFunc
