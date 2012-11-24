@@ -5,7 +5,8 @@
 
  Script Function:
 
- Version: 	0.6.1	Show and hide values when cursors are visible or hidden
+ Version: 	0.6.2	Fix error. Draw out the graphics
+			0.6.1	Show and hide values when cursors are visible or hidden
 			0.6.0	Add Label for sensor measurements at cursor pos
 			0.5.0 	Add Cursos and buttons icon
 			0.4.0	Add Grid and rule with values. TODO dinamic asignation of rule value
@@ -408,28 +409,37 @@ $status = GUICtrlCreateEdit("",0,$GUIHeight - $statusHeight,$GUIWidth, $statusHe
 ; History graphic creation
 Const $xmax = Int($GUIWidth*3/4)
 Const $ymax	= Int($GUIHeight-$ButtonHeight-$checkboxheight-$statusHeight)
-Global $sensor[6][$xmax] ; sensors signals for representation [date,v+,v-,a,t,l]
-Global $offset[5] = [0,Int($ymax/2),Int($ymax/2),Int($ymax/10),Int($ymax/10)]; offset off each sensor representation
-Global $yscale[5] = [200,200,200,200,200]	 ; scale of each sensor representation
+Global $sensor[6][2*$xmax] ; sensors signals for representation [date,v+,v-,a,t,l]
+Global $offset[5] = [0, 0,Int($ymax/2),Int($ymax/10),Int($ymax/10)]; offset off each sensor representation
+Global $yscale[5] = [20,20,1,10,200]	 ; scale of each sensor representation
 Global $colours[5] = [0xff0000, 0x000000, 0x14ce00, 0x0000ff, 0xff00ff] ; Sensor representation colours
 Global $visible[5] = [True,True,True,True,True]
 Global $xscale
 
 ;********************** ONLY FOR TEST ***** REMOVE
-For $k = 0 To $xmax -1
-	$sensor[1][$k] = Sin($k/50)
+For $k = 0 To 2*$xmax -1
+	$sensor[1][$k] = 12+5*Sin($k/50)
 Next
 
-For $k = 0 To $xmax -1
-	$sensor[2][$k] = Sin($k/30)
+For $k = 0 To 2*$xmax -1
+	$sensor[2][$k] = 11.5+5*Sin($k/50)
 Next
 
-For $k = 0 To $xmax -1
-	$sensor[0][$k] = Tan($k/30)
+Dim $inc = 2
+Dim $val = 0
+For $k = 0 To 2*$xmax -1
+
+	$sensor[3][$k] = $val
+	If $val > 150 Then
+		$inc = -2
+	ElseIf $val < -150 Then
+		$inc = 2
+	EndIf
+	$val = $val + $inc
 Next
 
-For $k = 0 To $xmax -1
-	$sensor[4][$k] = Cos($k/30)
+For $k = 0 To 2*$xmax -1
+	$sensor[4][$k] = 25+20*Cos($k/30)
 Next
 ;***************************************** REMOVE
 
@@ -1347,12 +1357,17 @@ Func _Draw()
 			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_COLOR, $colours[$j])						; Set the appropiate colour
 			For $x = 40 To $xmax -1 -40
 				If (Int(($x/$xgain)+$xoffset) >= 0) And (Int(($x/$xgain)+$xoffset) < ($xmax -1)) Then							; Don�t exceeded the $sensor[$j] range
-					If $first Then         ; is the first value to represent in the graphic
-						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_MOVE, $x, Int($ymax - ($yscale[$j]*$ygain*$sensor[$j+1][Int(($x/$xgain)+$xoffset)]+$offset[$j] + $yoffset))) ;posicionate at inic of draw
-						$first = False
-					EndIf
 					$y=$ymax - ($yscale[$j]*$ygain*$sensor[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
-					If ($y > 0) Then
+					If $y<0 Then
+						$y=0
+					ElseIf $y>$ymax Then
+						$Y=$ymax
+					EndIf
+
+					If $first Then         ; is the first value to represent in the graphic
+						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_MOVE, $x, $y) ;posicionate at inic of draw
+						$first = False
+					Else
 						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, $x, $y)
 					EndIf
 				EndIf
