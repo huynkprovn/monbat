@@ -5,7 +5,8 @@
 
  Script Function:
 
- Version: 	0.4.0	Add Grid and rule with values. TODO dinamic asignation of rule value
+ Version: 	0.5.0 	Add Cursos and buttons icon
+			0.4.0	Add Grid and rule with values. TODO dinamic asignation of rule value
 			0.3.3 	Fix error with cursors buttons
 			0.3.2	Fix error when printing the graphics with multiple forms app. GUISwitch($myGui) needed
 			0.3.1	Add buttons to scale and move graphics. Error Don�t print the graphics
@@ -34,12 +35,17 @@
 #include <WindowsConstants.au3>
 #include <ButtonConstants.au3>
 #include <ComboConstants.au3>
+#include <Misc.au3>    ; For mouse click detection handle
+
+
+
+
 
 Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
-Const $PROGRAM_VERSION = "0.4.0"
+Const $PROGRAM_VERSION = "0.5.0"
 
 #cs
 * ***************
@@ -225,7 +231,7 @@ GUIctrlSetOnEvent(-1, "_ButtonClicked")
 $myGui = GUICreate("Traction batteries monitor system", $GUIWidth, $GUIHeight, 5, 5)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 GUISetOnEvent($GUI_EVENT_MOUSEMOVE, "_MouseMove")
-;GUISetBkColor(0xf0f0f0)
+GUISetBkColor(0xf0f0f0)
 GUISetState() ; Show the main GUI
 
 ; Form menu creation
@@ -313,36 +319,36 @@ $exitbuttonhelp =GUICtrlCreateLabel("Exit the application", $buttonxpos+$ButtonW
 GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith*8
 
-$zoominbutton = GUICtrlCreateButton("Zoom In",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
-GUICtrlSetImage(-1, "shell32.dll", -28)
+$zoominbutton = GUICtrlCreateButton("Zoom In",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_BITMAP)
+GUICtrlSetImage($zoominbutton, ".\images\zoomin.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $zoominbuttonhelp =GUICtrlCreateLabel("Zoom In", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
 GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith
 
-$zoomoutbutton = GUICtrlCreateButton("Zoom Out",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
-GUICtrlSetImage(-1, "shell32.dll", -28)
+$zoomoutbutton = GUICtrlCreateButton("Zoom Out",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_BITMAP)
+GUICtrlSetImage($zoomoutbutton, ".\images\zoomout.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $zoomoutbuttonhelp =GUICtrlCreateLabel("Zoom Out", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
 GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith
 
-$zoomfitbutton = GUICtrlCreateButton("Zoom Fit",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
-GUICtrlSetImage(-1, "shell32.dll", -28)
+$zoomfitbutton = GUICtrlCreateButton("Zoom Fit",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_BITMAP)
+GUICtrlSetImage($zoomfitbutton, ".\images\zoom100.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $zoomfitbuttonhelp =GUICtrlCreateLabel("Zoom Fit", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
 GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith
 
-$showcursorsbutton = GUICtrlCreateButton("Show Cursors",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
-GUICtrlSetImage(-1, "shell32.dll", -28)
+$showcursorsbutton = GUICtrlCreateButton("Show Cursors",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_BITMAP)
+GUICtrlSetImage(-1, ".\images\cursor.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $showcursorsbuttonhelp =GUICtrlCreateLabel("Show Cursors", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
 GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith
 
-$showgridbutton = GUICtrlCreateButton("Show Grid",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_ICON)
-GUICtrlSetImage(-1, "shell32.dll", -28)
+$showgridbutton = GUICtrlCreateButton("Show Grid",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_BITMAP)
+GUICtrlSetImage(-1, ".\images\grid.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $showgridbuttonhelp =GUICtrlCreateLabel("Show Grid", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
 GUICtrlSetState(-1,$GUI_HIDE)
@@ -403,13 +409,17 @@ Next
 
 Global $xoff_m, $xoff_p, $yoff_m, $yoff_p
 
-$xoff_m = GUICtrlCreateButton("",$xmax - 80,$ButtonHeight,20,20)
+$xoff_m = GUICtrlCreateButton("",$xmax - 80,$ButtonHeight,20,20,$BS_BITMAP)
+GUICtrlSetImage($xoff_m, ".\images\left.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$xoff_p = GUICtrlCreateButton("",$xmax - 40,$ButtonHeight,20,20)
+$xoff_p = GUICtrlCreateButton("",$xmax - 60,$ButtonHeight,20,20,$BS_BITMAP)
+GUICtrlSetImage($xoff_p, ".\images\right.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$yoff_p = GUICtrlCreateButton("",$xmax - 20,$ButtonHeight + 20, 20, 20)
+$yoff_p = GUICtrlCreateButton("",$xmax - 20,$ButtonHeight + 0, 20, 20,$BS_BITMAP)
+GUICtrlSetImage($yoff_p, ".\images\up.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$yoff_m = GUICtrlCreateButton("",$xmax - 20,$ButtonHeight + 60, 20, 20)
+$yoff_m = GUICtrlCreateButton("",$xmax - 20,$ButtonHeight + 20, 20, 20,$BS_BITMAP)
+GUICtrlSetImage($yoff_m, ".\images\down.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 
 Global $rules
@@ -434,16 +444,24 @@ For $k=0 to 8
 	GUICtrlSetColor(-1,$colours[3])
 Next
 
+Global $cursor[2]
+$cursor[0] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER)
+$cursor[1] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER)
+
+Global $cursor1 = ($xmax-1)/2		; the cursors x pos and his initial value
+Global $cursor2 = ($xmax-1)/2
+_DrawCursors()
+Global $cursorvisible = False
+GUICtrlSetState($cursor[0], $GUI_HIDE)
+GUICtrlSetState($cursor[1], $GUI_HIDE)
+
+
+
 $historygraph[0] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;V+
 $historygraph[1] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;V-
 $historygraph[2] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;A
 $historygraph[3] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;T
 $historygraph[4] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;L
-
-Global $cursor[2]
-$cursor[0] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER)
-$cursor[1] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER)
-
 
 Global $xoffset = 0
 Global $yoffset = 0
@@ -517,6 +535,9 @@ Func _Main ()
 
 	_Draw()
 	While 1
+		;If $cursorvisible Then
+		;	_IsPressed($sHexKey [, $vDLL = 'user32.dll'])
+		;EndIf
 		Sleep(10)
 	WEnd
 
@@ -1000,6 +1021,18 @@ Func _ButtonClicked ()
 			$ygain = 1
 			_Draw()
 
+		Case $showcursorsbutton
+			If $cursorvisible Then
+				GUICtrlSetState($cursor[0], $GUI_HIDE)
+				GUICtrlSetState($cursor[1], $GUI_HIDE)
+				$cursorvisible = False
+			Else
+				GUICtrlSetState($cursor[0], $GUI_SHOW)
+				GUICtrlSetState($cursor[1], $GUI_SHOW)
+				_DrawCursors()
+				$cursorvisible = True
+			EndIf
+
 		Case $showgridbutton
 			If $gridvisible Then
 				GUICtrlSetState($grid, $GUI_HIDE)
@@ -1254,7 +1287,7 @@ Func _Draw()
 
 			;_PrintInGraphic($historygraph[$j], $j+1, $xmax, $ymax, $xgain, $yscale[$j]*$ygain, $xoffset, $offset[$j] + $yoffset, $colours[$j])
 
-			;GUICtrlSetGraphic($historygraph[$j], $GUI_GR_PENSIZE, 3)
+			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_PENSIZE, 2)
 			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_COLOR, $colours[$j])						; Set the appropiate colour
 			For $x = 40 To $xmax -1 -40
 				If (Int(($x/$xgain)+$xoffset) >= 0) And (Int(($x/$xgain)+$xoffset) < ($xmax -1)) Then							; Don�t exceeded the $sensor[$j] range
@@ -1303,4 +1336,16 @@ Func _DrawRules()
 	Next
 	GUICtrlSetColor($rules, 0xffffff)
 
+EndFunc
+
+
+Func _DrawCursors()
+	GUICtrlDelete($cursor[0])      ; Delete previous graphic handle
+	$cursor[0] =  GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER); create a new one
+	GUICtrlSetGraphic($cursor[0], $GUI_GR_MOVE, $cursor1, 20)
+	GUICtrlSetGraphic($cursor[0], $GUI_GR_LINE, $cursor1, $ymax)
+	GUICtrlDelete($cursor[1])
+	GUICtrlSetGraphic($cursor[1], $GUI_GR_MOVE, $cursor1, 20)
+	GUICtrlSetGraphic($cursor[1], $GUI_GR_LINE, $cursor1, $ymax)
+	$cursor[1] =  GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER); create a new one
 EndFunc
