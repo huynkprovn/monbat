@@ -5,7 +5,8 @@
 
  Script Function:
 
- Version: 	0.5.0 	Add Cursos and buttons icon
+ Version: 	0.6.0	Add Label for sensonr measurements at cursor pos
+			0.5.0 	Add Cursos and buttons icon
 			0.4.0	Add Grid and rule with values. TODO dinamic asignation of rule value
 			0.3.3 	Fix error with cursors buttons
 			0.3.2	Fix error when printing the graphics with multiple forms app. GUISwitch($myGui) needed
@@ -354,29 +355,46 @@ $showgridbuttonhelp =GUICtrlCreateLabel("Show Grid", $buttonxpos+$ButtonWith/2, 
 GUICtrlSetState(-1,$GUI_HIDE)
 Global $grid = False
 
-; Status output creation
+
 Const $statusHeight = 50
-$status = GUICtrlCreateEdit("",0,$GUIHeight - $statusHeight,$GUIWidth, $statusHeight)
 
 ; Checkbox to select data for display
 Const $checkboxheight = 15
 Const $checkboxwith = ($GUIWidth*3/16)
+
 Dim $xpos = 0
-$voltajecheck = GUICtrlCreateCheckbox("Voltage", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+$voltajecheck = GUICtrlCreateCheckbox("Voltage", $xpos ,$GUIHeight - $statusHeight - $checkboxheight-3);, $checkboxwith, $checkboxheight)
 GUICtrlSetState(-1, $GUI_CHECKED)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $xpos += $checkboxwith
-$currentcheck = GUICtrlCreateCheckbox("Current", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+$currentcheck = GUICtrlCreateCheckbox("Current", $xpos ,$GUIHeight - $statusHeight - $checkboxheight-3);, $checkboxwith, $checkboxheight)
 GUICtrlSetState(-1, $GUI_CHECKED)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $xpos += $checkboxwith
-$tempcheck = GUICtrlCreateCheckbox("Temperature", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+$tempcheck = GUICtrlCreateCheckbox("Temperature", $xpos ,$GUIHeight - $statusHeight - $checkboxheight-3);, $checkboxwith, $checkboxheight)
 GUICtrlSetState(-1, $GUI_CHECKED)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $xpos += $checkboxwith
-$levelcheck = GUICtrlCreateCheckbox("Level", $xpos ,$GUIHeight - $statusHeight - $checkboxheight, $checkboxwith, $checkboxheight)
+$levelcheck = GUICtrlCreateCheckbox("Level", $xpos ,$GUIHeight - $statusHeight - $checkboxheight-3);, $checkboxwith, $checkboxheight)
 GUICtrlSetState(-1, $GUI_CHECKED)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
+
+Global $sensorvalue[5][2]
+$xpos = 0
+$sensorvalue[0][0] = GUICtrlCreateLabel("C1:xx.xxV", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+$sensorvalue[0][1] = GUICtrlCreateLabel("C2:xx.xxV", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+$xpos += $checkboxwith
+$sensorvalue[2][0] = GUICtrlCreateLabel("C1:xxx.xA", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+$sensorvalue[2][1] = GUICtrlCreateLabel("C2:xxx.xA", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+$xpos += $checkboxwith
+$sensorvalue[3][0] = GUICtrlCreateLabel("C1:+xx.xºC", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+$sensorvalue[3][1] = GUICtrlCreateLabel("C2:-xx.xºC", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+$xpos += $checkboxwith
+$sensorvalue[4][0] = GUICtrlCreateLabel("C1: Ok", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+$sensorvalue[4][1] = GUICtrlCreateLabel("C2: No Ok", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+
+; Status output creation
+$status = GUICtrlCreateEdit("",0,$GUIHeight - $statusHeight,$GUIWidth, $statusHeight)
 
 ; History graphic creation
 Const $xmax = Int($GUIWidth*3/4)
@@ -448,8 +466,8 @@ Global $cursor[2]
 $cursor[0] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER)
 $cursor[1] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER)
 
-Global $cursor1 = ($xmax-1)/2		; the cursors x pos and his initial value
-Global $cursor2 = ($xmax-1)/2
+Global $cursor1 = ($xmax-1)/4		; the cursors x pos and his initial value
+Global $cursor2 = 3*($xmax-1)/4
 _DrawCursors()
 Global $cursorvisible = False
 GUICtrlSetState($cursor[0], $GUI_HIDE)
@@ -533,11 +551,36 @@ _Main()
 
 Func _Main ()
 
+	;Local $hDLL = DllOpen("user32.dll")
+	Local $pos[2]
+
 	_Draw()
 	While 1
-		;If $cursorvisible Then
-		;	_IsPressed($sHexKey [, $vDLL = 'user32.dll'])
-		;EndIf
+		If $cursorvisible Then
+			If _IsPressed("01") Then
+				$pos = MouseGetPos()
+				;GUICtrlSetData($status, $pos[0] & " , " & $pos[1] & " , " & $ButtonHeight)
+				If (($pos[0]>$xmax-10) Or ($pos[1]<90) Or ($pos[1]>($ButtonHeight+$ymax))) Then
+				Else
+					$cursor1 = $pos[0]
+					_DrawCursors()
+				EndIf
+
+				While _IsPressed("01")
+					Sleep(10)
+				Wend
+			ElseIf _IsPressed("02") Then
+				$pos = MouseGetPos()
+				If (($pos[0]>$xmax-10) Or ($pos[1]<90) Or ($pos[1]>($ButtonHeight+$ymax))) Then
+				Else
+					$cursor2 = $pos[0]
+					_DrawCursors()
+				EndIf
+				While _IsPressed("02")
+					Sleep(10)
+				Wend
+			EndIf
+		EndIf
 		Sleep(10)
 	WEnd
 
@@ -857,7 +900,6 @@ Func _MouseMove ()
 				GUICtrlSetState($zoomfitbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($showcursorsbuttonhelp, $GUI_HIDE)
 				GUICtrlSetState($showgridbuttonhelp, $GUI_HIDE)
-
 
 		EndSwitch
 	EndIf
@@ -1344,8 +1386,11 @@ Func _DrawCursors()
 	$cursor[0] =  GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER); create a new one
 	GUICtrlSetGraphic($cursor[0], $GUI_GR_MOVE, $cursor1, 20)
 	GUICtrlSetGraphic($cursor[0], $GUI_GR_LINE, $cursor1, $ymax)
+	GUICtrlSetColor($cursor[0], 0xffffff)
 	GUICtrlDelete($cursor[1])
-	GUICtrlSetGraphic($cursor[1], $GUI_GR_MOVE, $cursor1, 20)
-	GUICtrlSetGraphic($cursor[1], $GUI_GR_LINE, $cursor1, $ymax)
 	$cursor[1] =  GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER); create a new one
+	GUICtrlSetGraphic($cursor[1], $GUI_GR_MOVE, $cursor2, 20)
+	GUICtrlSetGraphic($cursor[1], $GUI_GR_LINE, $cursor2, $ymax)
+	GUICtrlSetColor($cursor[1], 0xffffff)
+
 EndFunc
