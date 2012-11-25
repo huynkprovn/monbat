@@ -5,7 +5,8 @@
 
  Script Function:
 
- Version: 	0.8.0	Add dinamic sensor value representation at cursor pos. Different buttons for scale x and y axis
+ Version: 	0.8.1	Fix error in vertical offset. Add label for date at cursors representation
+			0.8.0	Add dynamic sensor value representation at cursor pos. Different buttons for scale x and y axis
 			0.7.0	Add rules value dynamically adjusting
 			0.6.2	Fix error. Draw out the graphics
 			0.6.1	Show and hide values when cursors are visible or hidden
@@ -50,7 +51,7 @@ Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
-Const $PROGRAM_VERSION = "0.8.0"
+Const $PROGRAM_VERSION = "0.8.1"
 
 #cs
 * ***************
@@ -527,6 +528,12 @@ $historygraph[2] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BO
 $historygraph[3] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;T
 $historygraph[4] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;L
 
+Global $cursor1date, $cursor2date
+$cursor1date=GUICtrlCreateLabel("C1: 23/05/2012 11:23:34", $xmax/5, $ymax+15)
+GUICtrlSetState(-1, $GUI_HIDE)
+$cursor2date=GUICtrlCreateLabel("C2: 23/05/2012 11:54:20", $xmax*3/5, $ymax+15)
+GUICtrlSetState(-1, $GUI_HIDE)
+
 ; Batery charge indicator creation
 Const $chargeWhith = $GUIWidth/4 - $GUIWidth/15
 $charge = GUICtrlCreatePic(".\images\default.jpg", $GUIWidth*3/4 + $GUIWidth/30, $ButtonHeight, $chargeWhith, $chargeWhith)
@@ -601,7 +608,7 @@ Func _Main ()
 			If _IsPressed("01") Then
 				$pos = MouseGetPos()
 				GUICtrlSetData($status, $pos[0] & " , " & $pos[1] & " , " & $ButtonHeight)
-				If (($pos[0]>$xmax-10) Or ($pos[1]<130) Or ($pos[1]>($ButtonHeight+$ymax+80))) Then   ; 90 is the upper form border/ 130 is under the offset button
+				If (($pos[0]>$xmax-10) Or ($pos[1]<130) Or ($pos[1]>($ButtonHeight+$ymax))) Then   ; 90 is the upper form border/ 130 is under the offset button
 				Else
 					$cursor1 = $pos[0]-8											; 8 = the form border
 					_DrawCursors()
@@ -612,7 +619,7 @@ Func _Main ()
 				Wend
 			ElseIf _IsPressed("02") Then
 				$pos = MouseGetPos()
-				If (($pos[0]>$xmax-10) Or ($pos[1]<130) Or ($pos[1]>($ButtonHeight+$ymax+80))) Then
+				If (($pos[0]>$xmax-10) Or ($pos[1]<130) Or ($pos[1]>($ButtonHeight+$ymax))) Then
 				Else
 					$cursor2 = $pos[0]-8
 					_DrawCursors()
@@ -1200,10 +1207,14 @@ Func _ButtonClicked ()
 			If $cursorvisible Then
 				GUICtrlSetState($cursor[0], $GUI_HIDE)
 				GUICtrlSetState($cursor[1], $GUI_HIDE)
+				GUICtrlSetState($cursor1date, $GUI_HIDE)
+				GUICtrlSetState($cursor2date, $GUI_HIDE)
 				$cursorvisible = False
 			Else
 				GUICtrlSetState($cursor[0], $GUI_SHOW)
 				GUICtrlSetState($cursor[1], $GUI_SHOW)
+				GUICtrlSetState($cursor1date, $GUI_SHOW)
+				GUICtrlSetState($cursor2date, $GUI_SHOW)
 				$cursorvisible = True
 				_DrawCursors()
 			EndIf
@@ -1220,12 +1231,12 @@ Func _ButtonClicked ()
 			EndIf
 
 		Case $xoff_p
-			$xoffset += 20
+			$xoffset -= 20
 			GUISwitch($myGui)
 			_Draw()
 			_DrawCursors()
 		Case $xoff_m
-			$xoffset -= 20
+			$xoffset += 20
 			GUISwitch($myGui)
 			_Draw()
 			_DrawCursors()
@@ -1567,6 +1578,20 @@ Func _DrawCursors()
 			GUICtrlSetData($sensorvalue[2][1], "ºC")
 			GUICtrlSetData($sensorvalue[3][1], "")
 		EndIf
+
+		#cs; Fill $cursor1date with the date al cursor position
+		If (Int(($cursor1/$xgain)+$xoffset) >= 0) And (Int(($cursor1/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then
+			GUICtrlSetData($cursor1date, _DateAdd('s',$sensor[0][($cursor1/$xgain)+$xoffset],"1970/01/01 00:00:00"))
+		Else
+			GUICtrlSetData($cursor1date,"")
+		EndIf
+
+		If (Int(($cursor2/$xgain)+$xoffset) >= 0) And (Int(($cursor2/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then
+			GUICtrlSetData($cursor2date, _DateAdd('s',$sensor[0][($cursor2/$xgain)+$xoffset],"1970/01/01 00:00:00"))
+		Else
+			GUICtrlSetData($cursor2date,"")
+		EndIf
+		#ce
 	EndIf
 
 EndFunc
