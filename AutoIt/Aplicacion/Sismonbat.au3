@@ -5,7 +5,8 @@
 
  Script Function:
 
- Version: 	0.7.0	Add rules value dynamically adjusting
+ Version: 	0.8.0	Add dinamic sensor value representation at cursor pos. Different buttons for scale x and y axis
+			0.7.0	Add rules value dynamically adjusting
 			0.6.2	Fix error. Draw out the graphics
 			0.6.1	Show and hide values when cursors are visible or hidden
 			0.6.0	Add Label for sensor measurements at cursor pos
@@ -49,7 +50,7 @@ Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
-Const $PROGRAM_VERSION = "0.7.0"
+Const $PROGRAM_VERSION = "0.8.0"
 
 #cs
 * ***************
@@ -399,23 +400,31 @@ GUICtrlSetOnEvent(-1, "_ButtonClicked")
 Global $sensorvalue[4][2]
 $xpos = 0
 $sensorvalue[0][0] = GUICtrlCreateLabel("C1:xx.xxV", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetColor(-1,0xff0000)
 GUICtrlSetState(-1, $GUI_HIDE)
 $sensorvalue[0][1] = GUICtrlCreateLabel("C2:xx.xxV", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetColor(-1,0xff0000)
 GUICtrlSetState(-1, $GUI_HIDE)
 $xpos += $checkboxwith
 $sensorvalue[1][0] = GUICtrlCreateLabel("C1:xxx.xA", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetColor(-1,0x14ce00)
 GUICtrlSetState(-1, $GUI_HIDE)
 $sensorvalue[1][1] = GUICtrlCreateLabel("C2:xxx.xA", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetColor(-1,0x14ce00)
 GUICtrlSetState(-1, $GUI_HIDE)
 $xpos += $checkboxwith
 $sensorvalue[2][0] = GUICtrlCreateLabel("C1:+xx.xºC", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetColor(-1,0x0000ff)
 GUICtrlSetState(-1, $GUI_HIDE)
 $sensorvalue[2][1] = GUICtrlCreateLabel("C2:-xx.xºC", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetColor(-1,0x0000ff)
 GUICtrlSetState(-1, $GUI_HIDE)
 $xpos += $checkboxwith
 $sensorvalue[3][0] = GUICtrlCreateLabel("C1: Ok", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetColor(-1,0xff00ff)
 GUICtrlSetState(-1, $GUI_HIDE)
 $sensorvalue[3][1] = GUICtrlCreateLabel("C2: No Ok", $xpos + 140, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
+GUICtrlSetColor(-1,0xff00ff)
 GUICtrlSetState(-1, $GUI_HIDE)
 
 ; Status output creation
@@ -424,7 +433,7 @@ $status = GUICtrlCreateEdit("",0,$GUIHeight - $statusHeight,$GUIWidth, $statusHe
 ; History graphic creation
 Const $xmax = Int($GUIWidth*3/4)
 Const $ymax	= Int($GUIHeight-$ButtonHeight-$checkboxheight-$statusHeight)
-Global $sensor[6][2*$xmax] ; sensors signals for representation [date,v+,v-,a,t,l]
+Global $sensor[6][4*$xmax] ; sensors signals for representation [date,v+,v-,a,t,l]
 Global $offset[5] = [0, 0,Int($ymax/2),Int($ymax/10),Int($ymax/10)]; offset off each sensor representation
 Global $yscale[5] = [15,15,1,10,200]	 ; scale of each sensor representation
 Global $colours[5] = [0xff0000, 0x000000, 0x14ce00, 0x0000ff, 0xff00ff] ; Sensor representation colours
@@ -432,17 +441,17 @@ Global $visible[5] = [True,True,True,True,True]
 Global $xscale
 
 ;********************** ONLY FOR TEST ***** REMOVE
-For $k = 0 To 2*$xmax -1
+For $k = 0 To 4*$xmax -1
 	$sensor[1][$k] = 12+5*Sin($k/50)
 Next
 
-For $k = 0 To 2*$xmax -1
+For $k = 0 To 4*$xmax -1
 	$sensor[2][$k] = 11.5+5*Sin($k/50)
 Next
 
 Dim $inc = 2
 Dim $val = 0
-For $k = 0 To 2*$xmax -1
+For $k = 0 To 4*$xmax -1
 
 	$sensor[3][$k] = $val
 	If $val > 150 Then
@@ -453,7 +462,7 @@ For $k = 0 To 2*$xmax -1
 	$val = $val + $inc
 Next
 
-For $k = 0 To 2*$xmax -1
+For $k = 0 To 4*$xmax -1
 	$sensor[4][$k] = 25+20*Cos($k/30)
 Next
 ;***************************************** REMOVE
@@ -496,6 +505,10 @@ For $k=0 to 8
 	GUICtrlSetColor(-1,$colours[3])
 Next
 
+Global $xoffset = 0
+Global $yoffset = 0
+Global $xgain = 1
+Global $ygain = 1
 
 Global $cursor[2]
 $cursor[0] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER)
@@ -503,23 +516,16 @@ $cursor[1] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER)
 
 Global $cursor1 = ($xmax-1)/4		; the cursors x pos and his initial value
 Global $cursor2 = 3*($xmax-1)/4
-_DrawCursors()
 Global $cursorvisible = False
+_DrawCursors()
 GUICtrlSetState($cursor[0], $GUI_HIDE)
 GUICtrlSetState($cursor[1], $GUI_HIDE)
-
-
 
 $historygraph[0] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;V+
 $historygraph[1] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;V-
 $historygraph[2] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;A
 $historygraph[3] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;T
 $historygraph[4] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BORDER) ;L
-
-Global $xoffset = 0
-Global $yoffset = 0
-Global $xgain = 1
-Global $ygain = 1
 
 ; Batery charge indicator creation
 Const $chargeWhith = $GUIWidth/4 - $GUIWidth/15
@@ -1110,6 +1116,7 @@ Func _ButtonClicked ()
 			EndSwitch
 			GUISwitch($myGui)
 			_Draw()
+			_DrawCursors()
 
 		Case $zoomoutXbutton
 			Switch $xgain
@@ -1132,6 +1139,7 @@ Func _ButtonClicked ()
 			EndSwitch
 			GUISwitch($myGui)
 			_Draw()
+			_DrawCursors()
 
 		Case $zoominYbutton
 			Switch $ygain
@@ -1154,6 +1162,7 @@ Func _ButtonClicked ()
 			EndSwitch
 			GUISwitch($myGui)
 			_Draw()
+			_DrawCursors()
 
 		Case $zoomoutYbutton
 			Switch $ygain
@@ -1176,6 +1185,7 @@ Func _ButtonClicked ()
 			EndSwitch
 			GUISwitch($myGui)
 			_Draw()
+			_DrawCursors()
 
 		Case $zoomfitbutton
 			GUISwitch($myGui)
@@ -1184,6 +1194,7 @@ Func _ButtonClicked ()
 			$xgain = 1
 			$ygain = 1
 			_Draw()
+			_DrawCursors()
 
 		Case $showcursorsbutton
 			If $cursorvisible Then
@@ -1193,8 +1204,8 @@ Func _ButtonClicked ()
 			Else
 				GUICtrlSetState($cursor[0], $GUI_SHOW)
 				GUICtrlSetState($cursor[1], $GUI_SHOW)
-				_DrawCursors()
 				$cursorvisible = True
+				_DrawCursors()
 			EndIf
 			_ShowCursorsValues()
 
@@ -1212,19 +1223,23 @@ Func _ButtonClicked ()
 			$xoffset += 20
 			GUISwitch($myGui)
 			_Draw()
+			_DrawCursors()
 		Case $xoff_m
 			$xoffset -= 20
 			GUISwitch($myGui)
 			_Draw()
+			_DrawCursors()
 		Case $yoff_p
 			$yoffset += 20
 			GUISwitch($myGui)
 			_Draw()
+			_DrawCursors()
 		Case $yoff_m
 			GUISwitch($myGui)
 			$yoffset -= 20
 			GUISwitch($myGui)
 			_Draw()
+			_DrawCursors()
 
 
 		Case $tempalarmbutton
@@ -1455,7 +1470,7 @@ Func _Draw()
 			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_PENSIZE, 2)
 			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_COLOR, $colours[$j])						; Set the appropiate colour
 			For $x = 40 To $xmax -1 -40
-				If (Int(($x/$xgain)+$xoffset) >= 0) And (Int(($x/$xgain)+$xoffset) < ($xmax -1)) Then							; Don�t exceeded the $sensor[$j] range
+				If (Int(($x/$xgain)+$xoffset) >= 0) And (Int(($x/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then							; Don�t exceeded the $sensor[$j] range
 					$y=$ymax - ($yscale[$j]*$ygain*$sensor[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
 					If $y<0 Then
 						$y=0
@@ -1516,30 +1531,44 @@ EndFunc
 
 
 Func _DrawCursors()
-	GUICtrlDelete($cursor[0])      ; Delete previous graphic handle
-	$cursor[0] =  GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER); create a new one
-	GUICtrlSetGraphic($cursor[0], $GUI_GR_MOVE, $cursor1, 20)
-	GUICtrlSetGraphic($cursor[0], $GUI_GR_LINE, $cursor1, $ymax)
-	GUICtrlSetColor($cursor[0], 0xffffff)
-	GUICtrlDelete($cursor[1])
-	$cursor[1] =  GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER); create a new one
-	GUICtrlSetGraphic($cursor[1], $GUI_GR_MOVE, $cursor2, 20)
-	GUICtrlSetGraphic($cursor[1], $GUI_GR_LINE, $cursor2, $ymax)
-	GUICtrlSetColor($cursor[1], 0xffffff)
+	If $cursorvisible Then
+		GUICtrlDelete($cursor[0])      ; Delete previous graphic handle
+		$cursor[0] =  GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER); create a new one
+		GUICtrlSetGraphic($cursor[0], $GUI_GR_MOVE, $cursor1, 20)
+		GUICtrlSetGraphic($cursor[0], $GUI_GR_LINE, $cursor1, $ymax)
+		GUICtrlSetColor($cursor[0], 0xffffff)
+		GUICtrlDelete($cursor[1])
+		$cursor[1] =  GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER); create a new one
+		GUICtrlSetGraphic($cursor[1], $GUI_GR_MOVE, $cursor2, 20)
+		GUICtrlSetGraphic($cursor[1], $GUI_GR_LINE, $cursor2, $ymax)
+		GUICtrlSetColor($cursor[1], 0xffffff)
 
-	; fill the label with the sensor value for each cursor
-	GUICtrlSetData($sensorvalue[0][0], Round($sensor[1][($cursor1)],2) & "V")
-	GUICtrlSetData($sensorvalue[1][0], Round($sensor[3][($cursor1)],1)& "A")
-	GUICtrlSetData($sensorvalue[2][0], Round($sensor[4][($cursor1)],1)& "ºC")
-	GUICtrlSetData($sensorvalue[3][0], Round($sensor[5][($cursor1)],1))
+		; fill the label with the sensor value for each cursor
+		If (Int(($cursor1/$xgain)+$xoffset) >= 0) And (Int(($cursor1/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then ; don´t exceded the sensor data range
+			GUICtrlSetData($sensorvalue[0][0], Round($sensor[1][($cursor1/$xgain)+$xoffset],2) & "V")
+			GUICtrlSetData($sensorvalue[1][0], Round($sensor[3][($cursor1/$xgain)+$xoffset],1)& "A")
+			GUICtrlSetData($sensorvalue[2][0], Round($sensor[4][($cursor1/$xgain)+$xoffset],1)& "ºC")
+			GUICtrlSetData($sensorvalue[3][0], Round($sensor[5][($cursor1/$xgain)+$xoffset],1))
+		Else
+			GUICtrlSetData($sensorvalue[0][0], "V")
+			GUICtrlSetData($sensorvalue[1][0], "A")
+			GUICtrlSetData($sensorvalue[2][0], "ºC")
+			GUICtrlSetData($sensorvalue[3][0], "")
+		EndIf
 
-	GUICtrlSetData($sensorvalue[0][1], Round($sensor[1][($cursor2)],2)& "V")
-	GUICtrlSetData($sensorvalue[1][1], Round($sensor[3][($cursor2)],1)& "A")
-	GUICtrlSetData($sensorvalue[2][1], Round($sensor[4][($cursor2)],1)& "ºC")
-	GUICtrlSetData($sensorvalue[3][1], Round($sensor[5][($cursor2)],1))
+		If (Int(($cursor2/$xgain)+$xoffset) >= 0) And (Int(($cursor2/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then
+			GUICtrlSetData($sensorvalue[0][1], Round($sensor[1][($cursor2/$xgain)+$xoffset],2)& "V")
+			GUICtrlSetData($sensorvalue[1][1], Round($sensor[3][($cursor2/$xgain)+$xoffset],1)& "A")
+			GUICtrlSetData($sensorvalue[2][1], Round($sensor[4][($cursor2/$xgain)+$xoffset],1)& "ºC")
+			GUICtrlSetData($sensorvalue[3][1], Round($sensor[5][($cursor2/$xgain)+$xoffset],1))
+		Else
+			GUICtrlSetData($sensorvalue[0][1], "V")
+			GUICtrlSetData($sensorvalue[1][1], "A")
+			GUICtrlSetData($sensorvalue[2][1], "ºC")
+			GUICtrlSetData($sensorvalue[3][1], "")
+		EndIf
+	EndIf
 
-
-	;GUICtrlSetData($status, $xoffset)
 EndFunc
 
 Func _ShowCursorsValues()
