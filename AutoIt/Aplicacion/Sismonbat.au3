@@ -1,4 +1,7 @@
-﻿#cs ----------------------------------------------------------------------------
+﻿#Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+#AutoIt3Wrapper_Res_Fileversion=0.8.1
+#EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
+#cs ----------------------------------------------------------------------------
 
  AutoIt Version: 3.3.8.1
  Author:         myName
