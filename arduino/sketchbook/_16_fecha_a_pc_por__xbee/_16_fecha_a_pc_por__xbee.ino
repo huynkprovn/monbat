@@ -2,13 +2,13 @@
 /*
  * 
  */
-#include <Time.h>
-#include <TimeAlarms.h> // Require the TimeAlarms.ccp file modification
-                        // to add the Arduino.h in the include files
-#include <XBee.h>
-#include <Wire.h>
-#include <Fifo.h>
-#include <Streaming.h>
+  #include <Time.h>
+  #include <TimeAlarms.h> // Require the TimeAlarms.ccp file modification
+                          // to add the Arduino.h in the include files
+  #include <XBee.h>
+  #include <Wire.h>
+  #include <Fifo.h>
+  #include <Streaming.h>
 
 
 // create the XBee object
