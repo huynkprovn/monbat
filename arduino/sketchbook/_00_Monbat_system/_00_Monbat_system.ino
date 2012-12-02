@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.1.1    Only store in FIFO the sensors values if a different with previous value exist
  *              Version 0.1.0    Add Xbee connection functionality. Send the oldest data stored in the FIFO
  *                               a ZBRx packet is recieved
  *              Version 0.0.2    Add debug mode conf for sending stored data for Serial port
@@ -67,6 +68,34 @@ const int aliAlarmPin = 2;    // Digital signal repersenting the alimentation fa
 const int fullLED = 11;    // FIFO state in debug mode
 const int emptyLED = 12;
 
+
+// *********** VAR FOR SW SENSOR CALIBRATION *******
+// Calibrated data = SensorAnalogData * gain + off
+// Adjusting gain increase/decrease 10% the AnalogData
+// Adjunting off increase/decrease 10%FS the zero value of AnalogData.
+char vh_gain, vh_off;  
+char vl_gain, vl_off;
+char a_gain, a_off;
+char t_gain, t_off;
+
+//Actual and Previous sensor values
+time_t fecha;
+word sensorVh;
+word sensorVl;
+word sensorA;
+word sensorT;
+byte state;
+
+word vh_prev;
+word vl_prev;
+word a_prev;
+word t_prev;
+word l_prev;
+
+// Battery status
+byte st;  // [msb..lsb] [sensor_alarm,system_alarm,temp_alarm,charge_alarm,level,empty_alarm,charge/drain]
+
+
 /* ===============================================================================
  *
  * Function Name:	Setup()
@@ -78,6 +107,7 @@ const int emptyLED = 12;
  * =============================================================================== */
 void setup()
 {
+  st=0x00;
   if (debug) {
     Serial.begin(9600);      // TODO: Must convert to NewSoftSerial connection
   } else {
@@ -212,12 +242,7 @@ void serialEvent()
  * =============================================================================== */
 void captureData()
 {
-  time_t fecha;
-  word sensorVh;
-  word sensorVl;
-  word sensorA;
-  word sensorT;
-  byte state;
+
   //boolean aliAlarm;
   
   sensorVh = analogRead(vUpPin);
@@ -228,26 +253,60 @@ void captureData()
   bitWrite(state,0,digitalRead(levPin));  
   fecha = now();  // get the current date
   
-  while (fifo.Busy()) // FIFO is  being accesed
-      ;
-  fifo.Block(true); //  Block the FIFO access
+  if (changed()) {
+    while (fifo.Busy()) // FIFO is  being accesed. TODO: analice is Xbee conn is established
+        ;
+    fifo.Block(true); //  Block the FIFO access
 
-  while (fecha != 0 ){         // and store it in the FIFO converting the date
-    fifo.Write(fecha%255);     // in a byte data succesion
-    fecha /= 255;
+    while (fecha != 0 ){         // and store it in the FIFO converting the date
+      fifo.Write(fecha%255);     // in a byte data succesion
+      fecha /= 255;
+    }
+  
+    fifo.Write(highByte(sensorVh));
+    fifo.Write(lowByte(sensorVh));
+    fifo.Write(highByte(sensorVl));
+    fifo.Write(lowByte(sensorVl));
+    fifo.Write(highByte(sensorA));
+    fifo.Write(lowByte(sensorA));
+    fifo.Write(highByte(sensorT));
+    fifo.Write(lowByte(sensorT));
+    fifo.Write(state);
+  
+    fifo.Block(false); //  Releases the FIFO access 
   }
+}
+
+
+/* ===============================================================================
+ *
+ * Function Name:	changed()
+ * Description:    	analice the actual sensor values and compare them with previous values
+ *                      determining if is neccesary store them
+ * Parameters:          none
+ * Returns;  		boolean: True if stored is neccesary. False if not
+ *
+ * =============================================================================== */
+boolean changed()
+{
+  boolean res = false;
+  if (((int(sensorVh))>int(1.03*int(vh_prev))) || (int(sensorVh)<int(0.97*int(vh_prev)))) {
+    res = true;
+  }
+  if (((int(sensorVl))>int(1.03*int(vl_prev))) || (int(sensorVl)<int(0.97*int(vl_prev)))) {
+    res = true;
+  }
+  if (((int(sensorA))>int(1.03*int(a_prev))) || (int(sensorA)<int(0.97*int(a_prev)))) {
+    res = true;
+  }
+  if (((int(sensorT))>int(1.03*int(t_prev))) || (int(sensorT)<int(0.97*int(t_prev)))) {
+    res = true;
+  }
+  if (state != s_prev) {
+    res = true;
+  } 
   
-  fifo.Write(highByte(sensorVh));
-  fifo.Write(lowByte(sensorVh));
-  fifo.Write(highByte(sensorVl));
-  fifo.Write(lowByte(sensorVl));
-  fifo.Write(highByte(sensorA));
-  fifo.Write(lowByte(sensorA));
-  fifo.Write(highByte(sensorT));
-  fifo.Write(lowByte(sensorT));
-  fifo.Write(state);
-  
-  fifo.Block(false); //  Releases the FIFO access 
+  return res;
 }
 
 
