@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.1.2    Define alarm criterion
  *              Version 0.1.1    Only store in FIFO the sensors values if a different with previous value exist
  *              Version 0.1.0    Add Xbee connection functionality. Send the oldest data stored in the FIFO
  *                               a ZBRx packet is recieved
@@ -28,7 +29,7 @@
 #include <Streaming.h>
 #include <NewSoftSerial.h>  // Used for a serial debug connection
 
-char VERSION[] = "MonBat system V0.1.0";
+char VERSION[] = "MonBat system V0.1.2";
 boolean debug = false;
 
 // ******** XBEE PARAMETER DEFINITION ********
@@ -68,6 +69,24 @@ const int aliAlarmPin = 2;    // Digital signal repersenting the alimentation fa
 const int fullLED = 11;    // FIFO state in debug mode
 const int emptyLED = 12;
 
+// Others const
+const int sample_time = 2; // period for sensor sampling (in seconds)
+const int threshold = 2;   // threshold variation in analog signals (in %) to store them
+const long up_thr = 1+(threshold/100);
+const long low_thr = 1-(threshold/100);
+
+const word charge_amp = 522; // Min sensor value for considering the battery is charging after draining
+const word drain_amp = 502; // Min sensor value for considering the battery is draining after charging
+
+//********* TODO: calculate this values with real battery voltage and equivalent arduino analog input voltage after 
+//********* voltage levels conversion
+const word full_volt = 1000 ; //Battery voltaje when fully charged
+const word empty_volt = 100; //Battery voltaje when charge is at 20%
+
+const word max_temp = 600; // maximum permissible temperature
+const word min_temp = 100; // minimun permissible temperature
+
+
 
 // *********** VAR FOR SW SENSOR CALIBRATION *******
 // Calibrated data = SensorAnalogData * gain + off
@@ -79,21 +98,31 @@ char a_gain, a_off;
 char t_gain, t_off;
 
 //Actual and Previous sensor values
-time_t fecha;
-word sensorVh;
+word sensorVh; // Analog pin values
 word sensorVl;
 word sensorA;
 word sensorT;
-byte state;
+byte state; // [msb..lsb] [level_sensor_alarm,sensor_alarm,system_alarm,temp_alarm,charge_alarm,level,empty_alarm,charge/drain]
 
 word vh_prev;
 word vl_prev;
 word a_prev;
 word t_prev;
 word l_prev;
+word s_prev;
 
 // Battery status
-byte st;  // [msb..lsb] [sensor_alarm,system_alarm,temp_alarm,charge_alarm,level,empty_alarm,charge/drain]
+//byte st;  
+//boolean drain; // true if battery is draining, false if charging 
+boolean full; // battery if fully charged
+boolean empty; // batrey charge below 20% 
+
+// time at several events
+time_t fecha;  //now
+time_t charge_init;
+time_t charge_end;
+time_t drain_init;
+time_t drain_end;
 
 
 /* ===============================================================================
@@ -107,7 +136,17 @@ byte st;  // [msb..lsb] [sensor_alarm,system_alarm,temp_alarm,charge_alarm,level
  * =============================================================================== */
 void setup()
 {
-  st=0x00;
+  state=0;
+  vh_prev=0;
+  vl_prev=0;
+  a_prev=0;
+  t_prev=0;
+  l_prev=0;
+  s_prev=0x00;
+  charge_init = now();
+  charge_end = now();
+  drain_init = now();
+  drain_end = now();
   if (debug) {
     Serial.begin(9600);      // TODO: Must convert to NewSoftSerial connection
   } else {
@@ -115,14 +154,14 @@ void setup()
   }
   Wire.begin();           // Start the FIFO connection
   
-  pinMode(fullLED, OUTPUT);
+  pinMode(fullLED, OUTPUT);  //only for testing
   pinMode(emptyLED, OUTPUT);
   
   pinMode(levPin, INPUT_PULLUP);
   pinMode(aliAlarmPin, INPUT_PULLUP);
   
   setTime(11,0,0,17,11,2012);
-  Alarm.timerRepeat(2,captureData);  // Periodic function for reading sensors values
+  Alarm.timerRepeat(sample_time,captureData);  // Periodic function for reading sensors values
 }
 
 
@@ -249,8 +288,7 @@ void captureData()
   sensorVl = analogRead(vLowPin);
   sensorA = analogRead(ampPin);
   sensorT = analogRead(tempPin);
-  state = 0;
-  bitWrite(state,0,digitalRead(levPin));  
+  bitWrite(state,2,digitalRead(levPin));  
   fecha = now();  // get the current date
   
   if (changed()) {
@@ -274,6 +312,12 @@ void captureData()
     fifo.Write(state);
   
     fifo.Block(false); //  Releases the FIFO access 
+    
+    vh_prev = sensorVh;
+    vl_prev = sensorVl;
+    a_prev = sensorA;
+    t_prev = sensorT;
+    s_prev = state;
   }
 }
 
@@ -290,16 +334,16 @@ void captureData()
 boolean changed()
 {
   boolean res = false;
-  if (((int(sensorVh))>int(1.03*int(vh_prev))) || (int(sensorVh)<int(0.97*int(vh_prev)))) {
+  if (((int(sensorVh))>int(up_thr*int(vh_prev))) || (int(sensorVh)<int(low_thr*int(vh_prev)))) {
     res = true;
   }
-  if (((int(sensorVl))>int(1.03*int(vl_prev))) || (int(sensorVl)<int(0.97*int(vl_prev)))) {
+  if (((int(sensorVl))>int(up_thr*int(vl_prev))) || (int(sensorVl)<int(low_thr*int(vl_prev)))) {
     res = true;
   }
-  if (((int(sensorA))>int(1.03*int(a_prev))) || (int(sensorA)<int(0.97*int(a_prev)))) {
+  if (((int(sensorA))>int(up_thr*int(a_prev))) || (int(sensorA)<int(low_thr*int(a_prev)))) {
     res = true;
   }
-  if (((int(sensorT))>int(1.03*int(t_prev))) || (int(sensorT)<int(0.97*int(t_prev)))) {
+  if (((int(sensorT))>int(up_thr*int(t_prev))) || (int(sensorT)<int(low_thr*int(t_prev)))) {
     res = true;
   }
   if (state != s_prev) {
@@ -307,6 +351,81 @@ boolean changed()
   } 
   
   return res;
+}
+
+
+/* ===============================================================================
+ *
+ * Function Name:	changed()
+ * Description:    	analice the actual sensor values and compare them with previous values
+ *                      determining if is neccesary store them
+ * Parameters:          none
+ * Returns;  		boolean: True if stored is neccesary. False if not
+ *
+ * =============================================================================== */
+boolean check_alarms()
+{
+  boolean alarm = false;
+  
+  //  check temperature alarms
+  if ((sensorT > maxtemp) || (sensorT < mintemp))
+  {
+    bitSet(state,4);
+    alarm = true;
+  }
+  
+  // check level alarms. Wait for 15 times followed
+  if (bitRead(state,2))
+  {
+    //if (times > 15) //check 
+    bitSet(state,7);
+    alarm = true;
+  }
+  
+  if (!bitRead(s_prev,0))    // previous statate draining
+  {
+    if (sensorA > charge_amp)   //now is charging
+    {
+      bitSet(state,0);
+      charge_init = now();
+      drain_end = now();
+      // check if battery charge is ok
+    } 
+    else // continues draining
+    {
+      if ((sensorVh < empty_volt) && ((sensorVl < empty_volt))   //battery below 20% capacity
+      {
+        empty = true;
+        bitSet(state,1);
+        alarm = true;
+      }
+      else  // battery is not completely discharged
+      {
+       
+      }
+    }
+  } 
+  else{             //previous state charging
+    if (sensorA < drain_amp)   //now is draining
+    {
+      bitClear(state,0);
+      drain_init = now();
+      charge_end = now();
+      if (!full) 
+      {
+        bitSet(state,3);
+        alarm = true;
+      }
+    }
+    else // cotinues charging
+    {
+      if ((sensorVh > full_volt) && ((sensorVl > full_volt))   // battery fully charged
+      {
+        full = true;
+      }
+    }
+  }
+  return alarm
 }
 
 
