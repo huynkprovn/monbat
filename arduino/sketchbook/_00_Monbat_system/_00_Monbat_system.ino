@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.1.3    Define id for PC application orders   
  *              Version 0.1.2    Define alarm criterion
  *              Version 0.1.1    Only store in FIFO the sensors values if a different with previous value exist
  *              Version 0.1.0    Add Xbee connection functionality. Send the oldest data stored in the FIFO
@@ -32,6 +33,19 @@
 char VERSION[] = "MonBat system V0.1.2";
 boolean debug = false;
 
+// Application orders_id definition
+#define GET_ID 0x01
+#define RESET_ALARMS 0x02
+#define SET_TRUCK_MODEL 0x03
+#define SET_TRUCK_SN 0x04
+#define SET_BATT_MODEL 0x05
+#define SET_BATT_SN 0x06
+#define CALIBRATE 0x07
+#define SET_TIME 0x08
+#define READ_MEMORY 0x10
+#define EXIT 0xFA
+#define RESET_MEM 0x99
+
 // ******** XBEE PARAMETER DEFINITION ********
 boolean ConnToApp = false;     // Used to determinate when an Xbee connection with the 
                               // PC app is established  
@@ -52,7 +66,7 @@ ModemStatusResponse msr = ModemStatusResponse(); // Manage the status API frames
 // ******** EEPROM PARAMETER DEFINITION ********
 const byte EEPROM_ID = 0x50;      // I2C address for 24LC128 EEPROM
 const int FRAME_LENGHT = 13;   // Frame write in FIFO 
-const unsigned int MAX_LENGHT = 256; //EEPROM Max lenght in bytes
+const unsigned int MAX_LENGHT = 2056; //EEPROM Max lenght in bytes
 const unsigned int FIFO_BASE = 16; 
 
 Fifo fifo(EEPROM_ID, FIFO_BASE, MAX_LENGHT, FRAME_LENGHT);
@@ -70,7 +84,7 @@ const int fullLED = 11;    // FIFO state in debug mode
 const int emptyLED = 12;
 
 // Others const
-const int sample_time = 2; // period for sensor sampling (in seconds)
+const int sample_time = 1; // period for sensor sampling (in seconds)
 const int threshold = 2;   // threshold variation in analog signals (in %) to store them
 const long up_thr = 1+(threshold/100);
 const long low_thr = 1-(threshold/100);
@@ -177,7 +191,7 @@ void setup()
  * =============================================================================== */
 void serialEvent()
 {
-  byte data;
+  unsigned int data;
   
   if (debug) {
     while(Serial.available())
@@ -248,18 +262,63 @@ void serialEvent()
             // we got it (obviously) but sender didn't get an ACK
         }
         */  //  This is not important now    
-      
-        while (fifo.Busy()) // FIFO is not being accesed
-          ;
-        fifo.Block(true); //
-          // Fill the payload
-        for (int k = 0; k < 13  ; k++) {
-          payload[k] = fifo.Read();
-        }
-        fifo.Block(false); //
         
-        xbee.send(zbTx);
-              
+        switch (rx.getData(0))
+        {
+          case 0x01:
+            break;
+          
+          case 0x02:
+            break;
+          
+          case 0x03:
+            break;
+          
+          case 0x04:
+            break;
+          
+          case 0x05:
+            break;
+          
+          case 0x06:
+            break;
+          
+          case 0x07:
+            break;
+          
+          case 0x08:
+            break;
+          
+          case 0x10:
+            
+            digitalWrite(13,HIGH);
+            delay(200);
+            digitalWrite(13,LOW);
+            while (!fifo.Empty())
+            {
+              while (fifo.Busy()) // FIFO is not being accesed
+                ;
+              fifo.Block(true); //
+              // Fill the payload
+              for (int k = 0; k < 13  ; k++) {
+                payload[k] = fifo.Read();
+              }
+              fifo.Block(false); //
+        
+              xbee.send(zbTx);
+            }
+            break;
+          
+          case 0xFA:
+            break;
+          
+          case 0x99:
+            break;
+          
+          default:
+            break;
+        
+        }         
       }
     } else if (xbee.getResponse().isError()) {
                   //nss.print("Error reading packet.  Error code: ");  
@@ -291,7 +350,7 @@ void captureData()
   bitWrite(state,2,digitalRead(levPin));  
   fecha = now();  // get the current date
   
-  if (changed()) {
+  //if (changed()) {
     while (fifo.Busy()) // FIFO is  being accesed. TODO: analice is Xbee conn is established
         ;
     fifo.Block(true); //  Block the FIFO access
@@ -318,7 +377,7 @@ void captureData()
     a_prev = sensorA;
     t_prev = sensorT;
     s_prev = state;
-  }
+  //}
 }
 
 
@@ -368,7 +427,7 @@ boolean check_alarms()
   boolean alarm = false;
   
   //  check temperature alarms
-  if ((sensorT > maxtemp) || (sensorT < mintemp))
+  if ((sensorT > max_temp) || (sensorT < min_temp))
   {
     bitSet(state,4);
     alarm = true;
@@ -393,7 +452,7 @@ boolean check_alarms()
     } 
     else // continues draining
     {
-      if ((sensorVh < empty_volt) && ((sensorVl < empty_volt))   //battery below 20% capacity
+      if ((sensorVh < empty_volt) && (sensorVl < empty_volt))   //battery below 20% capacity
       {
         empty = true;
         bitSet(state,1);
@@ -405,7 +464,8 @@ boolean check_alarms()
       }
     }
   } 
-  else{             //previous state charging
+  else             //previous state charging
+  {
     if (sensorA < drain_amp)   //now is draining
     {
       bitClear(state,0);
@@ -419,13 +479,25 @@ boolean check_alarms()
     }
     else // cotinues charging
     {
-      if ((sensorVh > full_volt) && ((sensorVl > full_volt))   // battery fully charged
+      if ((sensorVh > full_volt) && (sensorVl > full_volt))   // battery fully charged
       {
         full = true;
       }
     }
   }
-  return alarm
+  return alarm;
+}
+
+
+void blink(int times, int period)
+{
+  for (int x=0; times; x++)
+  {
+    digitalWrite(13,HIGH);
+    delay(period);
+    digitalWrite(13,LOW);
+    delay(period);
+  }  
 }
 
 
