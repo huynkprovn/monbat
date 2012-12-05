@@ -34,7 +34,7 @@ _GUICtrlStatusBar_SetMinHeight($StatusBar1, 17)
 GUISetState(@SW_SHOW)
 #EndRegion ### END Koda GUI section ###
 
-;_CommSetPort($com, $sportSetError, $CmBoBaud, $CmboDataBits, $CmBoParity, $CmBoStop, $setflow) ; Open the port
+_CommSetPort($com, $sportSetError, $CmBoBaud, $CmboDataBits, $CmBoParity, $CmBoStop, $setflow) ; Open the port
 
 Dim $nMsg
 Dim $dato
@@ -76,9 +76,34 @@ While 1
 
 		Case $Button1
 
-			_SetAddress64(GUICtrlRead($Input1))
+			_SetAddress64("0013A2004086BD58")
 			_SetAddress16("FFFE")
-			_SendZBData("00")       ; Send anything. Arduino only expect a RX data Api Frame.
+			Switch GUICtrlRead($Input1)
+				Case "GET_ID"
+					_SendZBData("01")
+				Case "RESET_ALARMS"
+					_SendZBData("02")
+				Case "SET_TRUCK_MODEL"
+					_SendZBData("03")
+				Case "SET_TRUCK_SN"
+					_SendZBData("04")
+				Case "SET_BATT_MODEL"
+					_SendZBData("05")
+				Case "SET_BATT_SN"
+					_SendZBData("06")
+				Case "CALIBRATE"
+					_SendZBData("07")
+				Case "SET_TIME"
+					_SendZBData("08")
+				Case "READ_MEMORY"
+					_SendZBData("10")
+				Case "EXIT"
+					_SendZBData("FA")
+				Case "RESET_MEM"
+					_SendZBData("99")
+
+
+			EndSwitch
 	EndSwitch
 
 	If _CheckIncomingFrame() Then
