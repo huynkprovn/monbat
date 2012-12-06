@@ -9,6 +9,8 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.2.0    Add set time capability
+ *              Version 0.1.4    Fix error in command received frame. Test with read FIFO, work ok.
  *              Version 0.1.3    Define id for PC application orders   
  *              Version 0.1.2    Define alarm criterion
  *              Version 0.1.1    Only store in FIFO the sensors values if a different with previous value exist
@@ -24,7 +26,8 @@
 #include <TimeAlarms.h> // Require the TimeAlarms.ccp file modification
                         // to add the Arduino.h in the include files
 #include <XBee.h>
-#include <Wire.h>
+#include <Wire.h>      // For access to i2c externar EEPROM with fifo library
+#include <EEPROM.h>    // Store the fifo tail/head, and battery identification
 #include <Fifo.h>       // This is a personal library. 
                       // http://code.google.com/p/monbat/source/browse/#svn%2Farduino%2Fmy%20libs%2FFifo
 #include <Streaming.h>
@@ -52,7 +55,7 @@ boolean ConnToApp = false;     // Used to determinate when an Xbee connection wi
 XBee xbee = XBee();  // Xbee object to manage the xbee connection 
 // state capturated by the arduino. 4 bytes for time, 2 bytes for V+, 2 bytes for V-
 // 2 byte for Amperaje, 2 bytes for Tª, 1 byte for level and alarms.
-uint8_t payload[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+uint8_t payload[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 // SH + SL Address of receiving XBee
 XBeeAddress64 addr64 = XBeeAddress64(0x0013a200, 0x408C51AB); // Modify for the coordinator Address
@@ -101,7 +104,19 @@ const word max_temp = 600; // maximum permissible temperature
 const word min_temp = 100; // minimun permissible temperature
 
 
-
+//********* INTERNAL EEPROM DATA DISTRIBUTION
+/*
+ *  [0..3]: tail fifo address
+ *  [4..7]: heal fifo address
+ *  [8..9]: reserved
+ *  [10..24]: truck model (15 characters)
+ *  [25..39]: truck serial number (15 characters)
+ *  [40..54]: battery model (15 characters)
+ *  [55..69]: battery serial number (15 characters)
+ *  [70..]: reserved
+ */
+ 
+ 
 // *********** VAR FOR SW SENSOR CALIBRATION *******
 // Calibrated data = SensorAnalogData * gain + off
 // Adjusting gain increase/decrease 10% the AnalogData
@@ -192,6 +207,7 @@ void setup()
 void serialEvent()
 {
   unsigned int data;
+  time_t t;
   
   if (debug) {
     while(Serial.available())
@@ -265,31 +281,51 @@ void serialEvent()
         
         switch (rx.getData(0))
         {
-          case 0x01:
+          case GET_ID:
             break;
           
-          case 0x02:
+          case RESET_ALARMS:
             break;
           
-          case 0x03:
+          case SET_TRUCK_MODEL:
+            for (int k=1; rx.getDataLength()-1; k++)
+              EEPROM.write(10+k-1,rx.getData(k));              
             break;
           
-          case 0x04:
+          case SET_TRUCK_SN:
+            for (int k=1; rx.getDataLength()-1; k++)
+              EEPROM.write(25+k-1,rx.getData(k));
             break;
           
-          case 0x05:
+          case SET_BATT_MODEL:
+            for (int k=1; rx.getDataLength()-1; k++)
+              EEPROM.write(40+k-1,rx.getData(k));
             break;
           
-          case 0x06:
+          case SET_BATT_SN:
+            for (int k=1; rx.getDataLength()-1; k++)
+              EEPROM.write(55+k-1,rx.getData(k));
             break;
           
-          case 0x07:
+          case CALIBRATE:
             break;
           
-          case 0x08:
+          case SET_TIME:
+            blink_led(3,200);
+            
+            t=0;
+            for (int k = rx.getDataLength()-1; k>=1 ; k--) //read in reverse mode
+              t = t*255+int(rx.getData(k));
+            /* This work fine
+            t=int(rx.getData(4));
+            t=t*255+int(rx.getData(3));
+            t=t*255+int(rx.getData(2));
+            t=t*255+int(rx.getData(1));
+            */  
+            setTime(t);
             break;
-          
-          case 0x10:
+
+          case READ_MEMORY:
             
             digitalWrite(13,HIGH);
             delay(200);
@@ -300,6 +336,7 @@ void serialEvent()
                 ;
               fifo.Block(true); //
               // Fill the payload
+              //payload[0] = READ_MEMORY;
               for (int k = 0; k < 13  ; k++) {
                 payload[k] = fifo.Read();
               }
@@ -309,10 +346,11 @@ void serialEvent()
             }
             break;
           
-          case 0xFA:
+          case EXIT:
             break;
           
-          case 0x99:
+          case RESET_MEM:
+            fifo.Clear();
             break;
           
           default:
@@ -415,11 +453,11 @@ boolean changed()
 
 /* ===============================================================================
  *
- * Function Name:	changed()
- * Description:    	analice the actual sensor values and compare them with previous values
- *                      determining if is neccesary store them
+ * Function Name:	check_alarms()
+ * Description:    	
+ *                      
  * Parameters:          none
- * Returns;  		boolean: True if stored is neccesary. False if not
+ * Returns;  		boolean: True if an alarm has produced. False if not
  *
  * =============================================================================== */
 boolean check_alarms()
@@ -489,16 +527,17 @@ boolean check_alarms()
 }
 
 
-void blink(int times, int period)
+void blink_led(int times, int period)
 {
-  for (int x=0; times; x++)
+  for (int x=0; x<=times; x++)
   {
-    digitalWrite(13,HIGH);
+    digitalWrite(12,HIGH);
     delay(period);
-    digitalWrite(13,LOW);
+    digitalWrite(12,LOW);
     delay(period);
   }  
 }
+
 
 
 /* ===============================================================================
