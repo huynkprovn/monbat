@@ -104,6 +104,16 @@ byte Fifo::Read()
     return data;
 }
 
+
+void Fifo::Clear()
+{
+    _t_address = _b_address;
+    _h_address = _b_address;     
+    _empty = true;
+    _full = false;    
+}
+
+
 boolean Fifo::Empty()
 {
     return _empty;    

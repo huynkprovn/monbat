@@ -17,6 +17,7 @@ class Fifo
         Fifo(byte Eeprom_ID, unsigned int base_Add, unsigned int max_Lenght, unsigned int frame_Lenght);
         void Write(byte data);
         byte Read();
+        void Clear();
         boolean Empty();
         boolean Full();
         boolean Busy();
