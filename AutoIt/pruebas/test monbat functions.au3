@@ -125,15 +125,16 @@ While 1
 			;GUICtrlSetData($Edit1,_PrintFrame(),1)
 			$dato = _ReadZBDataResponseValue()
 
-			;GUICtrlSetData($Edit1, $dato & @CRLF,1)
+			#cs ;GUICtrlSetData($Edit1, $dato & @CRLF,1)
 			$Date = _convert(StringMid($dato, 1, 8))
 			ConsoleWrite($Date & @CRLF)
 			$sNewDate = _DateAdd('s', $Date, "1970/01/01 00:00:00")
 			GUICtrlSetData($Edit1, "Date: " & $sNewDate & " , V+: " & StringMid($dato,9, 4) & " , V-: " & StringMid($dato,13, 4), 1)
 			GUICtrlSetData($Edit1, " , A: " & StringMid($dato,17, 4) & " , T: " & StringMid($dato,21, 4) & " , T: " & StringMid($dato,25, 2) & @CRLF, 1)
+			#ce
 
-			#cs Switch StringMid($dato, 1, 2)
-				Case 0x10
+			Switch StringMid($dato, 1, 2)
+				Case "10"
 					;GUICtrlSetData($Edit1, $dato & @CRLF,1)
 					$Date = _convert(StringMid($dato, 3, 8))
 					ConsoleWrite($Date & @CRLF)
@@ -141,7 +142,7 @@ While 1
 					GUICtrlSetData($Edit1, "Date: " & $sNewDate & " , V+: " & StringMid($dato,11, 4) & " , V-: " & StringMid($dato,15, 4), 1)
 					GUICtrlSetData($Edit1, " , A: " & StringMid($dato,19, 4) & " , T: " & StringMid($dato,23, 4) & " , T: " & StringMid($dato,27, 2) & @CRLF, 1)
 			EndSwitch
-			#ce
+
 		EndIf
 	EndIf
 WEnd

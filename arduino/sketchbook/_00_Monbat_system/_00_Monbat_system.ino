@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.2.1    Add byte id for data transmission equal to id byte in rx commands.
  *              Version 0.2.0    Add set time capability
  *              Version 0.1.4    Fix error in command received frame. Test with read FIFO, work ok.
  *              Version 0.1.3    Define id for PC application orders   
@@ -336,8 +337,8 @@ void serialEvent()
                 ;
               fifo.Block(true); //
               // Fill the payload
-              //payload[0] = READ_MEMORY;
-              for (int k = 0; k < 13  ; k++) {
+              payload[0] = READ_MEMORY;
+              for (int k = 1; k < 14  ; k++) {
                 payload[k] = fifo.Read();
               }
               fifo.Block(false); //
