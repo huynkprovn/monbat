@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.2.2    Add model and serial data receiving and store
  *              Version 0.2.1    Add byte id for data transmission equal to id byte in rx commands.
  *              Version 0.2.0    Add set time capability
  *              Version 0.1.4    Fix error in command received frame. Test with read FIFO, work ok.
@@ -34,7 +35,7 @@
 #include <Streaming.h>
 #include <NewSoftSerial.h>  // Used for a serial debug connection
 
-char VERSION[] = "MonBat system V0.1.2";
+char VERSION[] = "MonBat system V0.2.2";
 boolean debug = false;
 
 // Application orders_id definition
@@ -56,7 +57,7 @@ boolean ConnToApp = false;     // Used to determinate when an Xbee connection wi
 XBee xbee = XBee();  // Xbee object to manage the xbee connection 
 // state capturated by the arduino. 4 bytes for time, 2 bytes for V+, 2 bytes for V-
 // 2 byte for Amperaje, 2 bytes for Tª, 1 byte for level and alarms.
-uint8_t payload[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+uint8_t payload[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 // SH + SL Address of receiving XBee
 XBeeAddress64 addr64 = XBeeAddress64(0x0013a200, 0x408C51AB); // Modify for the coordinator Address
@@ -70,7 +71,7 @@ ModemStatusResponse msr = ModemStatusResponse(); // Manage the status API frames
 // ******** EEPROM PARAMETER DEFINITION ********
 const byte EEPROM_ID = 0x50;      // I2C address for 24LC128 EEPROM
 const int FRAME_LENGHT = 13;   // Frame write in FIFO 
-const unsigned int MAX_LENGHT = 2056; //EEPROM Max lenght in bytes
+const unsigned int MAX_LENGHT = 5000; //EEPROM Max lenght in bytes
 const unsigned int FIFO_BASE = 16; 
 
 Fifo fifo(EEPROM_ID, FIFO_BASE, MAX_LENGHT, FRAME_LENGHT);
@@ -209,6 +210,8 @@ void serialEvent()
 {
   unsigned int data;
   time_t t;
+  byte byteR;
+  boolean fin;
   
   if (debug) {
     while(Serial.available())
@@ -283,36 +286,120 @@ void serialEvent()
         switch (rx.getData(0))
         {
           case GET_ID:
+            payload[0]=GET_ID;
+            payload[1]=0x01;
+            /*fin = false;
+            for (int k=1; fin; k++)
+            {
+              byteR=EEPROM.read(10+k-1);
+              if (byteR = 0xFF){
+                fin = true;
+              } else {
+                payload[1+k]=byteR;
+              }
+            }*/
+            for (int k=1; k<15; k++)
+              payload[1+k]=EEPROM.read(10+k-1);
+            xbee.send(zbTx);  // send truck model
+            delay(10);
+            
+            payload[1]=0x02;
+            /*fin = false;
+            for (int k=1; fin; k++)
+            {
+              byteR=EEPROM.read(25+k-1);
+              if (byteR = 0xFF){
+                fin = true;
+              } else {
+                payload[1+k]=byteR;
+              }
+            }*/
+            for (int k=1; k<15; k++)
+              payload[1+k]=EEPROM.read(25+k-1);
+            xbee.send(zbTx);  // send truck serial
+            delay(10);
+            
+            payload[1]=0x03;
+            /*fin = false;
+            for (int k=1; fin; k++)
+            {
+              byteR=EEPROM.read(40+k-1);
+              if (byteR = 0xFF){
+                fin = true;
+              } else {
+                payload[1+k]=byteR;
+              }
+            }*/
+            for (int k=1; k<15; k++)
+              payload[1+k]=EEPROM.read(40+k-1);
+            xbee.send(zbTx);  // send battery model
+            delay(10);
+            
+            payload[1]=0x04;
+            /*fin = false;
+            for (int k=1; fin; k++)
+            {
+              byteR=EEPROM.read(55+k-1);
+              if (byteR = 0xFF){
+                fin = true;
+              } else {
+                payload[1+k]=byteR;
+              }
+            }*/
+            for (int k=1; k<15; k++)
+              payload[1+k]=EEPROM.read(55+k-1);
+            xbee.send(zbTx);  // send battery model
+            
             break;
           
           case RESET_ALARMS:
             break;
           
           case SET_TRUCK_MODEL:
-            for (int k=1; rx.getDataLength()-1; k++)
+            blink_led(2,200);
+            for (int k=1; k < rx.getDataLength(); k++)
+            {
               EEPROM.write(10+k-1,rx.getData(k));              
+              delay(5);          // An EEPROM write takes 3.3 ms to complete
+            }
+            EEPROM.write(int(rx.getDataLength()),0xFF);
             break;
           
           case SET_TRUCK_SN:
-            for (int k=1; rx.getDataLength()-1; k++)
+            blink_led(2,200);
+            for (int k=1; k < rx.getDataLength(); k++)
+            {
               EEPROM.write(25+k-1,rx.getData(k));
+              delay(5);
+            }
+            EEPROM.write(int(rx.getDataLength()),0xFF);
             break;
           
           case SET_BATT_MODEL:
-            for (int k=1; rx.getDataLength()-1; k++)
+            blink_led(2,200);
+            for (int k=1; k < rx.getDataLength(); k++)
+            {
               EEPROM.write(40+k-1,rx.getData(k));
+              delay(5);
+            }
+            EEPROM.write(int(rx.getDataLength()),0xFF);
             break;
           
           case SET_BATT_SN:
-            for (int k=1; rx.getDataLength()-1; k++)
+            blink_led(2,200);
+            for (int k=1; k < rx.getDataLength(); k++)
+            {
               EEPROM.write(55+k-1,rx.getData(k));
+              delay(10);
+            }
+            EEPROM.write(int(rx.getDataLength()),0xFF);
             break;
           
           case CALIBRATE:
             break;
           
           case SET_TIME:
-            blink_led(3,200);
+            blink_led(2,200);
             
             t=0;
             for (int k = rx.getDataLength()-1; k>=1 ; k--) //read in reverse mode
