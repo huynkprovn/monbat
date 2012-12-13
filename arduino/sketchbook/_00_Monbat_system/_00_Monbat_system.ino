@@ -9,6 +9,8 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.3.0    Add functions for battery charge calculation
+ *              Version 0.2.3    Define sensors values for alarm criterion
  *              Version 0.2.2    Add model and serial data receiving and store
  *              Version 0.2.1    Add byte id for data transmission equal to id byte in rx commands.
  *              Version 0.2.0    Add set time capability
@@ -35,7 +37,7 @@
 #include <Streaming.h>
 #include <NewSoftSerial.h>  // Used for a serial debug connection
 
-char VERSION[] = "MonBat system V0.2.2";
+char VERSION[] = "MonBat system V0.3.0";
 boolean debug = false;
 
 // Application orders_id definition
@@ -45,6 +47,7 @@ boolean debug = false;
 #define SET_TRUCK_SN 0x04
 #define SET_BATT_MODEL 0x05
 #define SET_BATT_SN 0x06
+#define SET_BATT_CAPACITY 0x61
 #define CALIBRATE 0x07
 #define SET_TIME 0x08
 #define READ_MEMORY 0x10
@@ -94,16 +97,16 @@ const int threshold = 2;   // threshold variation in analog signals (in %) to st
 const long up_thr = 1+(threshold/100);
 const long low_thr = 1-(threshold/100);
 
-const word charge_amp = 522; // Min sensor value for considering the battery is charging after draining
-const word drain_amp = 502; // Min sensor value for considering the battery is draining after charging
+const word charge_amp = 522; //0x020A Min sensor value for considering the battery is charging after draining
+const word drain_amp = 505; //0x01F9 Min sensor value for considering the battery is draining after charging
 
 //********* TODO: calculate this values with real battery voltage and equivalent arduino analog input voltage after 
 //********* voltage levels conversion
-const word full_volt = 1000 ; //Battery voltaje when fully charged
-const word empty_volt = 100; //Battery voltaje when charge is at 20%
+const word full_volt = 913;//0x0391 //Battery voltaje when fully charged.2,65V per element = 15,9V in half batt 
+const word empty_volt = 104;//0x0068 //Battery voltaje when charge is at 20%. 1,7V per element = 10,2V in half Batt
 
-const word max_temp = 600; // maximum permissible temperature
-const word min_temp = 100; // minimun permissible temperature
+const word max_temp = 553;//0x0229 //40ºC (110% batt capacity) maximum permissible temperature
+const word min_temp = 323;//0x0143 //15ºC (70% batt capacity) minimun permissible temperature
 
 
 //********* INTERNAL EEPROM DATA DISTRIBUTION
@@ -115,7 +118,8 @@ const word min_temp = 100; // minimun permissible temperature
  *  [25..39]: truck serial number (15 characters)
  *  [40..54]: battery model (15 characters)
  *  [55..69]: battery serial number (15 characters)
- *  [70..]: reserved
+ *  [70..71]: battery capacity in Ah
+ *  [71..72]: reserved
  */
  
  
@@ -147,6 +151,8 @@ word s_prev;
 //boolean drain; // true if battery is draining, false if charging 
 boolean full; // battery if fully charged
 boolean empty; // batrey charge below 20% 
+word capacity;
+byte cap_level;
 
 // time at several events
 time_t fecha;  //now
@@ -178,6 +184,10 @@ void setup()
   charge_end = now();
   drain_init = now();
   drain_end = now();
+  capacity=word(EEPROM.read(70),EEPROM.read(71));
+  if (capacity == 0){
+    bitSet(state,5); //Sys alamr. capacity not fixed and no calculations possibility
+  }
   if (debug) {
     Serial.begin(9600);      // TODO: Must convert to NewSoftSerial connection
   } else {
@@ -398,6 +408,13 @@ void serialEvent()
           case CALIBRATE:
             break;
           
+          case SET_BATT_CAPACITY:
+            blink_led(2,200);
+            EEPROM.write(70,rx.getData(1));
+            EEPROM.write(70,rx.getData(2));
+            capacity = word(rx.getData(1),rx.getData(2));
+            break;
+          
           case SET_TIME:
             blink_led(2,200);
             
@@ -553,7 +570,7 @@ boolean check_alarms()
   boolean alarm = false;
   
   //  check temperature alarms
-  if ((sensorT > max_temp) || (sensorT < min_temp))
+  if ((sensorT > max_temp) || (sensorT < min_temp) && bitRead(state,0)) // Temp over safety margins and battery charging
   {
     bitSet(state,4);
     alarm = true;
@@ -615,6 +632,61 @@ boolean check_alarms()
 }
 
 
+/* ===============================================================================
+ *
+ * Function Name:	calc_charge_level()
+ * Description:    	Calculate the % battery charge depending of actual voltaje and
+ *                      temperature and in middel amp during draining
+ *                      
+ * Parameters:          none?¿
+ * Returns;  		byte: battery actual capacity expresed in % over battery total capacity
+ *
+ * =============================================================================== */
+byte calc_charge_level(int a0, int a1)
+{  
+  byte level;
+  if (!bitRead(state,0)){  // Battery is draining
+    level=map(min(sensorVl,sensorVh),empty_volt,459,0,100);
+    
+  }
+  
+}
+
+
+/* ===============================================================================
+ *
+ * Function Name:	calc_ah_drained(word sa0, word sa1, float ah0)
+ * Description:    	Calculate the Ah drained by the battery until is draining
+ *                      
+ * Parameters:          sa0  : word. Last analog value of amperaje sensor sample
+ *                      sa1  : word. Actual analog value of amperaje sensor sample
+ *                      ah0  : float. Last value returned by this function
+ *                      fs   : int. Sample frecuency in seconds
+ * Returns;  		float: Total Ah drained by the battery.
+ *
+ * =============================================================================== */
+float calc_ah_drained(word sa0, word sa1, float ah0, int fs)
+{
+  // Varduino(mv) = 0.0063 * Ibat(A) + 1,6471
+  float a0 = (((sa0*3.2226/1000)-1.6471)/0.0063);   // calculate equivalent battery current Amperaje
+  float a1 = (((sa1*3.2226/1000)-1.6471)/0.0063);
+  
+  float ah1 = (float(fs)/3600)*((a0+a1)/2);
+  return (ah1 + ah0);
+}
+
+
+/* ===============================================================================
+ *
+ * Function Name:	blink_led()
+ * Description:    	Only for testing, blink a led connected to Arduino pin12 'times' times
+ *                      with a 'period' period
+ *                      
+ * Parameters:          times:    nº of repetitions
+ *                      period:   time active in ms.
+ * Returns;  		none
+ *
+ * =============================================================================== */
 void blink_led(int times, int period)
 {
   for (int x=0; x<=times; x++)
