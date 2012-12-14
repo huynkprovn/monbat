@@ -71,6 +71,8 @@ EndFunc
 While 1
 	Local $fecha
 	Local $res
+	Local $k
+	Local $dat
 
 	$nMsg = GUIGetMsg()
 	Switch $nMsg
@@ -88,13 +90,37 @@ While 1
 				Case "RESET_ALARMS"
 					_SendZBData("02")
 				Case "SET_TRUCK_MODEL"
-					_SendZBData("03")
+					$res = ""
+					$dat = GUICtrlRead($Input3)
+					For $k = 1 To StringLen($dat)
+						$res &= Hex(Asc(StringMid($dat,$k,1)),2)
+					Next
+					ConsoleWrite($res & @CRLF)
+					_SendZBData("03" & $res)
 				Case "SET_TRUCK_SN"
-					_SendZBData("04")
+					$res = ""
+					$dat = GUICtrlRead($Input3)
+					For $k = 1 To StringLen($dat)
+						$res &= Hex(Asc(StringMid($dat,$k,1)),2)
+					Next
+					ConsoleWrite($res & @CRLF)
+					_SendZBData("04" & $res)
 				Case "SET_BATT_MODEL"
-					_SendZBData("05")
+					$res = ""
+					$dat = GUICtrlRead($Input3)
+					For $k = 1 To StringLen($dat)
+						$res &= Hex(Asc(StringMid($dat,$k,1)),2)
+					Next
+					ConsoleWrite($res & @CRLF)
+					_SendZBData("05" & $res)
 				Case "SET_BATT_SN"
-					_SendZBData("06")
+					$res = ""
+					$dat = GUICtrlRead($Input3)
+					For $k = 1 To StringLen($dat)
+						$res &= Hex(Asc(StringMid($dat,$k,1)),2)
+					Next
+					ConsoleWrite($res & @CRLF)
+					_SendZBData("06" & $res)
 				Case "CALIBRATE"
 					_SendZBData(07)
 				Case "SET_TIME"
@@ -141,6 +167,44 @@ While 1
 					$sNewDate = _DateAdd('s', $Date, "1970/01/01 00:00:00")
 					GUICtrlSetData($Edit1, "Date: " & $sNewDate & " , V+: " & StringMid($dato,11, 4) & " , V-: " & StringMid($dato,15, 4), 1)
 					GUICtrlSetData($Edit1, " , A: " & StringMid($dato,19, 4) & " , T: " & StringMid($dato,23, 4) & " , T: " & StringMid($dato,27, 2) & @CRLF, 1)
+
+				Case "01"
+					Switch StringMid($dato, 3, 2)
+						Case "01"
+							$res=""
+							For $k = 3 to (StringLen($dato)-1)/2
+								ConsoleWrite(StringMid($dato,2*$k-1 ,2) & @CRLF)
+								$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+							Next
+							GUICtrlSetData($Edit1, "Truck model: " & $res & @CRLF, 1)
+							;GUICtrlSetData($Edit1, @CRLF, 1)
+
+						Case "02"
+							$res=""
+							For $k = 3 to (StringLen($dato)-1)/2
+								$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+							Next
+							GUICtrlSetData($Edit1, "Truck serial: " & $res & @CRLF, 1)
+							;GUICtrlSetData($Edit1, @CRLF, 1)
+
+						Case "03"
+							$res=""
+							For $k = 3 to (StringLen($dato)-1)/2
+								$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+							Next
+							GUICtrlSetData($Edit1, "Battery model: " & $res & @CRLF, 1)
+							;GUICtrlSetData($Edit1, @CRLF, 1)
+
+						Case "04"
+							$res=""
+							For $k = 3 to (StringLen($dato)-1)/2
+								$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+							Next
+							GUICtrlSetData($Edit1, "Battery serial: " & $res & @CRLF, 1)
+							;GUICtrlSetData($Edit1, @CRLF, 1)
+
+					EndSwitch
+
 			EndSwitch
 
 		EndIf
