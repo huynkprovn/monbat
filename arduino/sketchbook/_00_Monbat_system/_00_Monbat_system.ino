@@ -9,6 +9,8 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.4.0    Add a software serial port for debuging. Complet functions for voltaje, current
+ *                               and temperature conversion.
  *              Version 0.3.0    Add functions for battery charge calculation
  *              Version 0.2.3    Define sensors values for alarm criterion
  *              Version 0.2.2    Add model and serial data receiving and store
@@ -28,17 +30,19 @@
  
 #include <Time.h>
 #include <TimeAlarms.h> // Require the TimeAlarms.ccp file modification
-                        // to add the Arduino.h in the include files
+                        // to add the Arduino.h in the include files. TODO: change for MsTimer2 library
+//#include <MsTimer2.h>
 #include <XBee.h>
 #include <Wire.h>      // For access to i2c externar EEPROM with fifo library
 #include <EEPROM.h>    // Store the fifo tail/head, and battery identification
 #include <Fifo.h>       // This is a personal library. 
                       // http://code.google.com/p/monbat/source/browse/#svn%2Farduino%2Fmy%20libs%2FFifo
 #include <Streaming.h>
-#include <NewSoftSerial.h>  // Used for a serial debug connection
+#include <SoftwareSerial.h>  // Used for a serial debug connection (this library is only for Arduino 1.0 or later
 
 char VERSION[] = "MonBat system V0.3.0";
-boolean debug = false;
+boolean debug = true;
+SoftwareSerial debugCon(9,10); //Rx, Tx arduino digital port for debug serial connection
 
 // Application orders_id definition
 #define GET_ID 0x01
@@ -105,7 +109,7 @@ const word drain_amp = 505; //0x01F9 Min sensor value for considering the batter
 const word full_volt = 913;//0x0391 //Battery voltaje when fully charged.2,65V per element = 15,9V in half batt 
 const word empty_volt = 104;//0x0068 //Battery voltaje when charge is at 20%. 1,7V per element = 10,2V in half Batt
 
-const word max_temp = 553;//0x0229 //40ºC (110% batt capacity) maximum permissible temperature
+const word max_temp = 553;//0x0229 //30ºC Battery life reduced in 30%
 const word min_temp = 323;//0x0143 //15ºC (70% batt capacity) minimun permissible temperature
 
 
@@ -189,10 +193,9 @@ void setup()
     bitSet(state,5); //Sys alamr. capacity not fixed and no calculations possibility
   }
   if (debug) {
-    Serial.begin(9600);      // TODO: Must convert to NewSoftSerial connection
-  } else {
-    xbee.begin(9600);
+    debugCon.begin(9600);      // DONE: Must convert to NewSoftSerial connection
   }
+  xbee.begin(9600);
   Wire.begin();           // Start the FIFO connection
   
   pinMode(fullLED, OUTPUT);  //only for testing
@@ -203,6 +206,9 @@ void setup()
   
   setTime(11,0,0,17,11,2012);
   Alarm.timerRepeat(sample_time,captureData);  // Periodic function for reading sensors values
+  //MsTimer2::set(500, captureData); // 500ms period
+  //MsTimer2::start();
+  debugCon.println("Started...");
 }
 
 
@@ -223,7 +229,7 @@ void serialEvent()
   byte byteR;
   boolean fin;
   
-  if (debug) {
+  /*if (debug) {
     while(Serial.available())
     {
       while (fifo.Busy()) // FIFO is not being accesed
@@ -273,7 +279,7 @@ void serialEvent()
       }
     fifo.Block(false);    
     }      // while(Serial.available())
-  } else {        // if  not (debug)     *************************
+  } else {        // if  not (debug)     *************************/
     xbee.readPacket();              // Look for a packet sent by the PC app 
     
     if (xbee.getResponse().isAvailable()) {
@@ -467,7 +473,7 @@ void serialEvent()
                   //nss.print("Error reading packet.  Error code: ");  
                 //nss.println(xbee.getResponse().getErrorCode());
     }
-  }  
+  //}  
 }
 
 
@@ -485,13 +491,29 @@ void captureData()
 {
 
   //boolean aliAlarm;
-  
+  debugCon.println("In captureData() function ...");
   sensorVh = analogRead(vUpPin);
   sensorVl = analogRead(vLowPin);
   sensorA = analogRead(ampPin);
   sensorT = analogRead(tempPin);
   bitWrite(state,2,digitalRead(levPin));  
   fecha = now();  // get the current date
+  
+  float v=voltaje(sensorVh);
+  float i=current(sensorA);
+  float iprev=current(a_prev);
+  static float charge;
+  charge=calc_ah_drained(iprev,i,charge,1);
+  
+  debugCon.print(now());
+  debugCon.print(" :  Voltaje : ");  
+  debugCon.print(v);
+  debugCon.print("Vdc,  Corriente : ");
+  debugCon.print(i);
+  debugCon.print("A,  Carga : ");
+  debugCon.print(charge);
+  debugCon.print("Ah,    ");
+  debugCon.println(charge*100/500);
   
   //if (changed()) {
     while (fifo.Busy()) // FIFO is  being accesed. TODO: analice is Xbee conn is established
@@ -634,6 +656,120 @@ boolean check_alarms()
 
 /* ===============================================================================
  *
+ * Function Name:	voltaje(word sensorvalue)
+ * Description:    	Calculate the equivalent battery voltage to the mv signal at
+ *                      Arduino analog pin 
+ *
+ *                      analogPin = Gain*BatteryVoltaje + offset
+ *
+ *                      Gain and offset are imposed by levels adaption stage
+ *
+ *                                  analogPin*Arduinoresolution(V) - offset
+ *                      voltage = ------------------------------------------------
+ *                                                Gain
+ *
+ *                      
+ * Parameters:          sensorvalue  : word. Value at Arduino analog pin (10 bits)
+ *                      
+ * Returns;  		float: the battery voltaje expresed in Volts
+ *
+ * =============================================================================== */
+float voltaje(word sensorvalue)
+{
+  return float(((sensorvalue*3.2226/1000)+4.1030)/0.4431);
+}
+
+
+/* ===============================================================================
+ *
+ * Function Name:	current(word sensorvalue)
+ * Description:    	Calculate the equivalent battery instant curren to the mv signal at
+ *                      Arduino analog pin 
+ *
+ *                      analogPin = Gain*BatteryAmperaje + offset
+ *
+ *                      Gain and offset are imposed by levels adaption stage
+ *
+ *                                    analogPin*Arduinoresolution(V) - offset
+ *                      current = ------------------------------------------------
+ *                                                Gain
+ *
+ *                      
+ * Parameters:          sensorvalue  : word. Value at Arduino analog pin (10 bits)
+ *                      
+ * Returns;  		float: the battery current expresed in Amperes
+ *                      Current > 0 considering for battery discharging
+ *                      Current < 0 considering for battery charging
+ *
+ * =============================================================================== */
+float current(word sensorvalue)
+{
+  return float(((sensorvalue*3.2226/1000)-1.6471)/0.0063);
+}
+
+
+/* ===============================================================================
+ *
+ * Function Name:	temperature(word sensorvalue)
+ * Description:    	Calculate the equivalent battery temperature to the mv signal at
+ *                      Arduino analog pin 
+ *
+ *                      analogPin = Gain*BatteryTemperature + offset
+ *
+ *                      Gain and offset are imposed by levels adaption stage
+ *
+ *                                    analogPin*Arduinoresolution(V) - offset
+ *                      current = ------------------------------------------------
+ *                                                Gain
+ *
+ *                      
+ * Parameters:          sensorvalue  : word. Value at Arduino analog pin (10 bits)
+ *                      
+ * Returns;  		float: the battery temperature expresed celsius degres
+ *
+ * =============================================================================== */
+float temperature(word sensorvalue)
+{
+  return float(((sensorvalue*3.2226/1000)-0.5965)/0.0296);
+}
+
+/* ===============================================================================
+ *
+ * Function Name:	calc_ah_drained(word sa0, word sa1, float ah0)
+ * Description:    	Calculate the Ah drained by the battery until is draining
+ *                      
+ * Parameters:          sa0  : float. Last value of amperaje sensor sample in Amperes
+ *                      sa1  : float. Actual value of amperaje sensor sample in Amperes
+ *                      ah0  : float. Last value returned by this function (in Ah)
+ *                      fs   : int. Sample frecuency in seconds
+ * Returns;  		float: Total Ah drained by the battery.
+ *
+ * =============================================================================== */
+float calc_ah_drained(float sa0, float sa1, float ah0, int fs)
+{
+  return (float(fs)/3600)*((sa0+sa1)/2)+ah0;
+}
+
+
+/* ===============================================================================
+ *
+ * Function Name:	curr_average(float ah, time_t inic)
+ * Description:    	Calculate the drain/charge current average dividing the total
+ *                      charge loaded/drained in/by battery by the time elapsed in the period 
+ *                      
+ * Parameters:          ah0  : float. Charge in Ah
+ *                      inic : time_t. Time at period inic
+ * Returns;  		float: Current average in Amperes
+ *
+ * =============================================================================== */
+float curr_average(float ah, time_t inic)
+{
+  return (ah*3600/(now()-inic));  //  ah/time(h)
+}
+
+
+/* ===============================================================================
+ *
  * Function Name:	calc_charge_level()
  * Description:    	Calculate the % battery charge depending of actual voltaje and
  *                      temperature and in middel amp during draining
@@ -665,7 +801,7 @@ byte calc_charge_level(int a0, int a1)
  * Returns;  		float: Total Ah drained by the battery.
  *
  * =============================================================================== */
-float calc_ah_drained(word sa0, word sa1, float ah0, int fs)
+/*float calc_ah_drained(word sa0, word sa1, float ah0, int fs)
 {
   // Varduino(mv) = 0.0063 * Ibat(A) + 1,6471
   float a0 = (((sa0*3.2226/1000)-1.6471)/0.0063);   // calculate equivalent battery current Amperaje
@@ -673,7 +809,7 @@ float calc_ah_drained(word sa0, word sa1, float ah0, int fs)
   
   float ah1 = (float(fs)/3600)*((a0+a1)/2);
   return (ah1 + ah0);
-}
+}*/
 
 
 /* ===============================================================================
@@ -713,6 +849,7 @@ void loop()
   digitalWrite(emptyLED, fifo.Empty());
   digitalWrite(fullLED, fifo.Full());
   Alarm.delay(10); // Necesary for the periodic event function. ¿¿??
+  //delay(10);
 } 
 
 
