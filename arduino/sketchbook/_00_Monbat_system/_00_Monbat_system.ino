@@ -9,7 +9,8 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
- *              Version 0.4.0    Add a software serial port for debuging. Complet functions for voltaje, current
+ *              Version 0.4.1    Deleted superfluous codigo.
+ *              Version 0.4.0    Add a software serial port for debugging. Complete functions for voltaje, current
  *                               and temperature conversion.
  *              Version 0.3.0    Add functions for battery charge calculation
  *              Version 0.2.3    Define sensors values for alarm criterion
@@ -87,8 +88,8 @@ Fifo fifo(EEPROM_ID, FIFO_BASE, MAX_LENGHT, FRAME_LENGHT);
 // ******** SENSORS PIN DEFINITION ********
 const int vUpPin = 0;    // Voltaje behind + terminal and central terminal adapted to 3.3Vdc range
 const int vLowPin = 1;   // Voltaje behind central terminal and - terminal adapted to 3.3Vdc range
-const int ampPin = 0;    // Amperaje charging or drain the battery
-const int tempPin = 1;   // External battery temperature 
+const int ampPin = 1;    // Amperaje charging or drain the battery
+const int tempPin = 0;   // External battery temperature 
 const int levPin = 4;    // Digital signal representing the electrolyte level 0 = level fault
 const int aliAlarmPin = 2;    // Digital signal repersenting the alimentation fault for the levels adaptation board 
 
@@ -96,7 +97,7 @@ const int fullLED = 11;    // FIFO state in debug mode
 const int emptyLED = 12;
 
 // Others const
-const int sample_time = 1; // period for sensor sampling (in seconds)
+const int sample_period = 2; // period for sensor sampling (in seconds)
 const int threshold = 2;   // threshold variation in analog signals (in %) to store them
 const long up_thr = 1+(threshold/100);
 const long low_thr = 1-(threshold/100);
@@ -155,15 +156,15 @@ word s_prev;
 //boolean drain; // true if battery is draining, false if charging 
 boolean full; // battery if fully charged
 boolean empty; // batrey charge below 20% 
-word capacity;
-byte cap_level;
+word capacity; // battry cappacity in Ah
+byte soc; // state of charge in % respect battery capacity
 
 // time at several events
 time_t fecha;  //now
-time_t charge_init;
-time_t charge_end;
-time_t drain_init;
-time_t drain_end;
+time_t charge_init;    // time when current charge begin
+time_t charge_end;      // time when last charge end
+time_t drain_init;      // time when current discharge begin
+time_t drain_end;      // time when last discharge end
 
 
 /* ===============================================================================
@@ -194,6 +195,9 @@ void setup()
   }
   if (debug) {
     debugCon.begin(9600);      // DONE: Must convert to NewSoftSerial connection
+    debugCon.print("Battery capacity: ");
+    debugCon.print(capacity);
+    debugCon.println(" Ah.");
   }
   xbee.begin(9600);
   Wire.begin();           // Start the FIFO connection
@@ -205,10 +209,12 @@ void setup()
   pinMode(aliAlarmPin, INPUT_PULLUP);
   
   setTime(11,0,0,17,11,2012);
-  Alarm.timerRepeat(sample_time,captureData);  // Periodic function for reading sensors values
+  Alarm.timerRepeat(sample_period,captureData);  // Periodic function for reading sensors values
   //MsTimer2::set(500, captureData); // 500ms period
   //MsTimer2::start();
-  debugCon.println("Started...");
+  if (debug) {
+    debugCon.println("Started...");
+  }
 }
 
 
@@ -229,251 +235,200 @@ void serialEvent()
   byte byteR;
   boolean fin;
   
-  /*if (debug) {
-    while(Serial.available())
-    {
-      while (fifo.Busy()) // FIFO is not being accesed
-        ;
-      fifo.Block(true); //  
+  xbee.readPacket();              // Look for a packet sent by the PC app 
     
-      char ch = Serial.read();
-      if (ch == 'D') {
-        if (fifo.Empty()){
-          Serial.println("FIFO is empty");
-          fifo.Block(false);
-          return;
-        }
-        Serial.print("At ");
-        data = fifo.Read();
-        Serial.print(data);
-        data = fifo.Read();
-        Serial.print(data);
-        data = fifo.Read();
-        Serial.print(data);
-        data = fifo.Read();
-        Serial.print(data);
-        Serial.print("   sensor V+:");
-        data = fifo.Read();
-        Serial.print(data);
-        data = fifo.Read();
-        Serial.print(data);
-        Serial.print("   sensor V-:");
-        data = fifo.Read();
-        Serial.print(data);
-        data = fifo.Read();
-        Serial.print(data);
-        Serial.print("   sensor A:");
-        data = fifo.Read();
-        Serial.print(data);
-        data = fifo.Read();
-        Serial.print(data);
-        Serial.print("   sensor T:");
-        data = fifo.Read();
-        Serial.print(data);
-        data = fifo.Read();
-        Serial.print(data);
-        Serial.print("   sensor T:");
-        data = fifo.Read();
-        Serial.println(data);
-        //
+  if (xbee.getResponse().isAvailable()) {
+    // got something
+    
+    if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {   // the PC APP send data to Arduino
+      // got a zb rx packet
+     
+      // now fill our zb rx class
+      xbee.getResponse().getZBRxResponse(rx);
+          
+      /* if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED) {
+          // the sender got an ACK
+          
+      } else {
+          // we got it (obviously) but sender didn't get an ACK
       }
-    fifo.Block(false);    
-    }      // while(Serial.available())
-  } else {        // if  not (debug)     *************************/
-    xbee.readPacket();              // Look for a packet sent by the PC app 
-    
-    if (xbee.getResponse().isAvailable()) {
-      // got something
-    
-      if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {   // the PC APP send data to Arduino
-        // got a zb rx packet
-      
-        // now fill our zb rx class
-        xbee.getResponse().getZBRxResponse(rx);
+      */  //  This is not important now    
+       
+      switch (rx.getData(0))
+      {
+        case GET_ID:
+          payload[0]=GET_ID;
+          payload[1]=0x01;
+          /*fin = false;
+          for (int k=1; fin; k++)
+          {
+            byteR=EEPROM.read(10+k-1);
+            if (byteR = 0xFF){
+              fin = true;
+            } else {
+              payload[1+k]=byteR;
+            }
+          }*/
+          for (int k=1; k<15; k++)
+            payload[1+k]=EEPROM.read(10+k-1);
+          xbee.send(zbTx);  // send truck model
+          delay(10);
           
-        /* if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED) {
-            // the sender got an ACK
+          payload[1]=0x02;
+          /*fin = false;
+          for (int k=1; fin; k++)
+          {
+            byteR=EEPROM.read(25+k-1);
+            if (byteR = 0xFF){
+              fin = true;
+            } else {
+              payload[1+k]=byteR;
+            }
+          }*/
+          for (int k=1; k<15; k++)
+            payload[1+k]=EEPROM.read(25+k-1);
+          xbee.send(zbTx);  // send truck serial
+          delay(10);
           
-        } else {
-            // we got it (obviously) but sender didn't get an ACK
-        }
-        */  //  This is not important now    
+          payload[1]=0x03;
+          /*fin = false;
+          for (int k=1; fin; k++)
+          {
+            byteR=EEPROM.read(40+k-1);
+            if (byteR = 0xFF){
+              fin = true;
+            } else {
+              payload[1+k]=byteR;
+            }
+          }*/
+          for (int k=1; k<15; k++)
+            payload[1+k]=EEPROM.read(40+k-1);
+          xbee.send(zbTx);  // send battery model
+          delay(10);
+          
+          payload[1]=0x04;
+          /*fin = false;
+          for (int k=1; fin; k++)
+          {
+            byteR=EEPROM.read(55+k-1);
+            if (byteR = 0xFF){
+              fin = true;
+            } else {
+              payload[1+k]=byteR;
+            }
+          }*/
+          for (int k=1; k<15; k++)
+            payload[1+k]=EEPROM.read(55+k-1);
+          xbee.send(zbTx);  // send battery model
+          
+          break;
         
-        switch (rx.getData(0))
-        {
-          case GET_ID:
-            payload[0]=GET_ID;
-            payload[1]=0x01;
-            /*fin = false;
-            for (int k=1; fin; k++)
-            {
-              byteR=EEPROM.read(10+k-1);
-              if (byteR = 0xFF){
-                fin = true;
-              } else {
-                payload[1+k]=byteR;
-              }
-            }*/
-            for (int k=1; k<15; k++)
-              payload[1+k]=EEPROM.read(10+k-1);
-            xbee.send(zbTx);  // send truck model
+        case RESET_ALARMS:
+          break;
+        
+        case SET_TRUCK_MODEL:
+          blink_led(2,200);
+          for (int k=1; k < rx.getDataLength(); k++)
+          {
+            EEPROM.write(10+k-1,rx.getData(k));              
+            delay(5);          // An EEPROM write takes 3.3 ms to complete
+          }
+          EEPROM.write(int(rx.getDataLength()),0xFF);
+          break;
+        
+        case SET_TRUCK_SN:
+          blink_led(2,200);
+          for (int k=1; k < rx.getDataLength(); k++)
+          {
+            EEPROM.write(25+k-1,rx.getData(k));
+            delay(5);
+          }
+          EEPROM.write(int(rx.getDataLength()),0xFF);
+          break;
+        
+        case SET_BATT_MODEL:
+          blink_led(2,200);
+          for (int k=1; k < rx.getDataLength(); k++)
+          {
+            EEPROM.write(40+k-1,rx.getData(k));
+            delay(5);
+          }
+          EEPROM.write(int(rx.getDataLength()),0xFF);
+          break;
+        
+        case SET_BATT_SN:
+          blink_led(2,200);
+          for (int k=1; k < rx.getDataLength(); k++)
+          {
+            EEPROM.write(55+k-1,rx.getData(k));
             delay(10);
-            
-            payload[1]=0x02;
-            /*fin = false;
-            for (int k=1; fin; k++)
-            {
-              byteR=EEPROM.read(25+k-1);
-              if (byteR = 0xFF){
-                fin = true;
-              } else {
-                payload[1+k]=byteR;
-              }
-            }*/
-            for (int k=1; k<15; k++)
-              payload[1+k]=EEPROM.read(25+k-1);
-            xbee.send(zbTx);  // send truck serial
-            delay(10);
-            
-            payload[1]=0x03;
-            /*fin = false;
-            for (int k=1; fin; k++)
-            {
-              byteR=EEPROM.read(40+k-1);
-              if (byteR = 0xFF){
-                fin = true;
-              } else {
-                payload[1+k]=byteR;
-              }
-            }*/
-            for (int k=1; k<15; k++)
-              payload[1+k]=EEPROM.read(40+k-1);
-            xbee.send(zbTx);  // send battery model
-            delay(10);
-            
-            payload[1]=0x04;
-            /*fin = false;
-            for (int k=1; fin; k++)
-            {
-              byteR=EEPROM.read(55+k-1);
-              if (byteR = 0xFF){
-                fin = true;
-              } else {
-                payload[1+k]=byteR;
-              }
-            }*/
-            for (int k=1; k<15; k++)
-              payload[1+k]=EEPROM.read(55+k-1);
-            xbee.send(zbTx);  // send battery model
-            
-            break;
+          }
+          EEPROM.write(int(rx.getDataLength()),0xFF);
+          break;
+        
+        case CALIBRATE:
+          break;
+        
+        case SET_BATT_CAPACITY:
+          blink_led(2,200);
+          EEPROM.write(70,rx.getData(1));
+          EEPROM.write(70,rx.getData(2));
+          capacity = word(rx.getData(1),rx.getData(2));
+          break;
+        
+        case SET_TIME:
+          blink_led(2,200);
           
-          case RESET_ALARMS:
-            break;
-          
-          case SET_TRUCK_MODEL:
-            blink_led(2,200);
-            for (int k=1; k < rx.getDataLength(); k++)
-            {
-              EEPROM.write(10+k-1,rx.getData(k));              
-              delay(5);          // An EEPROM write takes 3.3 ms to complete
-            }
-            EEPROM.write(int(rx.getDataLength()),0xFF);
-            break;
-          
-          case SET_TRUCK_SN:
-            blink_led(2,200);
-            for (int k=1; k < rx.getDataLength(); k++)
-            {
-              EEPROM.write(25+k-1,rx.getData(k));
-              delay(5);
-            }
-            EEPROM.write(int(rx.getDataLength()),0xFF);
-            break;
-          
-          case SET_BATT_MODEL:
-            blink_led(2,200);
-            for (int k=1; k < rx.getDataLength(); k++)
-            {
-              EEPROM.write(40+k-1,rx.getData(k));
-              delay(5);
-            }
-            EEPROM.write(int(rx.getDataLength()),0xFF);
-            break;
-          
-          case SET_BATT_SN:
-            blink_led(2,200);
-            for (int k=1; k < rx.getDataLength(); k++)
-            {
-              EEPROM.write(55+k-1,rx.getData(k));
-              delay(10);
-            }
-            EEPROM.write(int(rx.getDataLength()),0xFF);
-            break;
-          
-          case CALIBRATE:
-            break;
-          
-          case SET_BATT_CAPACITY:
-            blink_led(2,200);
-            EEPROM.write(70,rx.getData(1));
-            EEPROM.write(70,rx.getData(2));
-            capacity = word(rx.getData(1),rx.getData(2));
-            break;
-          
-          case SET_TIME:
-            blink_led(2,200);
-            
-            t=0;
-            for (int k = rx.getDataLength()-1; k>=1 ; k--) //read in reverse mode
-              t = t*255+int(rx.getData(k));
-            /* This work fine
-            t=int(rx.getData(4));
-            t=t*255+int(rx.getData(3));
-            t=t*255+int(rx.getData(2));
-            t=t*255+int(rx.getData(1));
-            */  
-            setTime(t);
-            break;
+          t=0;
+          for (int k = rx.getDataLength()-1; k>=1 ; k--) //read in reverse mode
+            t = t*255+int(rx.getData(k));
+          /* This work fine
+          t=int(rx.getData(4));
+          t=t*255+int(rx.getData(3));
+          t=t*255+int(rx.getData(2));
+          t=t*255+int(rx.getData(1));
+          */  
+          setTime(t);
+          break;
 
-          case READ_MEMORY:
-            
-            digitalWrite(13,HIGH);
-            delay(200);
-            digitalWrite(13,LOW);
-            while (!fifo.Empty())
-            {
-              while (fifo.Busy()) // FIFO is not being accesed
-                ;
-              fifo.Block(true); //
-              // Fill the payload
-              payload[0] = READ_MEMORY;
-              for (int k = 1; k < 14  ; k++) {
-                payload[k] = fifo.Read();
-              }
-              fifo.Block(false); //
-        
-              xbee.send(zbTx);
+        case READ_MEMORY:
+          
+          digitalWrite(13,HIGH);
+          delay(200);
+          digitalWrite(13,LOW);
+          while (!fifo.Empty())
+          {
+            while (fifo.Busy()) // FIFO is not being accesed
+              ;
+            fifo.Block(true); //
+            // Fill the payload
+            payload[0] = READ_MEMORY;
+            for (int k = 1; k < 14  ; k++) {
+              payload[k] = fifo.Read();
             }
-            break;
-          
-          case EXIT:
-            break;
-          
-          case RESET_MEM:
-            fifo.Clear();
-            break;
-          
-          default:
-            break;
+            fifo.Block(false); //
+      
+            xbee.send(zbTx);
+          }
+          break;
         
-        }         
-      }
-    } else if (xbee.getResponse().isError()) {
+        case EXIT:
+          break;
+        
+        case RESET_MEM:
+          fifo.Clear();
+          break;
+        
+        default:
+          break;
+      
+      }         
+    }
+  } else if (xbee.getResponse().isError()) {
                   //nss.print("Error reading packet.  Error code: ");  
                 //nss.println(xbee.getResponse().getErrorCode());
-    }
-  //}  
+  }
+    
 }
 
 
@@ -491,7 +446,6 @@ void captureData()
 {
 
   //boolean aliAlarm;
-  debugCon.println("In captureData() function ...");
   sensorVh = analogRead(vUpPin);
   sensorVl = analogRead(vLowPin);
   sensorA = analogRead(ampPin);
@@ -501,20 +455,23 @@ void captureData()
   
   float v=voltaje(sensorVh);
   float i=current(sensorA);
+  static float i_p= 0.0000;
   float iprev=current(a_prev);
   static float charge;
-  charge=calc_ah_drained(iprev,i,charge,1);
+  charge=calc_ah_drained(i_p,i,charge,sample_period);
+  i_p=i;   // this is a local var used only for charge load/drained calculation
   
-  debugCon.print(now());
-  debugCon.print(" :  Voltaje : ");  
-  debugCon.print(v);
-  debugCon.print("Vdc,  Corriente : ");
-  debugCon.print(i);
-  debugCon.print("A,  Carga : ");
-  debugCon.print(charge);
-  debugCon.print("Ah,    ");
-  debugCon.println(charge*100/500);
-  
+  if (debug){
+    debugCon.print(now());
+    debugCon.print(" :  Voltaje : ");  
+    debugCon.print(v);
+    debugCon.print("Vdc,  Corriente : ");
+    debugCon.print(i);
+    debugCon.print("A,  Carga : ");
+    debugCon.print(charge);
+    debugCon.print("Ah,    ");
+    debugCon.println(charge*100/capacity);
+  }
   //if (changed()) {
     while (fifo.Busy()) // FIFO is  being accesed. TODO: analice is Xbee conn is established
         ;
@@ -537,6 +494,7 @@ void captureData()
   
     fifo.Block(false); //  Releases the FIFO access 
     
+    //these are global vars
     vh_prev = sensorVh;
     vl_prev = sensorVl;
     a_prev = sensorA;
