@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.5.0    restore fifo status and pointers when restart
  *              Version 0.4.1    Deleted superfluous codigo.
  *              Version 0.4.0    Add a software serial port for debugging. Complete functions for voltaje, current
  *                               and temperature conversion.
@@ -40,8 +41,12 @@
                       // http://code.google.com/p/monbat/source/browse/#svn%2Farduino%2Fmy%20libs%2FFifo
 #include <Streaming.h>
 #include <SoftwareSerial.h>  // Used for a serial debug connection (this library is only for Arduino 1.0 or later
+#include <sLed.h>
 
-char VERSION[] = "MonBat system V0.3.0";
+sLed led(7,5,4,6,8);    // Create a sLed objet and asociate to the arduino pins;
+//sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int lenght);
+
+char VERSION[] = "MonBat system V0.5.0";
 boolean debug = true;
 SoftwareSerial debugCon(9,10); //Rx, Tx arduino digital port for debug serial connection
 
@@ -81,9 +86,11 @@ const byte EEPROM_ID = 0x50;      // I2C address for 24LC128 EEPROM
 const int FRAME_LENGHT = 13;   // Frame write in FIFO 
 const unsigned int MAX_LENGHT = 5000; //EEPROM Max lenght in bytes
 const unsigned int FIFO_BASE = 16; 
+//unsigned int fifo_tail;
+//unsigned int fifo_head;
 
-Fifo fifo(EEPROM_ID, FIFO_BASE, MAX_LENGHT, FRAME_LENGHT);
-
+//Fifo fifo(EEPROM_ID, FIFO_BASE, MAX_LENGHT, FRAME_LENGHT);
+Fifo fifo(EEPROM_ID, FIFO_BASE, word(EEPROM.read(0),EEPROM.read(1)), word(EEPROM.read(2),EEPROM.read(3)), MAX_LENGHT, FRAME_LENGHT);
 
 // ******** SENSORS PIN DEFINITION ********
 const int vUpPin = 0;    // Voltaje behind + terminal and central terminal adapted to 3.3Vdc range
@@ -116,9 +123,9 @@ const word min_temp = 323;//0x0143 //15ºC (70% batt capacity) minimun permissib
 
 //********* INTERNAL EEPROM DATA DISTRIBUTION
 /*
- *  [0..3]: tail fifo address
- *  [4..7]: heal fifo address
- *  [8..9]: reserved
+ *  [0..1]: tail fifo address
+ *  [2..3]: heal fifo address
+ *  [4..9]: reserved
  *  [10..24]: truck model (15 characters)
  *  [25..39]: truck serial number (15 characters)
  *  [40..54]: battery model (15 characters)
@@ -189,10 +196,12 @@ void setup()
   charge_end = now();
   drain_init = now();
   drain_end = now();
+
   capacity=word(EEPROM.read(70),EEPROM.read(71));
   if (capacity == 0){
     bitSet(state,5); //Sys alamr. capacity not fixed and no calculations possibility
   }
+  
   if (debug) {
     debugCon.begin(9600);      // DONE: Must convert to NewSoftSerial connection
     debugCon.print("Battery capacity: ");
@@ -202,8 +211,6 @@ void setup()
   xbee.begin(9600);
   Wire.begin();           // Start the FIFO connection
   
-  pinMode(fullLED, OUTPUT);  //only for testing
-  pinMode(emptyLED, OUTPUT);
   
   pinMode(levPin, INPUT_PULLUP);
   pinMode(aliAlarmPin, INPUT_PULLUP);
@@ -236,9 +243,17 @@ void serialEvent()
   boolean fin;
   
   xbee.readPacket();              // Look for a packet sent by the PC app 
+  if (debug){
+    debugCon.println("Serial event");
+  }
     
   if (xbee.getResponse().isAvailable()) {
     // got something
+    if (debug){
+      debugCon.print("Xbee packet received: ");
+      debugCon.print(xbee.getResponse().getApiId());
+      debugCon.println(" packet.");
+    }
     
     if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {   // the PC APP send data to Arduino
       // got a zb rx packet
@@ -328,54 +343,96 @@ void serialEvent()
         
         case SET_TRUCK_MODEL:
           blink_led(2,200);
+          if (debug){
+            debugCon.print("Truck Model received : ");
+          }
           for (int k=1; k < rx.getDataLength(); k++)
           {
             EEPROM.write(10+k-1,rx.getData(k));              
             delay(5);          // An EEPROM write takes 3.3 ms to complete
+            if (debug){
+              debugCon.print(rx.getData(k));
+            }
           }
           EEPROM.write(int(rx.getDataLength()),0xFF);
+          if (debug){
+            debugCon.println();
+          }
           break;
         
         case SET_TRUCK_SN:
           blink_led(2,200);
+          if (debug){
+            debugCon.print("Truck SN received : ");
+          }
           for (int k=1; k < rx.getDataLength(); k++)
           {
             EEPROM.write(25+k-1,rx.getData(k));
             delay(5);
+            if (debug){
+              debugCon.print(rx.getData(k));
+            }
           }
           EEPROM.write(int(rx.getDataLength()),0xFF);
+          if (debug){
+            debugCon.println();
+          }
           break;
         
         case SET_BATT_MODEL:
           blink_led(2,200);
+          if (debug){
+            debugCon.print("Battery Model received : ");
+          }
           for (int k=1; k < rx.getDataLength(); k++)
           {
             EEPROM.write(40+k-1,rx.getData(k));
             delay(5);
+            if (debug){
+              debugCon.print(rx.getData(k));
+            }
           }
           EEPROM.write(int(rx.getDataLength()),0xFF);
+          if (debug){
+            debugCon.println();
+          }
           break;
         
         case SET_BATT_SN:
           blink_led(2,200);
+          if (debug){
+            debugCon.print("Battery SN received : ");
+          }
           for (int k=1; k < rx.getDataLength(); k++)
           {
             EEPROM.write(55+k-1,rx.getData(k));
             delay(10);
+            if (debug){
+              debugCon.print(rx.getData(k));
+            }
           }
           EEPROM.write(int(rx.getDataLength()),0xFF);
-          break;
-        
-        case CALIBRATE:
+          if (debug){
+            debugCon.println();
+          }
           break;
         
         case SET_BATT_CAPACITY:
           blink_led(2,200);
+          if (debug){
+            debugCon.print("Battery capacity received : ");
+          }
           EEPROM.write(70,rx.getData(1));
-          EEPROM.write(70,rx.getData(2));
+          EEPROM.write(71,rx.getData(2));
           capacity = word(rx.getData(1),rx.getData(2));
+          if (debug){
+            debugCon.println(capacity);
+          }
           break;
         
+        case CALIBRATE:
+          break;
+                
         case SET_TIME:
           blink_led(2,200);
           
@@ -417,14 +474,21 @@ void serialEvent()
         
         case RESET_MEM:
           fifo.Clear();
+          EEPROM.write(0,highByte(fifo.Get_tail()));
+          EEPROM.write(1,lowByte(fifo.Get_tail()));
+          EEPROM.write(2,highByte(fifo.Get_head()));
+          EEPROM.write(3,lowByte(fifo.Get_head()));
           break;
         
         default:
           break;
       
       }         
-    }
+    } //************ OTHER ZB PACKET
   } else if (xbee.getResponse().isError()) {
+    if (debug){
+      debugCon.println("Error in Rx Packet receiving");
+    }
                   //nss.print("Error reading packet.  Error code: ");  
                 //nss.println(xbee.getResponse().getErrorCode());
   }
@@ -472,7 +536,10 @@ void captureData()
     debugCon.print("Ah,    ");
     debugCon.println(charge*100/capacity);
   }
-  //if (changed()) {
+  if (changed()) {
+    if (debug) {
+      debugCon.println("Stored");
+    }
     while (fifo.Busy()) // FIFO is  being accesed. TODO: analice is Xbee conn is established
         ;
     fifo.Block(true); //  Block the FIFO access
@@ -500,7 +567,11 @@ void captureData()
     a_prev = sensorA;
     t_prev = sensorT;
     s_prev = state;
-  //}
+  } else {
+    if (debug) {
+      debugCon.println("Not Stored");
+    }
+  }
 }
 
 

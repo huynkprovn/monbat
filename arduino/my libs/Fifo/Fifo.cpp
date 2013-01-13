@@ -43,6 +43,26 @@ Fifo::Fifo(byte Eeprom_ID, unsigned int base_Add, unsigned int max_Lenght, unsig
     _busy = false;
 }
 
+Fifo::Fifo(byte Eeprom_ID, unsigned int base_Add, unsigned int tail_Add, unsigned int head_Add, unsigned int max_Lenght, unsigned int frame_Lenght)
+{
+    _EEPROM_ID = Eeprom_ID;
+    _MAX_LENGHT = max_Lenght;
+    _FRAME_LENGHT = frame_Lenght; 
+    _b_address = base_Add;
+    _t_address = tail_Add;
+    _h_address = head_Add;     
+    if ((_t_address == _b_address) && (_h_address == _b_address)){
+        _empty = true;
+    } else {
+        _empty = false;
+    }
+    if ((_t_address - _h_address) <= _FRAME_LENGHT){
+        _full = true;
+    } else {
+        _full = false;
+    }
+    _busy = false;
+}    
 
 // PUBLIC METODS
 
@@ -134,4 +154,14 @@ boolean Fifo::Busy()
 void Fifo::Block(boolean busy)
 {
     _busy = busy;
+}
+
+unsigned int Fifo::Get_tail()
+{
+    return _t_address;
+}
+
+unsigned int Fifo::Get_head()
+{
+    return _h_address;
 }

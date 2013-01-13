@@ -15,6 +15,7 @@ class Fifo
     public:
         Fifo(byte Eeprom_ID, unsigned int max_Lenght, unsigned int frame_Lenght);
         Fifo(byte Eeprom_ID, unsigned int base_Add, unsigned int max_Lenght, unsigned int frame_Lenght);
+        Fifo(byte Eeprom_ID, unsigned int base_Add, unsigned int tail_Add, unsigned int head_Add, unsigned int max_Lenght, unsigned int frame_Lenght);
         void Write(byte data);
         byte Read();
         void Clear();
@@ -22,6 +23,8 @@ class Fifo
         boolean Full();
         boolean Busy();
         void Block(boolean busy);
+        unsigned int Get_tail();
+        unsigned int Get_head();
         
         
     private:
