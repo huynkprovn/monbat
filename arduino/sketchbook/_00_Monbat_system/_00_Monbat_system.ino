@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.5.1    Add autostore fifo pointers periodicaly. NEED TO RESET FIFO ONCE AFTER FIRST RUN
  *              Version 0.5.0    restore fifo status and pointers when restart
  *              Version 0.4.1    Deleted superfluous codigo.
  *              Version 0.4.0    Add a software serial port for debugging. Complete functions for voltaje, current
@@ -86,11 +87,13 @@ const byte EEPROM_ID = 0x50;      // I2C address for 24LC128 EEPROM
 const int FRAME_LENGHT = 13;   // Frame write in FIFO 
 const unsigned int MAX_LENGHT = 5000; //EEPROM Max lenght in bytes
 const unsigned int FIFO_BASE = 16; 
-//unsigned int fifo_tail;
-//unsigned int fifo_head;
+unsigned int fifo_tail = word(EEPROM.read(0),EEPROM.read(1));
+unsigned int fifo_head =  word(EEPROM.read(2),EEPROM.read(3));
 
 //Fifo fifo(EEPROM_ID, FIFO_BASE, MAX_LENGHT, FRAME_LENGHT);
-Fifo fifo(EEPROM_ID, FIFO_BASE, word(EEPROM.read(0),EEPROM.read(1)), word(EEPROM.read(2),EEPROM.read(3)), MAX_LENGHT, FRAME_LENGHT);
+//fifo_tail = word(EEPROM.read(0),EEPROM.read(1));
+//fifo_head =  word(EEPROM.read(2),EEPROM.read(3));
+Fifo fifo(EEPROM_ID, FIFO_BASE, fifo_tail, fifo_head, MAX_LENGHT, FRAME_LENGHT);
 
 // ******** SENSORS PIN DEFINITION ********
 const int vUpPin = 0;    // Voltaje behind + terminal and central terminal adapted to 3.3Vdc range
@@ -210,7 +213,12 @@ void setup()
   }
   xbee.begin(9600);
   Wire.begin();           // Start the FIFO connection
-  
+  if (debug) {
+    debugCon.print("FIFO started with tail pointer= ");
+    debugCon.print(fifo_tail);
+    debugCon.print(", and head pointer= ");
+    debugCon.println(fifo_head);
+  }  
   
   pinMode(levPin, INPUT_PULLUP);
   pinMode(aliAlarmPin, INPUT_PULLUP);
@@ -467,6 +475,19 @@ void serialEvent()
       
             xbee.send(zbTx);
           }
+          //catch fifo pointers and store in arduino eeprom
+          fifo_tail = fifo.Get_tail();
+          fifo_head =  fifo.Get_head();
+          EEPROM.write(0,highByte(fifo_tail));
+          EEPROM.write(1,lowByte(fifo_tail));
+          EEPROM.write(2,highByte(fifo_head));
+          EEPROM.write(3,lowByte(fifo_head));
+          if (debug){
+            debugCon.print("fifo tail = ");
+            debugCon.println(fifo_tail);
+            debugCon.print("fifo head = ");
+            debugCon.println(fifo_head);            
+          }
           break;
         
         case EXIT:
@@ -474,10 +495,12 @@ void serialEvent()
         
         case RESET_MEM:
           fifo.Clear();
-          EEPROM.write(0,highByte(fifo.Get_tail()));
-          EEPROM.write(1,lowByte(fifo.Get_tail()));
-          EEPROM.write(2,highByte(fifo.Get_head()));
-          EEPROM.write(3,lowByte(fifo.Get_head()));
+          fifo_tail = fifo.Get_tail();
+          fifo_head =  fifo.Get_head();
+          EEPROM.write(0,highByte(fifo_tail));
+          EEPROM.write(1,lowByte(fifo_tail));
+          EEPROM.write(2,highByte(fifo_head));
+          EEPROM.write(3,lowByte(fifo_head));
           break;
         
         default:
@@ -517,6 +540,8 @@ void captureData()
   bitWrite(state,2,digitalRead(levPin));  
   fecha = now();  // get the current date
   
+  static int times = 0;
+  
   float v=voltaje(sensorVh);
   float i=current(sensorA);
   static float i_p= 0.0000;
@@ -525,7 +550,7 @@ void captureData()
   charge=calc_ah_drained(i_p,i,charge,sample_period);
   i_p=i;   // this is a local var used only for charge load/drained calculation
   
-  if (debug){
+  /*if (debug){
     debugCon.print(now());
     debugCon.print(" :  Voltaje : ");  
     debugCon.print(v);
@@ -535,8 +560,8 @@ void captureData()
     debugCon.print(charge);
     debugCon.print("Ah,    ");
     debugCon.println(charge*100/capacity);
-  }
-  if (changed()) {
+  }*/
+  //if (changed()) {
     if (debug) {
       debugCon.println("Stored");
     }
@@ -567,11 +592,33 @@ void captureData()
     a_prev = sensorA;
     t_prev = sensorT;
     s_prev = state;
-  } else {
+  /*} else {
     if (debug) {
-      debugCon.println("Not Stored");
+      debugCon.println("Not Stored"); 
     }
   }
+  */
+  /*if (debug){
+    debugCon.print(times);
+    debugCon.println(" times in capture data");
+  }*/
+  if (times == 60){
+    fifo_tail = fifo.Get_tail();
+    fifo_head =  fifo.Get_head();
+    EEPROM.write(0,highByte(fifo_tail));
+    EEPROM.write(1,lowByte(fifo_tail));
+    EEPROM.write(2,highByte(fifo_head));
+    EEPROM.write(3,lowByte(fifo_head));
+    times = 0;
+    if (debug){
+      debugCon.println("fifo pointers capture...");
+      debugCon.print("fifo tail = ");
+      debugCon.println(fifo_tail);
+      debugCon.print("fifo head = ");
+      debugCon.println(fifo_head);            
+    }
+  }  
+  times++;
 }
 
 
