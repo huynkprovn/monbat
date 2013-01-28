@@ -8,7 +8,8 @@
 
  Script Function:
 
- Version: 	0.10.1	Add funtionality in search monitor form. Now scan for monitors and read theirs identifications values to show the list
+ Version: 	0.11.1	Add config.cfg file for save comport and database parameters
+			0.10.0	Add funtionality in search monitor form. Now scan for monitors and read theirs identifications values to show the list
 			0.9.0	Add samples reading functionality.
 			0.8.1	Fix error in vertical offset. Add label for date at cursors representation
 			0.8.0	Add dynamic sensor value representation at cursor pos. Different buttons for scale x and y axis
@@ -58,6 +59,8 @@ Opt("GUIOnEventMode", 1)
 ; ******** MAIN ************
 
 Const $PROGRAM_VERSION = "0.10.0"
+Const $ConfigFile = "config.cfg" ; File where store last com port configuration and database access
+Global $hFile ; handler for the configuration file r/w operations
 
 #cs
 * ***************
@@ -1081,30 +1084,17 @@ Func _ButtonClicked ()
 			$count = 1 				; Reset the variable for counting detected monitors
 			While _CheckIncomingFrame()  ; Catch the modem response and store theirs address
 				If (_GetApiID() = $REMOTE_AT_COMMAND_RESPONSE) Then
-					;GUICtrlSetData($monitorlist, _ReadRemoteATCommandResponseAddress64() & " / " & _ReadRemoteATCommandResponseAddress16())
 					ReDim $monitorfounded [$count][6]
 					$monitorfounded[$count-1][0]=_ReadRemoteATCommandResponseAddress64()
 					$monitorfounded[$count-1][1]=_ReadRemoteATCommandResponseAddress16()
-					;_GUICtrlListView_AddItem($monitorlist,_ReadRemoteATCommandResponseAddress64())
-					;_GUICtrlListView_AddSubItem($monitorlist,$count,_ReadRemoteATCommandResponseAddress16(),1)
 					$count += 1
 				EndIf
 			WEnd
-			#cs REMOVE
-			ReDim $monitorfounded [2][2]
-			$monitorfounded[0][0]="H2X335Z00345"
-			$monitorfounded[0][1]="BI4326"
-			$monitorfounded[1][0]="H2X386A04552"
-			$monitorfounded[1][1]="34553 8"
-			; REMOVE END
-			#CE
 
 			; Ask each searched modem for theirs identification data
 			For $count = 0 To (UBound($monitorfounded,1)-1)
 				_SetAddress64($monitorfounded[$count][0])
 				_SetAddress16($monitorfounded[$count][1])
-				;_SetAddress64("0013A2004086BF1A")
-				;_SetAddress16("AF27")
 				GUICtrlSetData($status, @CRLF & "Conecting with :" & $monitorfounded[$count][0] & " / " & $monitorfounded[$count][1] & "      ", 1)
 				_SendZBData($GET_ID)
 
@@ -1158,9 +1148,8 @@ Func _ButtonClicked ()
 					Sleep(100)
 				WEnd
 			Next
-
-
 			_GUICtrlListView_AddArray($monitorlist, $monitorfounded)
+
 
 		Case $searchmonitorconnectbutton
 			$addr64 = $monitorfounded[_GUICtrlListView_GetSelectedIndices($monitorlist)][0]
@@ -1478,6 +1467,19 @@ Func _ButtonClicked ()
 
 			;TODO look for error in com connection. Now ok connection is assumed
 			$serialconnected = True
+
+			$hFile = FileOpen($ConfigFile, 1)
+			; Check if file opened for writing OK
+			If $hFile = -1 Then
+				MsgBox(0, "Error", "Unable to open file.")
+				Exit
+			EndIf
+
+			FileSetPos($hFile, 0, $FILE_BEGIN)
+			FileReadLine($hFile)								; pos in second line and save config to file
+			FileWriteLine($hFile,GUICtrlRead($comportselect) & "|" & GUICtrlRead($baudrateselct) & "|" & GUICtrlRead($databitselect) & "|" & GUICtrlRead($dataparityselect) & "|" & GUICtrlRead($stopbitselect) & "|" & GUICtrlRead($flowcontrolselect))
+			FileFlush($hFile)
+			FileClose($hFile)
 
 			GUISetState(@SW_ENABLE,$myGui)
 			GUISetState(@SW_SHOW ,$myGui)
