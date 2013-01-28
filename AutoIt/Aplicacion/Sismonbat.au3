@@ -8,7 +8,9 @@
 
  Script Function:
 
- Version: 	0.8.1	Fix error in vertical offset. Add label for date at cursors representation
+ Version: 	0.10.1	Add funtionality in search monitor form. Now scan for monitors and read theirs identifications values to show the list
+			0.9.0	Add samples reading functionality.
+			0.8.1	Fix error in vertical offset. Add label for date at cursors representation
 			0.8.0	Add dynamic sensor value representation at cursor pos. Different buttons for scale x and y axis
 			0.7.0	Add rules value dynamically adjusting
 			0.6.2	Fix error. Draw out the graphics
@@ -44,6 +46,7 @@
 #include <WindowsConstants.au3>
 #include <ButtonConstants.au3>
 #include <ComboConstants.au3>
+#include <GuiListView.au3>
 #include <Misc.au3>    ; For mouse click detection handle
 
 
@@ -54,7 +57,7 @@ Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
-Const $PROGRAM_VERSION = "0.8.1"
+Const $PROGRAM_VERSION = "0.10.0"
 
 #cs
 * ***************
@@ -78,6 +81,18 @@ Const $GUIWidth = @DesktopWidth-20, $GUIHeight = @DesktopHeight-40
 Const $ButtonWith = 40, $ButtonHeight = 40
 Const $GUIWidthSpacer = 20, $GUIHeigthSpacer = 10
 
+Const $GET_ID = "01"
+Const $RESET_ALARMS = "02"
+Const $SET_TRUCK_MODEL = "03"
+Const $SET_TRUCK_SN = "04"
+Const $SET_BATT_MODEL = "05"
+Const $SET_BATT_SN = "06"
+Const $SET_BATT_CAPACITY = "61"
+Const $CALIBRATE = "07"
+Const $SET_TIME = "08"
+Const $READ_MEMORY = "10"
+Const $RESET_MEM = "99"
+
 Global $myGui ; main GUI handler
 
 Global $filemenu, $filemenu_open, $filemenu_exit, $filemenu_save, $filemenu_printpreview, $filemenu_print
@@ -97,7 +112,7 @@ Global $tempalarmbutton, $chargealarmbutton, $levelalarmbutton, $emptyalarmbutto
 Global $tempalarmbuttonehelp, $chargealarmbuttonhelp, $levelalarmbuttonhelp, $emptyalarmbuttonhelp ; to display contextual help
 Global $voltajecheck, $currentcheck, $levelcheck, $tempcheck ; to manage the data to visualize
 Global $truckmodel, $truckserial, $batterymodel, $batteryserial ; represent the data of actual battery bein analized
-
+Global $addr64, $addr16 ; represent the address for the actual modem in battery bein analized
 
 
 #cs
@@ -106,11 +121,23 @@ Global $truckmodel, $truckserial, $batterymodel, $batteryserial ; represent the 
 * ***************
 #ce
 Global $searchform, $monitorlist, $searchmonitorconnectbutton, $searchmonitorscanbutton
+Global $monitor64addr, $monitor16addr
+Global $monitorfounded[1][6]    ;the list of search of found
+Global $count
 
-$searchform = GUICreate("Truck/Battery Selection", 325, 443, 192, 124)
+$searchform = GUICreate("Truck/Battery Selection", 825, 443, 192, 124)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
-$monitorlist = GUICtrlCreateList("", 40, 48, 241, 331)
-;GUICtrlSetData(-1, "H2X386U34432|W4X131R05445|W4X131S00453")
+;$monitorlist = GUICtrlCreateList("", 40, 48, 241, 331)
+;GUICtrlSetData(-1, "H2X386U34432|W4X131R05445|W4X131S00453")  ; Testing only
+$monitorlist = GUICtrlCreateListView("", 40, 48, 741, 331,-1, BitOR($LVS_EX_FULLROWSELECT, $LVS_EX_SUBITEMIMAGES))
+_GUICtrlListView_InsertColumn($monitorlist,0,"64 Bits ADDR", 125)
+_GUICtrlListView_InsertColumn($monitorlist,1,"16 Bits ADDR", 75)
+_GUICtrlListView_InsertColumn($monitorlist,2,"Truck Model", 125)
+_GUICtrlListView_InsertColumn($monitorlist,3,"Truck S/N", 125)
+_GUICtrlListView_InsertColumn($monitorlist,4,"Battery Model", 125)
+_GUICtrlListView_InsertColumn($monitorlist,5,"Battery S/N", 125)
+_GUICtrlListView_SetItemCount($monitorlist, 40)       ; allocate memory for 40 rows in the listview control for prevent allocation every time a item is added
+
 $searchmonitorscanbutton = GUICtrlCreateButton("Scan", 40, 400, 75, 25)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $searchmonitorconnectbutton = GUICtrlCreateButton("Connect", 208, 400, 75, 25)
@@ -401,7 +428,7 @@ $levelcheck = GUICtrlCreateCheckbox("Level", $xpos ,$GUIHeight - $statusHeight -
 GUICtrlSetState(-1, $GUI_CHECKED)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 
-Global $sensorvalue[4][2]
+Global $sensorvalue[4][2]  ; Respresentation of sensors values at current cursors position
 $xpos = 0
 $sensorvalue[0][0] = GUICtrlCreateLabel("C1:xx.xxV", $xpos + 80, $GUIHeight - $statusHeight - $checkboxheight);, $checkboxwith, $checkboxheight)
 GUICtrlSetColor(-1,0xff0000)
@@ -437,7 +464,7 @@ $status = GUICtrlCreateEdit("",0,$GUIHeight - $statusHeight,$GUIWidth, $statusHe
 ; History graphic creation
 Const $xmax = Int($GUIWidth*3/4)
 Const $ymax	= Int($GUIHeight-$ButtonHeight-$checkboxheight-$statusHeight)
-Global $sensor[6][4*$xmax] ; sensors signals for representation [date,v+,v-,a,t,l]
+Global $sensor[6][1] ; sensors signals for representation [date,v+,v-,a,t,l]
 Global $offset[5] = [0, 0,Int($ymax/2),Int($ymax/10),Int($ymax/10)]; offset off each sensor representation
 Global $yscale[5] = [15,15,1,10,200]	 ; scale of each sensor representation
 Global $colours[5] = [0xff0000, 0x000000, 0x14ce00, 0x0000ff, 0xff00ff] ; Sensor representation colours
@@ -445,6 +472,8 @@ Global $visible[5] = [True,True,True,True,True]
 Global $xscale
 
 ;********************** ONLY FOR TEST ***** REMOVE
+#cs ReDim $sensor[6][4*$xmax] ; redim must be used by +1 when receiving each sensor sample
+
 For $k = 0 To 4*$xmax -1
 	$sensor[1][$k] = 12+5*Sin($k/50)
 Next
@@ -470,7 +499,7 @@ For $k = 0 To 4*$xmax -1
 	$sensor[4][$k] = 25+20*Cos($k/30)
 Next
 ;***************************************** REMOVE
-
+#ce
 
 Global $xoff_m, $xoff_p, $yoff_m, $yoff_p
 
@@ -1028,6 +1057,12 @@ EndFunc
 
 Func _ButtonClicked ()
 
+	Local $k ; General counter
+	Local $res ; Byte to byte char conversion
+	Local $dato ;
+	Local $Time ; Used for delay calculation in XBee transmisions/responses
+
+
 	Switch @GUI_CtrlId
 
 		Case $searchbutton
@@ -1035,25 +1070,110 @@ Func _ButtonClicked ()
 			GUISetState(@SW_SHOW ,$searchform)
 
 		Case $searchmonitorscanbutton				;SCAN FOR XBEE MODEM IN RANGE
+			ReDim $monitorfounded [1][6] ; prevent show old searched
+			_GUICtrlListView_DeleteAllItems(GUICtrlGetHandle($monitorlist)) ; Clear previous printed list
+
 			_SetAddress64("000000000000FFFF")  ;Send a broadcast remote AT request with the "AI" command
 			_SetAddress16("FFFE")				; All associated Xbee modem send to coordinator a response frame
 			_SendRemoteATCommand("AI")
 			Sleep(1000)
 
-			While _CheckIncomingFrame()
+			$count = 1 				; Reset the variable for counting detected monitors
+			While _CheckIncomingFrame()  ; Catch the modem response and store theirs address
 				If (_GetApiID() = $REMOTE_AT_COMMAND_RESPONSE) Then
-					GUICtrlSetData($monitorlist, _ReadRemoteATCommandResponseAddress64() & " / " & _ReadRemoteATCommandResponseAddress16())
+					;GUICtrlSetData($monitorlist, _ReadRemoteATCommandResponseAddress64() & " / " & _ReadRemoteATCommandResponseAddress16())
+					ReDim $monitorfounded [$count][6]
+					$monitorfounded[$count-1][0]=_ReadRemoteATCommandResponseAddress64()
+					$monitorfounded[$count-1][1]=_ReadRemoteATCommandResponseAddress16()
+					;_GUICtrlListView_AddItem($monitorlist,_ReadRemoteATCommandResponseAddress64())
+					;_GUICtrlListView_AddSubItem($monitorlist,$count,_ReadRemoteATCommandResponseAddress16(),1)
+					$count += 1
 				EndIf
 			WEnd
+			#cs REMOVE
+			ReDim $monitorfounded [2][2]
+			$monitorfounded[0][0]="H2X335Z00345"
+			$monitorfounded[0][1]="BI4326"
+			$monitorfounded[1][0]="H2X386A04552"
+			$monitorfounded[1][1]="34553 8"
+			; REMOVE END
+			#CE
+
+			; Ask each searched modem for theirs identification data
+			For $count = 0 To (UBound($monitorfounded,1)-1)
+				_SetAddress64($monitorfounded[$count][0])
+				_SetAddress16($monitorfounded[$count][1])
+				;_SetAddress64("0013A2004086BF1A")
+				;_SetAddress16("AF27")
+				GUICtrlSetData($status, @CRLF & "Conecting with :" & $monitorfounded[$count][0] & " / " & $monitorfounded[$count][1] & "      ", 1)
+				_SendZBData($GET_ID)
+
+				ConsoleWrite(@CRLF & "count = " & $count)
+
+				$Time = TimerInit()
+				While ((TimerDiff($Time)/1000) <= 1 )  ; Wait until a zb data packet is received or 1second
+					GUICtrlSetData($status, ".", 1)
+					If _CheckIncomingFrame() Then
+						GUICtrlSetData($status, "-", 1)
+						If _GetApiID() == $ZB_RX_RESPONSE Then
+							GUICtrlSetData($status, "/", 1)
+							$dato = _ReadZBDataResponseValue() ; Extract the data sent by the arduino
+							If StringMid($dato, 1, 2) = $GET_ID Then		; The data is a response for a GET_ID frame request
+								Switch StringMid($dato, 3, 2)
+									Case "01"
+										$res=""
+										For $k = 3 to (StringLen($dato)-1)/2
+											$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+										Next
+										ConsoleWrite(@CRLF & "count = " & $count)
+										$monitorfounded[$count][2] = $res
+
+									Case "02"
+										$res=""
+										For $k = 3 to (StringLen($dato)-1)/2
+											$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+										Next
+										$monitorfounded[$count][3] = $res
+
+									Case "03"
+										$res=""
+										For $k = 3 to (StringLen($dato)-1)/2
+											$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+										Next
+										$monitorfounded[$count][4] = $res
+
+									Case "04"
+										$res=""
+										For $k = 3 to (StringLen($dato)-1)/2
+											$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+										Next
+										$monitorfounded[$count][5] = $res
+
+								EndSwitch
+
+								$Time = TimerInit() ; Reset the time counter
+							EndIf
+						EndIf
+					EndIf
+					Sleep(100)
+				WEnd
+			Next
+
+
+			_GUICtrlListView_AddArray($monitorlist, $monitorfounded)
 
 		Case $searchmonitorconnectbutton
+			$addr64 = $monitorfounded[_GUICtrlListView_GetSelectedIndices($monitorlist)][0]
+			$addr16 = $monitorfounded[_GUICtrlListView_GetSelectedIndices($monitorlist)][1]
+
 			GUISetState(@SW_ENABLE,$myGui)
 			GUISetState(@SW_SHOW ,$myGui)
 			GUISetState(@SW_HIDE,$searchform)
 
 
 		Case $readbutton
-
+			_SendZBData(10) ; Send the READ_MEMORY_COMMAND to the arduino
+							; must wait until a ack packet received
 		Case $viewbutton
 
 		Case $savebutton
