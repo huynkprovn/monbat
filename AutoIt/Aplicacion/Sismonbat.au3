@@ -8,7 +8,8 @@
 
  Script Function:
 
- Version: 	0.11.1	Add config.cfg file for save comport and database parameters
+ Version: 	0.11.1	Change config file for a ini file to store serial port, database access and other config parameters
+			0.11.0	Add config.cfg file for save comport and database parameters
 			0.10.0	Add funtionality in search monitor form. Now scan for monitors and read theirs identifications values to show the list
 			0.9.0	Add samples reading functionality.
 			0.8.1	Fix error in vertical offset. Add label for date at cursors representation
@@ -59,8 +60,7 @@ Opt("GUIOnEventMode", 1)
 ; ******** MAIN ************
 
 Const $PROGRAM_VERSION = "0.10.0"
-Const $ConfigFile = "config.cfg" ; File where store last com port configuration and database access
-Global $hFile ; handler for the configuration file r/w operations
+Const $ConfigFile = "Sismonbat.ini" ; File where store last com port configuration and database access
 
 #cs
 * ***************
@@ -78,6 +78,14 @@ Switch @OSArch
 EndSwitch
 
 Global $comport, $baudrate, $databit, $parity, $stopbit, $flowcontrol, $sportSetError, $serialconnected ; to manage the serial port conection
+
+$comport = IniRead($ConfigFile, "COMPortConfig", "Port","")
+$baudrate = IniRead($ConfigFile, "COMPortConfig", "BaudRate","")
+$databit = IniRead($ConfigFile, "COMPortConfig", "DabaBits","")
+$parity = IniRead($ConfigFile, "COMPortConfig", "ParityBits","")
+$stopbit = IniRead($ConfigFile, "COMPortConfig", "StopBits","")
+$flowcontrol = IniRead($ConfigFile, "COMPortConfig", "FlowControl","")
+
 
 
 Const $GUIWidth = @DesktopWidth-20, $GUIHeight = @DesktopHeight-40
@@ -116,7 +124,7 @@ Global $tempalarmbuttonehelp, $chargealarmbuttonhelp, $levelalarmbuttonhelp, $em
 Global $voltajecheck, $currentcheck, $levelcheck, $tempcheck ; to manage the data to visualize
 Global $truckmodel, $truckserial, $batterymodel, $batteryserial ; represent the data of actual battery bein analized
 Global $addr64, $addr16 ; represent the address for the actual modem in battery bein analized
-
+Global $response ; manage the msgbox pressed button
 
 #cs
 * ***************
@@ -1071,6 +1079,20 @@ Func _ButtonClicked ()
 		Case $searchbutton
 			GUISetState(@SW_DISABLE,$myGui)
 			GUISetState(@SW_SHOW ,$searchform)
+			If (NoT $serialconnected) Then
+				$response = MsgBox(1,"COM Port not selected","There is not a serial connection with a COM port." & @CRLF & "Press ´OK´ for use the last configuration used, or press ´NO´ for manual configuration")
+				GUICtrlSetData($status, $response & @CRLF)
+				If $response = 1 Then
+					_CommSetPort($comport, $sportSetError, $baudrate, $databit, $parity, $stopbit, $flowcontrol) ; Open the port
+
+					;TODO look for error in com connection. Now ok connection is assumed
+					$serialconnected = True
+				Else
+					GUISetState(@SW_ENABLE,$myGui)
+					GUISetState(@SW_SHOW ,$myGui)
+					GUISetState(@SW_HIDE,$searchform)
+				EndIf
+			EndIf
 
 		Case $searchmonitorscanbutton				;SCAN FOR XBEE MODEM IN RANGE
 			ReDim $monitorfounded [1][6] ; prevent show old searched
@@ -1468,18 +1490,13 @@ Func _ButtonClicked ()
 			;TODO look for error in com connection. Now ok connection is assumed
 			$serialconnected = True
 
-			$hFile = FileOpen($ConfigFile, 1)
-			; Check if file opened for writing OK
-			If $hFile = -1 Then
-				MsgBox(0, "Error", "Unable to open file.")
-				Exit
-			EndIf
+			IniWrite($ConfigFile, "COMPortConfig", "Port", $comport)
+			IniWrite($ConfigFile, "COMPortConfig", "BaudRate", $baudrate)
+			IniWrite($ConfigFile, "COMPortConfig", "DabaBits", $databit)
+			IniWrite($ConfigFile, "COMPortConfig", "ParityBits", $parity)
+			IniWrite($ConfigFile, "COMPortConfig", "StopBits", $stopbit)
+			IniWrite($ConfigFile, "COMPortConfig", "FlowControl", $flowcontrol)
 
-			FileSetPos($hFile, 0, $FILE_BEGIN)
-			FileReadLine($hFile)								; pos in second line and save config to file
-			FileWriteLine($hFile,GUICtrlRead($comportselect) & "|" & GUICtrlRead($baudrateselct) & "|" & GUICtrlRead($databitselect) & "|" & GUICtrlRead($dataparityselect) & "|" & GUICtrlRead($stopbitselect) & "|" & GUICtrlRead($flowcontrolselect))
-			FileFlush($hFile)
-			FileClose($hFile)
 
 			GUISetState(@SW_ENABLE,$myGui)
 			GUISetState(@SW_SHOW ,$myGui)
