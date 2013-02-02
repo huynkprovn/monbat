@@ -96,7 +96,36 @@ void Fifo::Write(byte data)
     } 
 }
 
-byte Fifo::Read()
+byte Fifo::Read(unsigned int _m_address)
+{
+    if (_empty) return -1; // FIFO empty return error -1
+  
+    byte data;
+    Wire.beginTransmission(_EEPROM_ID);
+    Wire.write((int)highByte(_m_address) );
+    Wire.write((int)lowByte(_m_address) );
+    Wire.endTransmission();
+    Wire.requestFrom(_EEPROM_ID,(byte)1);
+    while(Wire.available() == 0) // wait for data
+        ;
+    data = Wire.read();
+  
+    /* _t_address++;             // In reading operations don´t avance the fifo tail pointer. See Extract function.
+  
+    if (_t_address > _MAX_LENGHT) {  //have reach the highest mem address
+        _t_address = _b_address;
+    }
+        
+    if (_full) _full = false; // If FIFO was full, now not.
+    if (_t_address == _h_address){                       // and not modify the fifo status
+        _empty = true;
+    }
+    */
+    return data;
+}
+
+
+byte Fifo::Extract()
 {
     
     if (_empty) return -1; // FIFO empty return error -1
