@@ -246,6 +246,7 @@ void setup()
 void serialEvent()
 {
   unsigned int data;
+  unsigned int temp_dir;
   time_t t;
   byte byteR;
   boolean fin;
@@ -458,10 +459,9 @@ void serialEvent()
 
         case READ_MEMORY:
           
-          digitalWrite(13,HIGH);
-          delay(200);
-          digitalWrite(13,LOW);
-          while (!fifo.Empty())
+          temp_dir = fifo.Get_tail();
+          
+          while (fifo.Get_tail() != fifo.Get_head())
           {
             while (fifo.Busy()) // FIFO is not being accesed
               ;
@@ -469,7 +469,13 @@ void serialEvent()
             // Fill the payload
             payload[0] = READ_MEMORY;
             for (int k = 1; k < 14  ; k++) {
-              payload[k] = fifo.Read();
+              payload[k] = fifo.Read(temp_dir);
+              if (temp_dir > MAX_LENGHT) {  //have reach the highest mem address
+                temp_dir = FIFO_BASE;
+              }
+              else {
+                temp_dir++;
+              }
             }
             fifo.Block(false); //
       
