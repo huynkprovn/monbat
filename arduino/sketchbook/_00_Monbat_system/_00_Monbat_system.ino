@@ -96,15 +96,15 @@ unsigned int fifo_head =  word(EEPROM.read(2),EEPROM.read(3));
 Fifo fifo(EEPROM_ID, FIFO_BASE, fifo_tail, fifo_head, MAX_LENGHT, FRAME_LENGHT);
 
 // ******** SENSORS PIN DEFINITION ********
-const int vUpPin = 0;    // Voltaje behind + terminal and central terminal adapted to 3.3Vdc range
-const int vLowPin = 1;   // Voltaje behind central terminal and - terminal adapted to 3.3Vdc range
-const int ampPin = 1;    // Amperaje charging or drain the battery
-const int tempPin = 0;   // External battery temperature 
-const int levPin = 4;    // Digital signal representing the electrolyte level 0 = level fault
+const int vUpPin = 1;    // Voltaje behind + terminal and central terminal adapted to 3.3Vdc range
+const int vLowPin = 2;   // Voltaje behind central terminal and - terminal adapted to 3.3Vdc range
+const int ampPin = 6;    // Amperaje charging or drain the battery
+const int tempPin = 3;   // External battery temperature 
+const int levPin = 3;    // Digital signal representing the electrolyte level 0 = level fault
 const int aliAlarmPin = 2;    // Digital signal repersenting the alimentation fault for the levels adaptation board 
 
-const int fullLED = 11;    // FIFO state in debug mode
-const int emptyLED = 12;
+//const int fullLED = 11;    // FIFO state in debug mode
+//const int emptyLED = 12;
 
 // Others const
 const int sample_period = 2; // period for sensor sampling (in seconds)
@@ -544,23 +544,27 @@ void captureData()
   
   float v=voltaje(sensorVh);
   float i=current(sensorA);
+  float t=temperature(sensorT);
   static float i_p= 0.0000;
   float iprev=current(a_prev);
   static float charge;
   charge=calc_ah_drained(i_p,i,charge,sample_period);
   i_p=i;   // this is a local var used only for charge load/drained calculation
   
-  /*if (debug){
+  if (debug){
     debugCon.print(now());
     debugCon.print(" :  Voltaje : ");  
     debugCon.print(v);
     debugCon.print("Vdc,  Corriente : ");
     debugCon.print(i);
-    debugCon.print("A,  Carga : ");
+    debugCon.print("A, Temperatura : ");
+    debugCon.print(t);
+    debugCon.println("ºC");
+    /*debugCon.print("A,  Carga : ");
     debugCon.print(charge);
     debugCon.print("Ah,    ");
-    debugCon.println(charge*100/capacity);
-  }*/
+    debugCon.println(charge*100/capacity);*/
+  }
   //if (changed()) {
     if (debug) {
       debugCon.println("Stored");
@@ -922,8 +926,8 @@ void blink_led(int times, int period)
  * =============================================================================== */
 void loop()
 {
-  digitalWrite(emptyLED, fifo.Empty());
-  digitalWrite(fullLED, fifo.Full());
+  //digitalWrite(emptyLED, fifo.Empty());
+  //digitalWrite(fullLED, fifo.Full());
   Alarm.delay(10); // Necesary for the periodic event function. ¿¿??
   //delay(10);
 } 
