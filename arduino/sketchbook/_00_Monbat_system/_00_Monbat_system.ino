@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.6.0    Only store sensors values if are changed
  *              Version 0.5.1    Add autostore fifo pointers periodicaly. NEED TO RESET FIFO ONCE AFTER FIRST RUN
  *              Version 0.5.0    restore fifo status and pointers when restart
  *              Version 0.4.1    Deleted superfluous codigo.
@@ -47,7 +48,7 @@
 sLed led(7,5,4,6,8);    // Create a sLed objet and asociate to the arduino pins;
 //sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int lenght);
 
-char VERSION[] = "MonBat system V0.5.0";
+char VERSION[] = "MonBat system V0.6.0";
 boolean debug = true;
 SoftwareSerial debugCon(9,10); //Rx, Tx arduino digital port for debug serial connection
 
@@ -85,15 +86,15 @@ ModemStatusResponse msr = ModemStatusResponse(); // Manage the status API frames
 // ******** EEPROM PARAMETER DEFINITION ********
 const byte EEPROM_ID = 0x50;      // I2C address for 24LC128 EEPROM
 const int FRAME_LENGHT = 13;   // Frame write in FIFO 
-const unsigned int MAX_LENGHT = 5000; //EEPROM Max lenght in bytes
-const unsigned int FIFO_BASE = 16; 
+const unsigned int MAX_LENGHT = 1024; //EEPROM Max lenght in bytes
+const unsigned int FIFO_BASE = 0; 
 unsigned int fifo_tail = word(EEPROM.read(0),EEPROM.read(1));
 unsigned int fifo_head =  word(EEPROM.read(2),EEPROM.read(3));
 
-//Fifo fifo(EEPROM_ID, FIFO_BASE, MAX_LENGHT, FRAME_LENGHT);
+Fifo fifo(EEPROM_ID, FIFO_BASE, MAX_LENGHT, FRAME_LENGHT);
 //fifo_tail = word(EEPROM.read(0),EEPROM.read(1));
 //fifo_head =  word(EEPROM.read(2),EEPROM.read(3));
-Fifo fifo(EEPROM_ID, FIFO_BASE, fifo_tail, fifo_head, MAX_LENGHT, FRAME_LENGHT);
+//Fifo fifo(EEPROM_ID, FIFO_BASE, fifo_tail, fifo_head, MAX_LENGHT, FRAME_LENGHT);
 
 // ******** SENSORS PIN DEFINITION ********
 const int vUpPin = 1;    // Voltaje behind + terminal and central terminal adapted to 3.3Vdc range
@@ -108,9 +109,9 @@ const int aliAlarmPin = 2;    // Digital signal repersenting the alimentation fa
 
 // Others const
 const int sample_period = 2; // period for sensor sampling (in seconds)
-const int threshold = 2;   // threshold variation in analog signals (in %) to store them
-const long up_thr = 1+(threshold/100);
-const long low_thr = 1-(threshold/100);
+const float threshold = 3.00;   // threshold variation in analog signals (in %) to store them
+const float up_thr = 1.00 +(float(threshold/100));
+const float low_thr = 1.00 -(float(threshold/100));
 
 const word charge_amp = 522; //0x020A Min sensor value for considering the battery is charging after draining
 const word drain_amp = 505; //0x01F9 Min sensor value for considering the battery is draining after charging
@@ -211,6 +212,10 @@ void setup()
     debugCon.print(capacity);
     debugCon.println(" Ah.");
   }
+  if (debug){
+    debugCon << "threshold margins= [" << up_thr << "," << low_thr << "]";  
+  }
+  
   xbee.begin(9600);
   Wire.begin();           // Start the FIFO connection
   if (debug) {
@@ -459,7 +464,7 @@ void serialEvent()
 
         case READ_MEMORY:
           
-          temp_dir = fifo.Get_tail();
+          /*temp_dir = fifo.Get_tail();
           
           while (fifo.Get_tail() != fifo.Get_head())
           {
@@ -481,6 +486,23 @@ void serialEvent()
       
             xbee.send(zbTx);
           }
+          */
+          
+          while (!fifo.Empty())
+          {
+            while (fifo.Busy()) // FIFO is not being accesed
+              ;
+            fifo.Block(true); //
+            // Fill the payload
+            payload[0] = READ_MEMORY;
+            for (int k = 1; k < 14  ; k++) {
+              payload[k] = fifo.Extract();
+            }
+            fifo.Block(false); //
+      
+            xbee.send(zbTx);
+          }
+          
           //catch fifo pointers and store in arduino eeprom
           fifo_tail = fifo.Get_tail();
           fifo_head =  fifo.Get_head();
@@ -507,7 +529,14 @@ void serialEvent()
           EEPROM.write(1,lowByte(fifo_tail));
           EEPROM.write(2,highByte(fifo_head));
           EEPROM.write(3,lowByte(fifo_head));
+          if (debug){
+            debugCon.print("fifo tail = ");
+            debugCon.println(fifo_tail);
+            debugCon.print("fifo head = ");
+            debugCon.println(fifo_head);            
+          }
           break;
+          
         
         default:
           break;
@@ -548,7 +577,8 @@ void captureData()
   
   static int times = 0;
   
-  float v=voltaje(sensorVh);
+  float vh=voltaje(sensorVh);
+  float vl=voltaje(sensorVl);
   float i=current(sensorA);
   float t=temperature(sensorT);
   static float i_p= 0.0000;
@@ -559,8 +589,10 @@ void captureData()
   
   if (debug){
     debugCon.print(now());
-    debugCon.print(" :  Voltaje : ");  
-    debugCon.print(v);
+    debugCon.print(" :  Voltaje+ : ");  
+    debugCon.print(vh);
+    debugCon.print("Vdc,  Voltaje- : ");  
+    debugCon.print(vl);
     debugCon.print("Vdc,  Corriente : ");
     debugCon.print(i);
     debugCon.print("A, Temperatura : ");
@@ -571,7 +603,7 @@ void captureData()
     debugCon.print("Ah,    ");
     debugCon.println(charge*100/capacity);*/
   }
-  //if (changed()) {
+  if (changed()) {
     if (debug) {
       debugCon.println("Stored");
     }
@@ -602,12 +634,12 @@ void captureData()
     a_prev = sensorA;
     t_prev = sensorT;
     s_prev = state;
-  /*} else {
+  } else {
     if (debug) {
       debugCon.println("Not Stored"); 
     }
   }
-  */
+  
   /*if (debug){
     debugCon.print(times);
     debugCon.println(" times in capture data");
@@ -644,19 +676,39 @@ void captureData()
 boolean changed()
 {
   boolean res = false;
-  if (((int(sensorVh))>int(up_thr*int(vh_prev))) || (int(sensorVh)<int(low_thr*int(vh_prev)))) {
+  if (((float(sensorVh))>float(up_thr*float(vh_prev))) || (float(sensorVh)<float(low_thr*float(vh_prev)))) {
+    if (debug){
+      debugCon << "Vh Changed. Actual: " << float(sensorVh) << ", last: " << float(vh_prev) << ", margins = [" << float(low_thr*float(vh_prev)) << "," << float(up_thr*float(vh_prev)) << "]";
+      debugCon.println();  
+    }
     res = true;
   }
-  if (((int(sensorVl))>int(up_thr*int(vl_prev))) || (int(sensorVl)<int(low_thr*int(vl_prev)))) {
+  if (((float(sensorVl))>float(up_thr*float(vl_prev))) || (float(sensorVl)<float(low_thr*float(vl_prev)))) {
+    if (debug){
+      debugCon << "Vl Changed. Actual: " << float(sensorVl) << ", last: " << float(vl_prev) << ", margins = [" << float(low_thr*float(vl_prev)) << "," << float(up_thr*float(vl_prev)) << "]";
+      debugCon.println();  
+    }
     res = true;
   }
-  if (((int(sensorA))>int(up_thr*int(a_prev))) || (int(sensorA)<int(low_thr*int(a_prev)))) {
+  if (((float(sensorA))>float(up_thr*float(a_prev))) || (float(sensorA)<float(low_thr*float(a_prev)))) {
+    if (debug){
+      debugCon << "A Changed. Actual: " << float(sensorA) << ", last: " << float(a_prev) << ", margins = [" << float(low_thr*float(a_prev)) << "," << float(up_thr*float(a_prev)) << "]";
+      debugCon.println();  
+    }
     res = true;
   }
-  if (((int(sensorT))>int(up_thr*int(t_prev))) || (int(sensorT)<int(low_thr*int(t_prev)))) {
+  if (((float(sensorT))>float(up_thr*float(t_prev))) || (float(sensorT)<float(low_thr*float(t_prev)))) {
+    if (debug){
+      debugCon << "T Changed. Actual: " << float(sensorT) << ", last: " << float(t_prev) << ", margins = [" << float(low_thr*float(t_prev)) << "," << float(up_thr*float(t_prev)) << "]";
+      debugCon.println();  
+    }
     res = true;
   }
   if (state != s_prev) {
+    if (debug){
+      debugCon << "State Changed";
+      debugCon.println();  
+    }
     res = true;
   } 
   
