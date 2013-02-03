@@ -8,7 +8,9 @@
 
  Script Function:
 
- Version: 	0.11.1	Change config file for a ini file to store serial port, database access and other config parameters
+ Version: 	0.12.0	Reading sensors values from Arduino. Adjust scale in graphics. Create funct for phisical values conversion
+					Add date to the cursors position
+			0.11.1	Change config file for a ini file to store serial port, database access and other config parameters
 			0.11.0	Add config.cfg file for save comport and database parameters
 			0.10.0	Add funtionality in search monitor form. Now scan for monitors and read theirs identifications values to show the list
 			0.9.0	Add samples reading functionality.
@@ -49,6 +51,7 @@
 #include <ButtonConstants.au3>
 #include <ComboConstants.au3>
 #include <GuiListView.au3>
+#include <Date.au3>
 #include <Misc.au3>    ; For mouse click detection handle
 
 
@@ -59,7 +62,7 @@ Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
-Const $PROGRAM_VERSION = "0.10.0"
+Const $PROGRAM_VERSION = "0.12.0"
 Const $ConfigFile = "Sismonbat.ini" ; File where store last com port configuration and database access
 
 #cs
@@ -476,8 +479,8 @@ $status = GUICtrlCreateEdit("",0,$GUIHeight - $statusHeight,$GUIWidth, $statusHe
 Const $xmax = Int($GUIWidth*3/4)
 Const $ymax	= Int($GUIHeight-$ButtonHeight-$checkboxheight-$statusHeight)
 Global $sensor[6][1] ; sensors signals for representation [date,v+,v-,a,t,l]
-Global $offset[5] = [0, 0,Int($ymax/2),Int($ymax/10),Int($ymax/10)]; offset off each sensor representation
-Global $yscale[5] = [15,15,1,10,200]	 ; scale of each sensor representation
+Global $offset[5] = [-Int($ymax/4), -Int($ymax/4),Int($ymax/2),Int($ymax/10),Int($ymax/2)]; offset off each sensor representation
+Global $yscale[5] = [25,25,1,10,1]	 ; scale of each sensor representation
 Global $colours[5] = [0xff0000, 0x000000, 0x14ce00, 0x0000ff, 0xff00ff] ; Sensor representation colours
 Global $visible[5] = [True,True,True,True,True]
 Global $xscale
@@ -672,7 +675,7 @@ Func _Main ()
 				Wend
 			EndIf
 		EndIf
-		Sleep(10)
+		Sleep(200)
 	WEnd
 
 EndFunc
@@ -1183,8 +1186,35 @@ Func _ButtonClicked ()
 
 
 		Case $readbutton
-			_SendZBData(10) ; Send the READ_MEMORY_COMMAND to the arduino
+			ReDim $sensor[6][1]
+			_SendZBData($READ_MEMORY) ; Send the READ_MEMORY_COMMAND to the arduino
 							; must wait until a ack packet received
+			$Time = TimerInit()
+			While ((TimerDiff($Time)/1000) <= 0.25 )  ; Wait until a zb data packet is received or 1second
+				GUICtrlSetData($status, ".", 1)
+				If _CheckIncomingFrame() Then
+					GUICtrlSetData($status, "-", 1)
+					If _GetApiID() == $ZB_RX_RESPONSE Then
+						GUICtrlSetData($status, "/", 1)
+						$dato = _ReadZBDataResponseValue() ; Extract the data sent by the arduino
+						If StringMid($dato, 1, 2) = $READ_MEMORY Then		; The data is a response for a READ_MEMORY_COMMAND frame request
+							ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the received data
+							$sensor[0][UBound($sensor,2)-1] = _convert(StringMid($dato, 3, 8))
+							$sensor[1][UBound($sensor,2)-1] = _voltaje(Dec(StringMid($dato,11, 4)))
+							$sensor[2][UBound($sensor,2)-1] = _voltaje(Dec(StringMid($dato,15, 4)))
+							$sensor[3][UBound($sensor,2)-1] = _current(Dec(StringMid($dato,19, 4)))
+							$sensor[4][UBound($sensor,2)-1] = _temperature(Dec(StringMid($dato,23, 4)))
+							$sensor[5][UBound($sensor,2)-1] = StringMid($dato,27, 2)
+
+							$Time = TimerInit() ; Reset the time counter
+						EndIf
+					EndIf
+				EndIf
+				Sleep(1)
+			WEnd
+			GUICtrlSetData($status, @CRLF, 1)
+			_Draw()
+
 		Case $viewbutton
 
 		Case $savebutton
@@ -1588,6 +1618,7 @@ Func _MenuClicked ()
 			GUISetState(@SW_SHOW ,$hardwaredataform)
 
 		Case $configmenu_reset
+			_SendZBData("99")
 
 		Case $testmenu_serialport
 
@@ -1623,7 +1654,7 @@ Func _Draw()
 			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_PENSIZE, 2)
 			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_COLOR, $colours[$j])						; Set the appropiate colour
 			For $x = 40 To $xmax -1 -40
-				If (Int(($x/$xgain)+$xoffset) >= 0) And (Int(($x/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then							; Don�t exceeded the $sensor[$j] range
+				If (Int(($x/$xgain)+$xoffset) >= 0) And (Int(($x/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then			; Don�t exceeded the $sensor[$j] range
 					$y=$ymax - ($yscale[$j]*$ygain*$sensor[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
 					If $y<0 Then
 						$y=0
@@ -1721,7 +1752,7 @@ Func _DrawCursors()
 			GUICtrlSetData($sensorvalue[3][1], "")
 		EndIf
 
-		#cs; Fill $cursor1date with the date al cursor position
+		; Fill $cursor1date with the date al cursor position
 		If (Int(($cursor1/$xgain)+$xoffset) >= 0) And (Int(($cursor1/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then
 			GUICtrlSetData($cursor1date, _DateAdd('s',$sensor[0][($cursor1/$xgain)+$xoffset],"1970/01/01 00:00:00"))
 		Else
@@ -1733,7 +1764,7 @@ Func _DrawCursors()
 		Else
 			GUICtrlSetData($cursor2date,"")
 		EndIf
-		#ce
+
 	EndIf
 
 EndFunc
@@ -1772,4 +1803,30 @@ Func _ShowCursorsValues()
 			GUICtrlSetState($sensorvalue[3][1], $GUI_HIDE)
 		EndIf
 	EndIf
+EndFunc
+
+Func _voltaje($sensorvalue)
+	Return ((($sensorvalue*3.2226/1000)+4.1030)/0.4431);
+EndFunc
+
+
+Func _current($sensorvalue)
+	Return ((($sensorvalue*3.2226/1000)-1.6471)/0.0063);
+EndFunc
+
+Func _temperature($sensorvalue)
+	Return ((($sensorvalue*3.2226/1000)-0.5965)/0.0296);
+EndFunc
+
+Func _convert($dato)
+	Local $k
+	Local $res
+	Local $d
+	Local $long = StringLen($dato)/2
+
+	For $k=1 To $long
+		$d = StringMid($dato,$k*2-1,2) ;Extract byte by byte
+		$res += Dec($d)*255^($k - 1)     ; Convert to a decimal data
+	Next
+	Return $res
 EndFunc
