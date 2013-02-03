@@ -8,7 +8,7 @@
 
  Script Function:
 
- Version: 	0.12.0	Reading sensors values from Arduino. Adjust scale in graphics. Create funct for phisical values conversion
+ Version: 	0.12.0	Reading sensors values from Arduino. Adjust scale in graphics. Create funct for physical values conversion
 					Add date to the cursors position
 			0.11.1	Change config file for a ini file to store serial port, database access and other config parameters
 			0.11.0	Add config.cfg file for save comport and database parameters
@@ -486,19 +486,23 @@ Global $visible[5] = [True,True,True,True,True]
 Global $xscale
 
 ;********************** ONLY FOR TEST ***** REMOVE
-#cs ReDim $sensor[6][4*$xmax] ; redim must be used by +1 when receiving each sensor sample
+#cs ReDim $sensor[6][$xmax/4] ; redim must be used by +1 when receiving each sensor sample
 
-For $k = 0 To 4*$xmax -1
+For $k = 0 To $xmax/4 -1
+	$sensor[0][$k] = $k * 2
+Next
+
+For $k = 0 To $xmax/4 -1
 	$sensor[1][$k] = 12+5*Sin($k/50)
 Next
 
-For $k = 0 To 4*$xmax -1
+For $k = 0 To $xmax/4 -1
 	$sensor[2][$k] = 11.5+5*Sin($k/50)
 Next
 
 Dim $inc = 2
 Dim $val = 0
-For $k = 0 To 4*$xmax -1
+For $k = 0 To $xmax/4 -1
 
 	$sensor[3][$k] = $val
 	If $val > 150 Then
@@ -509,7 +513,7 @@ For $k = 0 To 4*$xmax -1
 	$val = $val + $inc
 Next
 
-For $k = 0 To 4*$xmax -1
+For $k = 0 To $xmax/4 -1
 	$sensor[4][$k] = 25+20*Cos($k/30)
 Next
 ;***************************************** REMOVE
@@ -1190,7 +1194,7 @@ Func _ButtonClicked ()
 			_SendZBData($READ_MEMORY) ; Send the READ_MEMORY_COMMAND to the arduino
 							; must wait until a ack packet received
 			$Time = TimerInit()
-			While ((TimerDiff($Time)/1000) <= 0.25 )  ; Wait until a zb data packet is received or 1second
+			While ((TimerDiff($Time)/1000) <= 0.25 )  ; Wait until a zb data packet is received or 250ms
 				GUICtrlSetData($status, ".", 1)
 				If _CheckIncomingFrame() Then
 					GUICtrlSetData($status, "-", 1)
@@ -1198,20 +1202,21 @@ Func _ButtonClicked ()
 						GUICtrlSetData($status, "/", 1)
 						$dato = _ReadZBDataResponseValue() ; Extract the data sent by the arduino
 						If StringMid($dato, 1, 2) = $READ_MEMORY Then		; The data is a response for a READ_MEMORY_COMMAND frame request
-							ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the received data
-							$sensor[0][UBound($sensor,2)-1] = _convert(StringMid($dato, 3, 8))
+							;ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the received data
+							$sensor[0][UBound($sensor,2)-1] = Int(_convert(StringMid($dato, 3, 8)))
 							$sensor[1][UBound($sensor,2)-1] = _voltaje(Dec(StringMid($dato,11, 4)))
 							$sensor[2][UBound($sensor,2)-1] = _voltaje(Dec(StringMid($dato,15, 4)))
 							$sensor[3][UBound($sensor,2)-1] = _current(Dec(StringMid($dato,19, 4)))
 							$sensor[4][UBound($sensor,2)-1] = _temperature(Dec(StringMid($dato,23, 4)))
 							$sensor[5][UBound($sensor,2)-1] = StringMid($dato,27, 2)
-
+							ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the next data
 							$Time = TimerInit() ; Reset the time counter
 						EndIf
 					EndIf
 				EndIf
 				Sleep(1)
 			WEnd
+			_ArrayDisplay($sensor, "")
 			GUICtrlSetData($status, @CRLF, 1)
 			_Draw()
 
@@ -1642,6 +1647,7 @@ EndFunc
 Func _Draw()
 	Local $j, $x, $y
 	Local $first = True                   ; is the first value in range to represent
+	Local $t0, $tx
 
 	For $j=0 To 4
 		If $visible[$j] = True Then
@@ -1653,25 +1659,40 @@ Func _Draw()
 
 			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_PENSIZE, 2)
 			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_COLOR, $colours[$j])						; Set the appropiate colour
-			For $x = 40 To $xmax -1 -40
-				If (Int(($x/$xgain)+$xoffset) >= 0) And (Int(($x/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then			; Don�t exceeded the $sensor[$j] range
-					$y=$ymax - ($yscale[$j]*$ygain*$sensor[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
+			;$x=0 ; Set the first pos in the $sensors[][] array
+			;GUICtrlSetData($status, "[0.."  & UBound($sensor,2)-1 & "]", 1)
+
+			For $x = 0 To (UBound($sensor,2)-1) Step 1
+				$t0 = Int($sensor[0][0])
+				$tx = Int($sensor[0][$x])
+				GUICtrlSetData($status, $tx-$t0 & ",", 1)
+				If (($tx-$t0)/5 < ($xmax -1 -40)) Then			; Don´t exceeded the graphic with
+
+					GUICtrlSetData($status, ".", 1)
+					;$y=$ymax - ($yscale[$j]*$ygain*$sensor[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
+					$y=$ymax - ($yscale[$j]*$sensor[$j+1][$x]+$offset[$j])
 					If $y<0 Then
 						$y=0
 					ElseIf $y>$ymax Then
-						$Y=$ymax
+						$y=$ymax
 					EndIf
 
+					ConsoleWrite("X=" & $x & ", $t0=" & $t0 & ", tx=" & $tx & ", tx-t0=" & $tx-$t0 & ", Y=" & $y & @CRLF)
 					If $first Then         ; is the first value to represent in the graphic
-						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_MOVE, $x, $y) ;posicionate at inic of draw
+						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_MOVE, 40, $y) ;posicionate at inic of draw
 						$first = False
+						GUICtrlSetData($status, "f", 1)
 					Else
-						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, $x, $y)
+						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, 40+($tx-$t0)/5, $y)
+						GUICtrlSetData($status, "," & $x, 1)
 					EndIf
 				EndIf
 			Next
+
 			GUICtrlSetColor($historygraph[$j], 0xffffff)
 			$first = True
+			GUICtrlSetData($status, @CRLF, 1)
+
 		Else
 			GUICtrlSetState($historygraph[$j], $GUI_HIDE)
 		EndIf
