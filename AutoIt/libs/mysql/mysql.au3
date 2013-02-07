@@ -19,6 +19,7 @@
 Func _MySQLConnect($sUsername, $sPassword, $sDatabase, $sServer, $sDriver = "{MySQL ODBC 5.2w Driver}", $iPort=3306)
 	Local $v = StringMid($sDriver, 2, StringLen($sDriver) - 2)
 	Local $key = "HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers", $val = RegRead($key, $v)
+	Local $ObjConn
 	If @error or $val = "" Then
 		SetError(2)
 		Return 0
@@ -86,6 +87,7 @@ EndFunc   ;==>_MySQLEnd
 #ce
 
 Func _AddRecord($oConnectionObj, $sTable, $vRow, $vValue = "")
+	Local $query
 	If IsObj($oConnectionObj) Then
 		$query = "INSERT INTO " & $sTable & " ("
 
@@ -186,6 +188,7 @@ EndFunc   ;==>_DeleteRecord
 #ce
 
 Func _CreateTable($oConnectionObj, $sTbl, $sPrimeKey, $keytype = "INTEGER", $sNotNull = "yes", $keyautoinc = "yes", $sType = "InnoDB")
+	Local $str
 	If IsObj($oConnectionObj) And Not @error Then
 		$str = "CREATE TABLE " & $sTbl & " " & "(" & $sPrimeKey & " " & $keytype & " UNSIGNED"
 		If $sNotNull = "yes" Then
@@ -221,6 +224,7 @@ EndFunc   ;==>_CreateTable
 #ce
 
 Func _CreateColumn($oConnectionObj, $sTable, $sColumn, $sAllowNull = "no", $sDataType = "VARCHAR(45)", $sAutoInc = "no", $sUnsigned = "no", $vDefault = '')
+	Local $str
 	If IsObj($oConnectionObj) And Not @error Then
 		$str = "ALTER TABLE `" & $sTable & "` ADD COLUMN `" & $sColumn & "` " & $sDataType & " "
 		If $sAllowNull = "yes" Then
@@ -289,6 +293,8 @@ EndFunc   ;==>_DropTbl
 	Author: cdkid
 #ce
 Func _CountRecords($oConnectionObj, $sTable, $sColumn, $vValue = '')
+	Local $constr, $sql2, $ret
+
 	If IsObj($oConnectionObj) And Not @error Then
 
 		If $sColumn <> "" And $vValue <> "" And Not IsInt($vValue) Then
@@ -321,6 +327,7 @@ EndFunc   ;==>_CountRecords
 #ce
 
 Func _CountTables($oConnectionObj)
+	Local $quer, $i
 	If IsObj($oConnectionObj) Then
 		$quer = $oConnectionObj.execute ("SHOW TABLES;")
 		$i = 0
@@ -381,6 +388,7 @@ EndFunc   ;==>_GetColNames
 #ce
 
 Func _GetTblNames($oConnectionObj)
+	Local $quer
 	If IsObj($oConnectionObj) Then
 		Dim $ret[1]
 		$quer = $oConnectionObj.execute ("SHOW TABLES;")
@@ -407,6 +415,7 @@ EndFunc   ;==>_GetTblNames
 #ce
 
 Func _GetColVals($oConnectionObj, $sTable, $sColumn)
+	Local $quer
 	If IsObj($oConnectionObj) Then
 		Dim $ret[1]
 		$quer = $oConnectionObj.execute ("SELECT " & $sColumn & " FROM " & $sTable & ";")
@@ -430,6 +439,7 @@ EndFunc   ;==>_GetColVals
 	Author: cdkid
 #ce
 Func _GetColCount($oConnectionObj, $sTable)
+	Local $quer, $i
 	If IsObj($oConnectionObj) Then
 		$quer = $oConnectionObj.execute ("SHOW COLUMNS IN " & $sTable)
 		With $quer
@@ -457,6 +467,7 @@ EndFunc   ;==>_GetColCount
 	Author: cdkid
 #ce
 Func _GetColType($oConnectionObj, $sTable, $sColumn)
+	Local $quer, $i, $ret
 	If IsObj($oConnectionObj) Then
 		$quer = $oConnectionObj.execute ("SHOW COLUMNS IN " & $sTable)
 		With $quer
@@ -535,6 +546,7 @@ EndFunc   ;==>_GetDBNames
 
 Func _ChangeCon($oConnectionObj, $username = "", $password = "", $database = "", $driver = "", $server = "", $iPort = 0)
 	Local $constr, $db, $usn, $pwd, $svr
+	Local $dvr, $port
 	If IsObj($oConnectionObj) Then
 		$constr = $oConnectionObj.connectionstring
 		$constr = StringReplace($constr, 'Provider=MSDASQL.1;Extended Properties="', '')
