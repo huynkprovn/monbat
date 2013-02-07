@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.6.1    Allow reading sensors states memory without erasing it
  *              Version 0.6.0    Only store sensors values if are changed
  *              Version 0.5.1    Add autostore fifo pointers periodicaly. NEED TO RESET FIFO ONCE AFTER FIRST RUN
  *              Version 0.5.0    restore fifo status and pointers when restart
@@ -464,9 +465,9 @@ void serialEvent()
 
         case READ_MEMORY:
           
-          /*temp_dir = fifo.Get_tail();
+          temp_dir = fifo.Get_tail();
           
-          while (fifo.Get_tail() != fifo.Get_head())
+          while (temp_dir != fifo.Get_head())
           {
             while (fifo.Busy()) // FIFO is not being accesed
               ;
@@ -486,8 +487,8 @@ void serialEvent()
       
             xbee.send(zbTx);
           }
-          */
           
+          /*
           while (!fifo.Empty())
           {
             while (fifo.Busy()) // FIFO is not being accesed
@@ -515,7 +516,7 @@ void serialEvent()
             debugCon.println(fifo_tail);
             debugCon.print("fifo head = ");
             debugCon.println(fifo_head);            
-          }
+          }*/
           break;
         
         case EXIT:
