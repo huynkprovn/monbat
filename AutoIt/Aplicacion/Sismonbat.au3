@@ -8,7 +8,9 @@
 
  Script Function:
 
- Version: 	0.12.0	Reading sensors values from Arduino. Adjust scale in graphics. Create funct for physical values conversion
+ Version: 	0.13.1	Fix a bug in reading process
+			0.13.0  Add MySQL access parameters
+			0.12.0	Reading sensors values from Arduino. Adjust scale in graphics. Create funct for physical values conversion
 					Add date to the cursors position
 			0.11.1	Change config file for a ini file to store serial port, database access and other config parameters
 			0.11.0	Add config.cfg file for save comport and database parameters
@@ -53,7 +55,7 @@
 #include <GuiListView.au3>
 #include <Date.au3>
 #include <Misc.au3>    ; For mouse click detection handle
-
+#include '..\libs\mysql\mysql.au3'
 
 
 
@@ -62,7 +64,7 @@ Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
-Const $PROGRAM_VERSION = "0.12.0"
+Const $PROGRAM_VERSION = "0.13.0"
 Const $ConfigFile = "Sismonbat.ini" ; File where store last com port configuration and database access
 
 #cs
@@ -89,6 +91,17 @@ $parity = IniRead($ConfigFile, "COMPortConfig", "ParityBits","")
 $stopbit = IniRead($ConfigFile, "COMPortConfig", "StopBits","")
 $flowcontrol = IniRead($ConfigFile, "COMPortConfig", "FlowControl","")
 
+Global $username, $password, $database, $MySQLServerName    ; To manage the database connection
+$username = IniRead($ConfigFile, "DatabaseConfig", "user","")
+$password = IniRead($ConfigFile, "DatabaseConfig", "pass","")
+$database = IniRead($ConfigFile, "DatabaseConfig", "DataBaseName","")
+$MySQLServerName = IniRead($ConfigFile, "DatabaseConfig", "server", "")
+
+
+Global $SQLInstance
+Global $SQLCode, $TableContents
+
+$SQLInstance = _MySQLConnect($username, $password, $database, $MySQLServerName)
 
 
 Const $GUIWidth = @DesktopWidth-20, $GUIHeight = @DesktopHeight-40
@@ -486,7 +499,8 @@ Global $visible[5] = [True,True,True,True,True]
 Global $xscale
 
 ;********************** ONLY FOR TEST ***** REMOVE
-#cs ReDim $sensor[6][$xmax/4] ; redim must be used by +1 when receiving each sensor sample
+#cs ReDim $sensor[6][$xmax/4] ; redim
+be used by +1 when receiving each sensor sample
 
 For $k = 0 To $xmax/4 -1
 	$sensor[0][$k] = $k * 2
@@ -695,6 +709,7 @@ Func _CLOSEClicked ()
 			If ($serialconnected) Then      ;If a serial port is open close it before exit application
 				_CommClosePort()
 			EndIf
+			_MySQLEnd($SQLInstance)
 			Exit
 
 		Case $versionform
@@ -1079,6 +1094,7 @@ Func _ButtonClicked ()
 	Local $res ; Byte to byte char conversion
 	Local $dato ;
 	Local $Time ; Used for delay calculation in XBee transmisions/responses
+	Local $first
 
 
 	Switch @GUI_CtrlId
@@ -1190,6 +1206,7 @@ Func _ButtonClicked ()
 
 
 		Case $readbutton
+			$first = True
 			ReDim $sensor[6][1]
 			_SendZBData($READ_MEMORY) ; Send the READ_MEMORY_COMMAND to the arduino
 							; must wait until a ack packet received
@@ -1203,13 +1220,19 @@ Func _ButtonClicked ()
 						$dato = _ReadZBDataResponseValue() ; Extract the data sent by the arduino
 						If StringMid($dato, 1, 2) = $READ_MEMORY Then		; The data is a response for a READ_MEMORY_COMMAND frame request
 							;ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the received data
+							If $first Then			; if array has only 1 cell write the data in it, in other case
+								$first = False
+							Else
+								ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the next data
+							EndIf
+
 							$sensor[0][UBound($sensor,2)-1] = Int(_convert(StringMid($dato, 3, 8)))
 							$sensor[1][UBound($sensor,2)-1] = _voltaje(Dec(StringMid($dato,11, 4)))
 							$sensor[2][UBound($sensor,2)-1] = _voltaje(Dec(StringMid($dato,15, 4)))
 							$sensor[3][UBound($sensor,2)-1] = _current(Dec(StringMid($dato,19, 4)))
 							$sensor[4][UBound($sensor,2)-1] = _temperature(Dec(StringMid($dato,23, 4)))
 							$sensor[5][UBound($sensor,2)-1] = StringMid($dato,27, 2)
-							ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the next data
+
 							$Time = TimerInit() ; Reset the time counter
 						EndIf
 					EndIf
@@ -1230,6 +1253,7 @@ Func _ButtonClicked ()
 			If ($serialconnected) Then      ;If a serial port is open close it before exit application
 				_CommClosePort()
 			EndIf
+			_MySQLEnd($SQLInstance)
 			Exit
 
 
@@ -1666,7 +1690,7 @@ Func _Draw()
 				$t0 = Int($sensor[0][0])
 				$tx = Int($sensor[0][$x])
 				GUICtrlSetData($status, $tx-$t0 & ",", 1)
-				If (($tx-$t0)/5 < ($xmax -1 -40)) Then			; Don´t exceeded the graphic with
+				If (($tx-$t0)*2 < ($xmax -1 -40)) Then			; Don´t exceeded the graphic with
 
 					GUICtrlSetData($status, ".", 1)
 					;$y=$ymax - ($yscale[$j]*$ygain*$sensor[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
@@ -1683,7 +1707,7 @@ Func _Draw()
 						$first = False
 						GUICtrlSetData($status, "f", 1)
 					Else
-						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, 40+($tx-$t0)/5, $y)
+						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, 40+($tx-$t0)*2, $y)
 						GUICtrlSetData($status, "," & $x, 1)
 					EndIf
 				EndIf
