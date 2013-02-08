@@ -9,6 +9,8 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.7.0    restore fifo pointers when restart. Adjust system time at inic with the last stored
+ *                               sample time. Don´t work
  *              Version 0.6.1    Allow reading sensors states memory without erasing it
  *              Version 0.6.0    Only store sensors values if are changed
  *              Version 0.5.1    Add autostore fifo pointers periodicaly. NEED TO RESET FIFO ONCE AFTER FIRST RUN
@@ -49,7 +51,7 @@
 sLed led(7,5,4,6,8);    // Create a sLed objet and asociate to the arduino pins;
 //sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int lenght);
 
-char VERSION[] = "MonBat system V0.6.0";
+char VERSION[] = "MonBat system V0.7.0";
 boolean debug = true;
 SoftwareSerial debugCon(9,10); //Rx, Tx arduino digital port for debug serial connection
 
@@ -87,15 +89,15 @@ ModemStatusResponse msr = ModemStatusResponse(); // Manage the status API frames
 // ******** EEPROM PARAMETER DEFINITION ********
 const byte EEPROM_ID = 0x50;      // I2C address for 24LC128 EEPROM
 const int FRAME_LENGHT = 13;   // Frame write in FIFO 
-const unsigned int MAX_LENGHT = 1024; //EEPROM Max lenght in bytes
+const unsigned int MAX_LENGHT = 4000; //EEPROM Max lenght in bytes
 const unsigned int FIFO_BASE = 0; 
 unsigned int fifo_tail = word(EEPROM.read(0),EEPROM.read(1));
 unsigned int fifo_head =  word(EEPROM.read(2),EEPROM.read(3));
 
-Fifo fifo(EEPROM_ID, FIFO_BASE, MAX_LENGHT, FRAME_LENGHT);
+//Fifo fifo(EEPROM_ID, FIFO_BASE, MAX_LENGHT, FRAME_LENGHT);
 //fifo_tail = word(EEPROM.read(0),EEPROM.read(1));
 //fifo_head =  word(EEPROM.read(2),EEPROM.read(3));
-//Fifo fifo(EEPROM_ID, FIFO_BASE, fifo_tail, fifo_head, MAX_LENGHT, FRAME_LENGHT);
+Fifo fifo(EEPROM_ID, FIFO_BASE, fifo_tail, fifo_head, MAX_LENGHT, FRAME_LENGHT);
 
 // ******** SENSORS PIN DEFINITION ********
 const int vUpPin = 1;    // Voltaje behind + terminal and central terminal adapted to 3.3Vdc range
@@ -190,6 +192,8 @@ time_t drain_end;      // time when last discharge end
  * =============================================================================== */
 void setup()
 {
+  time_t last_time = 0;
+  
   state=0;
   vh_prev=0;
   vl_prev=0;
@@ -229,6 +233,14 @@ void setup()
   pinMode(levPin, INPUT_PULLUP);
   pinMode(aliAlarmPin, INPUT_PULLUP);
   
+  for (int x=0; x<4; x++){                        // correspond to the time off last sample store in FIFO  
+    last_time += fifo.Read(fifo.Get_head() - FRAME_LENGHT + x) * pow(255,x);    
+  }
+  if (debug) {
+    debugCon << "last sample time = " << last_time;
+    debugCon.println("");
+  }
+  setTime(last_time);
   setTime(11,0,0,17,11,2012);
   Alarm.timerRepeat(sample_period,captureData);  // Periodic function for reading sensors values
   //MsTimer2::set(500, captureData); // 500ms period
@@ -546,7 +558,8 @@ void serialEvent()
     } //************ OTHER ZB PACKET
   } else if (xbee.getResponse().isError()) {
     if (debug){
-      debugCon.println("Error in Rx Packet receiving");
+      debugCon.print("Error in Rx Packet receiving.  Eror code: ");
+      debugCon.println(xbee.getResponse().getErrorCode());
     }
                   //nss.print("Error reading packet.  Error code: ");  
                 //nss.println(xbee.getResponse().getErrorCode());
