@@ -9,6 +9,8 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.7.2    Data calculation like in Set time function. Don´t use pow() funct.
+ *              Version 0.7.1    error in data calculation. Probably for type in pow() funct. TODO
  *              Version 0.7.0    restore fifo pointers when restart. Adjust system time at inic with the last stored
  *                               sample time. Don´t work
  *              Version 0.6.1    Allow reading sensors states memory without erasing it
@@ -234,9 +236,8 @@ void setup()
   pinMode(levPin, INPUT_PULLUP);
   pinMode(aliAlarmPin, INPUT_PULLUP);
   
-  for (int x=0; x<4; x++){                        // correspond to the time off last sample store in FIFO  
-    last_time += fifo.Read(fifo.Get_head() - FRAME_LENGHT + x) * long(pow(255,x));    
-  }
+  for (int x=3; x>=0; x--) // 
+            last_time = last_time*255 + fifo.Read(fifo.Get_head() - FRAME_LENGHT + x);
   if (debug) {
     debugCon << "last sample time = " << last_time;
     debugCon.println("");
@@ -247,10 +248,39 @@ void setup()
   Alarm.timerRepeat(sample_period,captureData);  // Periodic function for reading sensors values
   //MsTimer2::set(500, captureData); // 500ms period
   //MsTimer2::start();
+  
+/*  digitalWrite(aliAlarmPin, HIGH);
+  attachInterrupt(0, supplyFault, LOW);
+  if (debug) {
+    debugCon.println("Interrupts configurated");
+  }
+*/  
   if (debug) {
     debugCon.println("Started...");
   }
+  
 }
+
+
+
+/* ===============================================================================
+ *
+ * Function Name:	supplyFault()
+ * Description:    	Interrupt 0 handler (digital pin 0) used for detect the ausence of
+ *                      main supply in the system. 
+ *                      Sleep XBee Modem, Arduino subsystems, store current date and deactivate 
+ *                      the capture data function.
+ * Parameters:          none
+ * Returns;  		none
+ *
+ * =============================================================================== */
+void supplyFault()
+{
+
+  
+}
+
+
 
 
 /* ===============================================================================
