@@ -219,6 +219,7 @@ void setup()
   }
   if (debug){
     debugCon << "threshold margins= [" << up_thr << "," << low_thr << "]";  
+    debugCon.println();
   }
   
   xbee.begin(9600);
@@ -234,14 +235,15 @@ void setup()
   pinMode(aliAlarmPin, INPUT_PULLUP);
   
   for (int x=0; x<4; x++){                        // correspond to the time off last sample store in FIFO  
-    last_time += fifo.Read(fifo.Get_head() - FRAME_LENGHT + x) * pow(255,x);    
+    last_time += fifo.Read(fifo.Get_head() - FRAME_LENGHT + x) * long(pow(255,x));    
   }
   if (debug) {
     debugCon << "last sample time = " << last_time;
     debugCon.println("");
   }
+  
   setTime(last_time);
-  setTime(11,0,0,17,11,2012);
+  //setTime(11,0,0,17,11,2012);
   Alarm.timerRepeat(sample_period,captureData);  // Periodic function for reading sensors values
   //MsTimer2::set(500, captureData); // 500ms period
   //MsTimer2::start();
