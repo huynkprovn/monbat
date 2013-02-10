@@ -8,7 +8,9 @@
 
  Script Function:
 
- Version: 	0.13.1	Fix a bug in reading process
+ Version: 	0.15.0  Add save to database functionality. Date is saved in UNIX format. same error obtained saving in mysql "timestamp" format
+			0.14.0	Add time sending functionality
+			0.13.1	Fix a bug in reading process
 			0.13.0  Add MySQL access parameters
 			0.12.0	Reading sensors values from Arduino. Adjust scale in graphics. Create funct for physical values conversion
 					Add date to the cursors position
@@ -124,7 +126,7 @@ Global $myGui ; main GUI handler
 
 Global $filemenu, $filemenu_open, $filemenu_exit, $filemenu_save, $filemenu_printpreview, $filemenu_print
 Global $editmenu, $editmenu_copy, $editmenu_paste, $editmenu_cut
-Global $configmenu, $configmenu_serialport, $configmenu_database, $configmenu_hardware, $configmenu_reset
+Global $configmenu, $configmenu_serialport, $configmenu_database, $configmenu_hardware, $configmenu_reset, $configmenu_settime
 Global $testmenu, $testmenu_serialport, $testmenu_database
 Global $helpmenu, $helpmenu_help, $helpmenu_about, $helpmenu_version ; form menu vars
 Global $searchbutton, $readbutton, $viewbutton, $savebutton, $printbutton, $exitbutton ; button vars
@@ -324,6 +326,8 @@ GUICtrlSetOnEvent(-1, "_MenuClicked")
 $configmenu_hardware = GUICtrlCreateMenuItem("&Set Monitor Identification", $configmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
 $configmenu_reset = GUICtrlCreateMenuItem("&Reset Monitor Memory", $configmenu)
+GUICtrlSetOnEvent(-1, "_MenuClicked")
+$configmenu_settime = GUICtrlCreateMenuItem("Send local &time to monitor", $configmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
 $testmenu = GUICtrlCreateMenu("&Test")
 $testmenu_serialport = GUICtrlCreateMenuItem("Test &Serial Port Conection", $testmenu)
@@ -1239,13 +1243,22 @@ Func _ButtonClicked ()
 				EndIf
 				Sleep(1)
 			WEnd
-			_ArrayDisplay($sensor, "")
+			;_ArrayDisplay($sensor, "")
 			GUICtrlSetData($status, @CRLF, 1)
 			_Draw()
 
 		Case $viewbutton
 
 		Case $savebutton
+			;*****************************************************************************************************************
+			;*****************************************************************************************************************
+			For $k = 0 To (UBound($sensor,2)-1) Step 1
+				$SQLCode = "INSERT INTO battsignals (fecha, battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & $sensor[0][$k] & ", " & "01" & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
+				;$SQLCode = "INSERT INTO battsignals (battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & "01" & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
+				ConsoleWrite($SQLCode & @CRLF)
+				_Query($SQLInstance, $SQLCode) 		;TODO: check success in database write
+			Next
+
 
 		Case $printbutton
 
@@ -1606,6 +1619,7 @@ EndFunc
 
 Func _MenuClicked ()
 	Local $comportlist, $k ; Used in COM port detection
+	Local $fecha, $res
 
 	Switch @GUI_CTRLID
 		Case $filemenu_open
@@ -1649,6 +1663,15 @@ Func _MenuClicked ()
 		Case $configmenu_reset
 			_SendZBData("99")
 
+		Case $configmenu_settime
+			$fecha = Int(_DateDiff('s', "1970/01/01 00:00:00", _NowCalc()))
+			$res = ""
+			While $fecha > 0
+				$res &= Hex(Mod($fecha, 255),2)
+				$fecha = Int($fecha/255)
+			WEnd
+			_SendZBData("08" & $res)
+
 		Case $testmenu_serialport
 
 		Case $testmenu_database
@@ -1689,33 +1712,33 @@ Func _Draw()
 			For $x = 0 To (UBound($sensor,2)-1) Step 1
 				$t0 = Int($sensor[0][0])
 				$tx = Int($sensor[0][$x])
-				GUICtrlSetData($status, $tx-$t0 & ",", 1)
-				If (($tx-$t0)*2 < ($xmax -1 -40)) Then			; Don´t exceeded the graphic with
+				;GUICtrlSetData($status, $tx-$t0 & ",", 1)
+				If (($tx-$t0) < ($xmax -1 -40)) Then			; Don´t exceeded the graphic with
 
-					GUICtrlSetData($status, ".", 1)
-					;$y=$ymax - ($yscale[$j]*$ygain*$sensor[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
-					$y=$ymax - ($yscale[$j]*$sensor[$j+1][$x]+$offset[$j])
+					;GUICtrlSetData($status, ".", 1)
+					$y=$ymax - ($yscale[$j]*$ygain*$sensor[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
+					;$y=$ymax - ($yscale[$j]*$sensor[$j+1][$x]+$offset[$j])
 					If $y<0 Then
 						$y=0
 					ElseIf $y>$ymax Then
 						$y=$ymax
 					EndIf
 
-					ConsoleWrite("X=" & $x & ", $t0=" & $t0 & ", tx=" & $tx & ", tx-t0=" & $tx-$t0 & ", Y=" & $y & @CRLF)
+					;ConsoleWrite("X=" & $x & ", $t0=" & $t0 & ", tx=" & $tx & ", tx-t0=" & $tx-$t0 & ", Y=" & $y & @CRLF)
 					If $first Then         ; is the first value to represent in the graphic
 						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_MOVE, 40, $y) ;posicionate at inic of draw
 						$first = False
-						GUICtrlSetData($status, "f", 1)
+						;GUICtrlSetData($status, "f", 1)
 					Else
 						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, 40+($tx-$t0)*2, $y)
-						GUICtrlSetData($status, "," & $x, 1)
+						;GUICtrlSetData($status, "," & $x, 1)
 					EndIf
 				EndIf
 			Next
 
 			GUICtrlSetColor($historygraph[$j], 0xffffff)
 			$first = True
-			GUICtrlSetData($status, @CRLF, 1)
+			;GUICtrlSetData($status, @CRLF, 1)
 
 		Else
 			GUICtrlSetState($historygraph[$j], $GUI_HIDE)
@@ -1872,6 +1895,38 @@ Func _convert($dato)
 	For $k=1 To $long
 		$d = StringMid($dato,$k*2-1,2) ;Extract byte by byte
 		$res += Dec($d)*255^($k - 1)     ; Convert to a decimal data
+	Next
+	Return $res
+EndFunc
+
+Func _convertForDatabase($dato)
+	Local $k
+	Local $char
+	Local $res = ""
+
+	For $k = 1 To StringLen($dato)
+		$char = StringMid($dato, $k, 1)
+		If $char = "/" Then
+			$res &= "-"
+		Else
+			$res &= $char
+		EndIf
+	Next
+	Return $res
+EndFunc
+
+Func _convertFromDatabase($dato)
+	Local $k
+	Local $char
+	Local $res = ""
+
+	For $k = 1 To StringLen($dato)
+		$char = StringMid($dato, $k, 1)
+		If $char = "-" Then
+			$res &= "/"
+		Else
+			$res &= $char
+		EndIf
 	Next
 	Return $res
 EndFunc
