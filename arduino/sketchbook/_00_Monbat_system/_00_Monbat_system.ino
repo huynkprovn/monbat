@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.7.3    Add some debug lines in tx data and store data procedures
  *              Version 0.7.2    Data calculation like in Set time function. Don´t use pow() funct.
  *              Version 0.7.1    error in data calculation. Probably for type in pow() funct. TODO
  *              Version 0.7.0    restore fifo pointers when restart. Adjust system time at inic with the last stored
@@ -493,7 +494,6 @@ void serialEvent()
           break;
                 
         case SET_TIME:
-          blink_led(2,200);
           
           t=0;
           for (int k = rx.getDataLength()-1; k>=1 ; k--) //read in reverse mode
@@ -505,11 +505,16 @@ void serialEvent()
           t=t*255+int(rx.getData(1));
           */  
           setTime(t);
+          Alarm.timerRepeat(sample_period,captureData);
           break;
 
         case READ_MEMORY:
           
           temp_dir = fifo.Get_tail();
+          if (debug) {
+            debugCon << "Tx samples in memory. Start at:" << temp_dir << "   End at:" << fifo.Get_head();
+            debugCon.println();
+          }
           
           while (temp_dir != fifo.Get_head())
           {
@@ -528,7 +533,10 @@ void serialEvent()
               }
             }
             fifo.Block(false); //
-      
+            if (debug) {
+              debugCon << "Tx data at:" << temp_dir;
+              debugCon.println();
+            }
             xbee.send(zbTx);
           }
           
@@ -650,9 +658,7 @@ void captureData()
     debugCon.println(charge*100/capacity);*/
   }
   if (changed()) {
-    if (debug) {
-      debugCon.println("Stored");
-    }
+    
     while (fifo.Busy()) // FIFO is  being accesed. TODO: analice is Xbee conn is established
         ;
     fifo.Block(true); //  Block the FIFO access
@@ -673,6 +679,11 @@ void captureData()
     fifo.Write(state);
   
     fifo.Block(false); //  Releases the FIFO access 
+    
+    if (debug) {
+      debugCon << "Stored. Head pointer= " << fifo.Get_head();
+      debugCon.println("Stored");
+    }
     
     //these are global vars
     vh_prev = sensorVh;
