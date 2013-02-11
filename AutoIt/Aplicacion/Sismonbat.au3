@@ -8,7 +8,8 @@
 
  Script Function:
 
- Version: 	0.15.0  Add save to database functionality. Date is saved in UNIX format. same error obtained saving in mysql "timestamp" format
+ Version: 	0.16.0	Modify sensor representation. Add equally spaced sensor samples for allow cursors and expand/contract functionality
+			0.15.0  Add save to database functionality. Date is saved in UNIX format. same error obtained saving in mysql "timestamp" format
 			0.14.0	Add time sending functionality
 			0.13.1	Fix a bug in reading process
 			0.13.0  Add MySQL access parameters
@@ -501,6 +502,8 @@ Global $yscale[5] = [25,25,1,10,1]	 ; scale of each sensor representation
 Global $colours[5] = [0xff0000, 0x000000, 0x14ce00, 0x0000ff, 0xff00ff] ; Sensor representation colours
 Global $visible[5] = [True,True,True,True,True]
 Global $xscale
+Global $screen[6][$xmax] ; For display the sensors signal in graphic control. Used instead $sensor[][] because periodic samples are needed
+					; for expand/contract and cursors fucntionality
 
 ;********************** ONLY FOR TEST ***** REMOVE
 #cs ReDim $sensor[6][$xmax/4] ; redim
@@ -1694,8 +1697,33 @@ EndFunc
 Func _Draw()
 	Local $j, $x, $y
 	Local $first = True                   ; is the first value in range to represent
-	Local $t0, $tx
+	Local $t0, $tx		; time at init and x moment
+	Local $c			; position in sensor[][c] array
 
+
+	; Fill $screen[][] values with $sensor[][] values
+
+	$c = 1		;Pos at sensor[][] begin
+	$t0 = Int($sensor[0][0]) ; and take initial moment time
+	$tx = $t0 + 2
+	For $j = 0 To 5
+		$screen[$j][0] = $sensor[$j][0]
+	Next
+
+	For $x = 1 To $xmax
+		$screen[0][$x] = $tx
+		For $j = 1 To 5
+			If $tx < $sensor[0][$c] Then
+				$screen[$j][$x] = $sensor[$j][$c-1]
+			Else
+				$screen[$j][$x] = $sensor[$j][$c]
+			EndIf
+		Next
+		$tx+=2
+	Next
+
+;;***********************************************************************
+;;***********************************************************************
 	For $j=0 To 4
 		If $visible[$j] = True Then
 			GUICtrlSetState($historygraph[$j], $GUI_SHOW)
