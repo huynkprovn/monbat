@@ -8,7 +8,8 @@
 
  Script Function:
 
- Version: 	0.16.0	Modify sensor representation. Add equally spaced sensor samples for allow cursors and expand/contract functionality
+ Version:
+			0.16.0	Print sensor values from non periodic sample period
 			0.15.0  Add save to database functionality. Date is saved in UNIX format. same error obtained saving in mysql "timestamp" format
 			0.14.0	Add time sending functionality
 			0.13.1	Fix a bug in reading process
@@ -494,8 +495,8 @@ GUICtrlSetState(-1, $GUI_HIDE)
 $status = GUICtrlCreateEdit("",0,$GUIHeight - $statusHeight,$GUIWidth, $statusHeight)
 
 ; History graphic creation
-Const $xmax = Int($GUIWidth*3/4)
-Const $ymax	= Int($GUIHeight-$ButtonHeight-$checkboxheight-$statusHeight)
+Global $xmax = Int($GUIWidth*3/4)
+Global $ymax	= Int($GUIHeight-$ButtonHeight-$checkboxheight-$statusHeight)
 Global $sensor[6][1] ; sensors signals for representation [date,v+,v-,a,t,l]
 Global $offset[5] = [-Int($ymax/4), -Int($ymax/4),Int($ymax/2),Int($ymax/10),Int($ymax/2)]; offset off each sensor representation
 Global $yscale[5] = [25,25,1,10,1]	 ; scale of each sensor representation
@@ -1696,10 +1697,10 @@ EndFunc
 ;****************** GRAPHICAL REPRESENTATION FUNCTIONS **********************
 Func _Draw()
 	Local $j, $x, $y
-	Local $first = True                   ; is the first value in range to represent
+	Local $first = True                   ; is the first value in range to represent?
 	Local $t0, $tx		; time at init and x moment
 	Local $c			; position in sensor[][c] array
-
+	;$xmax = 400
 
 	; Fill $screen[][] values with $sensor[][] values
 
@@ -1710,20 +1711,23 @@ Func _Draw()
 		$screen[$j][0] = $sensor[$j][0]
 	Next
 
-	For $x = 1 To $xmax
+	$x=1
+	While ($x<$xmax) And ($c<UBound($sensor,2)-1)
+		;ConsoleWrite("$xmax=" & $xmax & ", n. of samples=" & UBound($sensor,2)-1 & ", $x=" & $x & ", $tx=" & $tx & ", $c=" & $c & @CRLF)
 		$screen[0][$x] = $tx
 		For $j = 1 To 5
-			If $tx < $sensor[0][$c] Then
-				$screen[$j][$x] = $sensor[$j][$c-1]
+			If $tx < $sensor[0][$c] Then					; No stored value at this time
+				$screen[$j][$x] = $sensor[$j][$c-1]   	; value was previous value
 			Else
 				$screen[$j][$x] = $sensor[$j][$c]
+				$c+=1
 			EndIf
 		Next
+		$x+=1
 		$tx+=2
-	Next
+	WEnd
+	;_ArrayDisplay($screen, "")
 
-;;***********************************************************************
-;;***********************************************************************
 	For $j=0 To 4
 		If $visible[$j] = True Then
 			GUICtrlSetState($historygraph[$j], $GUI_SHOW)
@@ -1734,34 +1738,36 @@ Func _Draw()
 
 			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_PENSIZE, 2)
 			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_COLOR, $colours[$j])						; Set the appropiate colour
-			;$x=0 ; Set the first pos in the $sensors[][] array
-			;GUICtrlSetData($status, "[0.."  & UBound($sensor,2)-1 & "]", 1)
 
-			For $x = 0 To (UBound($sensor,2)-1) Step 1
-				$t0 = Int($sensor[0][0])
-				$tx = Int($sensor[0][$x])
-				;GUICtrlSetData($status, $tx-$t0 & ",", 1)
-				If (($tx-$t0) < ($xmax -1 -40)) Then			; Don´t exceeded the graphic with
+			$t0 = Int($sensor[0][0])
+			For $x = 40 To $xmax -1 -40
 
-					;GUICtrlSetData($status, ".", 1)
-					$y=$ymax - ($yscale[$j]*$ygain*$sensor[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
-					;$y=$ymax - ($yscale[$j]*$sensor[$j+1][$x]+$offset[$j])
-					If $y<0 Then
-						$y=0
-					ElseIf $y>$ymax Then
-						$y=$ymax
-					EndIf
+				$tx = Int($screen[0][$x])
+
+				If ((($x/$xgain)+$xoffset) < 0) Or ((($x/$xgain)+$xoffset)>(UBound($screen,2)-1)) Then
+					$y=0
+					$first=True
+				Else
+					$y=$ymax - ($yscale[$j]*$ygain*$screen[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
+					;$y=$ymax - ($yscale[$j]*$screen[$j+1][$x]+$offset[$j])
+				EndIf
+
+				If $y<0 Then
+					$y=0
+				ElseIf $y>$ymax Then
+					$y=$ymax
+				EndIf
 
 					;ConsoleWrite("X=" & $x & ", $t0=" & $t0 & ", tx=" & $tx & ", tx-t0=" & $tx-$t0 & ", Y=" & $y & @CRLF)
-					If $first Then         ; is the first value to represent in the graphic
-						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_MOVE, 40, $y) ;posicionate at inic of draw
-						$first = False
-						;GUICtrlSetData($status, "f", 1)
-					Else
-						GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, 40+($tx-$t0)*2, $y)
-						;GUICtrlSetData($status, "," & $x, 1)
-					EndIf
+				If $first Then         ; is the first value to represent in the graphic
+					GUICtrlSetGraphic($historygraph[$j], $GUI_GR_MOVE, $x, $y) ;posicionate at inic of draw
+					$first = False
+					;GUICtrlSetData($status, "f", 1)
+				Else
+					GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, $x, $y)
+					;GUICtrlSetData($status, "," & $x, 1)
 				EndIf
+				;EndIf
 			Next
 
 			GUICtrlSetColor($historygraph[$j], 0xffffff)
