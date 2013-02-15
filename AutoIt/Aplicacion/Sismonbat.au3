@@ -548,7 +548,7 @@ Global $yscale[5] = [25,25,1,10,1]	 ; scale of each sensor representation
 Global $colours[5] = [0xff0000, 0x000000, 0x14ce00, 0x0000ff, 0xff00ff] ; Sensor representation colours
 Global $visible[5] = [True,True,True,True,True]
 Global $xscale
-Global $screen[6][$xmax] ; For display the sensors signal in graphic control. Used instead $sensor[][] because periodic samples are needed
+Global $screen[6][1] ; For display the sensors signal in graphic control. Used instead $sensor[][] because periodic samples are needed
 					; for expand/contract and cursors fucntionality
 
 ;********************** ONLY FOR TEST ***** REMOVE
@@ -1848,14 +1848,20 @@ Func _Draw()
 	$c = 1		;Pos at sensor[][] begin
 	$t0 = Int($sensor[0][0]) ; and take initial moment time
 	$tx = $t0 + 2
+	ReDim $screen[6][1]
+
 	For $j = 0 To 5
 		$screen[$j][0] = $sensor[$j][0]
 	Next
 
 	$x=1
-	While ($x<$xmax/$xgain) And ($c<UBound($sensor,2)-1)  ;Caught enought samples for graphical representation
+	While $c<UBound($sensor,2)-1  ;Until the end of $sensor[][] array
+
+		ReDim $screen[6][UBound($screen,2)+1]		; add space for the next data
+
 		;ConsoleWrite("$xmax=" & $xmax & ", n. of samples=" & UBound($sensor,2)-1 & ", $x=" & $x & ", $tx=" & $tx & ", $c=" & $c & @CRLF)
 		$screen[0][$x] = $tx
+
 		For $j = 1 To 5
 			If $tx < $sensor[0][$c] Then					; No stored value at this time
 				$screen[$j][$x] = $sensor[$j][$c-1]   	; value was previous value
@@ -1880,10 +1886,10 @@ Func _Draw()
 			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_PENSIZE, 2)
 			GUICtrlSetGraphic($historygraph[$j], $GUI_GR_COLOR, $colours[$j])						; Set the appropiate colour
 
-			$t0 = Int($sensor[0][0])
+			$t0 = Int($screen[0][0])
 			For $x = 40 To $xmax -1 -40
 
-				$tx = Int($screen[0][$x])
+				;$tx = Int($screen[0][$x])
 
 				If ((($x/$xgain)+$xoffset) < 0) Or ((($x/$xgain)+$xoffset)>(UBound($screen,2)-1)) Then
 					$y=0
@@ -1971,7 +1977,7 @@ Func _DrawCursors()
 		GUICtrlSetColor($cursor[1], 0xffffff)
 
 		; fill the label with the sensor value for each cursor
-		If (Int(($cursor1/$xgain)+$xoffset) >= 0) And (Int(($cursor1/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then ; don´t exceded the sensor data range
+		If (Int(($cursor1/$xgain)+$xoffset) >= 0) And (Int(($cursor1/$xgain)+$xoffset) < (UBound($screen,2)-1)) Then ; don´t exceded the sensor data range
 			GUICtrlSetData($sensorvalue[0][0], Round($screen[1][($cursor1/$xgain)+$xoffset],2) & "V")
 			GUICtrlSetData($sensorvalue[1][0], Round($screen[3][($cursor1/$xgain)+$xoffset],1)& "A")
 			GUICtrlSetData($sensorvalue[2][0], Round($screen[4][($cursor1/$xgain)+$xoffset],1)& "ºC")
@@ -1983,11 +1989,11 @@ Func _DrawCursors()
 			GUICtrlSetData($sensorvalue[3][0], "")
 		EndIf
 
-		If (Int(($cursor2/$xgain)+$xoffset) >= 0) And (Int(($cursor2/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then
-			GUICtrlSetData($sensorvalue[0][1], Round($sensor[1][($cursor2/$xgain)+$xoffset],2)& "V")
-			GUICtrlSetData($sensorvalue[1][1], Round($sensor[3][($cursor2/$xgain)+$xoffset],1)& "A")
-			GUICtrlSetData($sensorvalue[2][1], Round($sensor[4][($cursor2/$xgain)+$xoffset],1)& "ºC")
-			GUICtrlSetData($sensorvalue[3][1], Round($sensor[5][($cursor2/$xgain)+$xoffset],1))
+		If (Int(($cursor2/$xgain)+$xoffset) >= 0) And (Int(($cursor2/$xgain)+$xoffset) < (UBound($screen,2)-1)) Then
+			GUICtrlSetData($sensorvalue[0][1], Round($screen[1][($cursor2/$xgain)+$xoffset],2)& "V")
+			GUICtrlSetData($sensorvalue[1][1], Round($screen[3][($cursor2/$xgain)+$xoffset],1)& "A")
+			GUICtrlSetData($sensorvalue[2][1], Round($screen[4][($cursor2/$xgain)+$xoffset],1)& "ºC")
+			GUICtrlSetData($sensorvalue[3][1], Round($screen[5][($cursor2/$xgain)+$xoffset],1))
 		Else
 			GUICtrlSetData($sensorvalue[0][1], "V")
 			GUICtrlSetData($sensorvalue[1][1], "A")
@@ -1996,14 +2002,14 @@ Func _DrawCursors()
 		EndIf
 
 		; Fill $cursor1date with the date al cursor position
-		If (Int(($cursor1/$xgain)+$xoffset) >= 0) And (Int(($cursor1/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then
-			GUICtrlSetData($cursor1date, _DateAdd('s',$sensor[0][($cursor1/$xgain)+$xoffset],"1970/01/01 00:00:00"))
+		If (Int(($cursor1/$xgain)+$xoffset) >= 0) And (Int(($cursor1/$xgain)+$xoffset) < (UBound($screen,2)-1)) Then
+			GUICtrlSetData($cursor1date, _DateAdd('s',$screen[0][($cursor1/$xgain)+$xoffset],"1970/01/01 00:00:00"))
 		Else
 			GUICtrlSetData($cursor1date,"")
 		EndIf
 
-		If (Int(($cursor2/$xgain)+$xoffset) >= 0) And (Int(($cursor2/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then
-			GUICtrlSetData($cursor2date, _DateAdd('s',$sensor[0][($cursor2/$xgain)+$xoffset],"1970/01/01 00:00:00"))
+		If (Int(($cursor2/$xgain)+$xoffset) >= 0) And (Int(($cursor2/$xgain)+$xoffset) < (UBound($screen,2)-1)) Then
+			GUICtrlSetData($cursor2date, _DateAdd('s',$screen[0][($cursor2/$xgain)+$xoffset],"1970/01/01 00:00:00"))
 		Else
 			GUICtrlSetData($cursor2date,"")
 		EndIf
