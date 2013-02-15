@@ -9,7 +9,8 @@
  Script Function:
 
  Version:
-			0.16.0	Print sensor values from non periodic sample period
+			0.17.0	Add read from database functionality and read from database form.
+			0.16.0 	Print sensor values from non periodic sampling method. Adapt methods for cursors
 			0.15.0  Add save to database functionality. Date is saved in UNIX format. same error obtained saving in mysql "timestamp" format
 			0.14.0	Add time sending functionality
 			0.13.1	Fix a bug in reading process
@@ -176,7 +177,51 @@ GUICtrlSetOnEvent(-1, "_ButtonClicked")
 GUICtrlCreateLabel("Detected trucks/batteries monitorized ", 40, 8, 234, 34, BitOR($SS_CENTER,$SS_CENTERIMAGE))
 
 
+#cs
+* ***************
+*	SELECT FROM DATABASE FORM
+* ***************
+#ce
+Global $ini, $ini_h, $ini_m, $end, $end_h, $end_m, $selecrangeform, $selecRangeCancel, $selecRangeOk
+Global $ini_date, $end_date
 
+#Region ### START Koda GUI section ###
+$selecrangeform = GUICreate("Select date range to show", 666, 444, 192, 124)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
+GUICtrlCreateGroup("", 24, 40, 297, 297)
+$ini = GUICtrlCreateMonthCal("2013/02/14", 48, 80, 249, 177)
+$ini_h = GUICtrlCreateInput("", 48, 280, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
+GUICtrlSetOnEvent(-1,"_imputBoxChange")
+GUICtrlCreateUpdown($ini_h)
+$ini_m = GUICtrlCreateInput("", 176, 280, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
+GUICtrlSetOnEvent(-1,"_imputBoxChange")
+GUICtrlCreateUpdown($ini_m)
+GUICtrlCreateLabel("Day", 48, 56, 23, 17)
+GUICtrlCreateLabel("Hour", 48, 264, 27, 17)
+GUICtrlCreateLabel("Minute", 176, 264, 36, 17)
+
+GUICtrlCreateGroup("", 336, 40, 297, 297)
+$end = GUICtrlCreateMonthCal("2013/02/14", 360, 80, 249, 177)
+$end_h = GUICtrlCreateInput("", 360, 280, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
+GUICtrlSetOnEvent(-1,"_imputBoxChange")
+GUICtrlCreateUpdown($end_h)
+$end_m = GUICtrlCreateInput("", 488, 280, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
+GUICtrlSetOnEvent(-1,"_imputBoxChange")
+GUICtrlCreateUpdown($end_m)
+GUICtrlCreateLabel("Day", 360, 56, 23, 17)
+GUICtrlCreateLabel("Hour", 360, 264, 27, 17)
+GUICtrlCreateLabel("Minute", 488, 264, 36, 17)
+GUICtrlCreateGroup("", -99, -99, 1, 1)
+
+$selecRangeCancel = GUICtrlCreateButton("Cancel", 96, 368, 129, 41)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$selecRangeOk = GUICtrlCreateButton("Ok", 416, 368, 129, 41)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+GUICtrlCreateLabel("INITIAL DATE", 120, 24, 88, 20)
+GUICtrlSetFont(-1, 10, 400, 0, "MS Sans Serif")
+GUICtrlCreateLabel("END DATE", 440, 24, 73, 20)
+GUICtrlSetFont(-1, 10, 400, 0, "MS Sans Serif")
+#EndRegion ### END Koda GUI section ###
 
 #cs
 * ***************
@@ -748,6 +793,11 @@ Func _CLOSEClicked ()
 			GUISetState(@SW_SHOW ,$myGui)
 			GUISetState(@SW_HIDE,$searchform)
 
+		Case $selecrangeform
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$selecrangeform)
+
 		Case Else
 
 	EndSwitch
@@ -1253,18 +1303,70 @@ Func _ButtonClicked ()
 
 		Case $viewbutton
 
+			GUISetState(@SW_SHOW ,$selecrangeform)
+
+		Case $selecRangeCancel
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$selecrangeform)
+
+		Case $selecRangeOk
+			$ini_date = _DateDiff('s', "1970/01/01 00:00:00", GUICtrlRead($ini) & " " & GUICtrlRead($ini_h) & ":" & GUICtrlRead($ini_m) & ":00")
+			$end_date = _DateDiff('s', "1970/01/01 00:00:00", GUICtrlRead($end) & " " & GUICtrlRead($end_h) & ":" & GUICtrlRead($end_m) & ":00")
+
+			If ($ini_date >= $end_date) Then
+				MsgBox(0,"Invalid date range","The selected date range is invalid" & @CRLF & "Initial date must be before the end date")
+			EndIf
+
+			$SQLCode = "SELECT * FROM battsignals WHERE fecha "
+			;$SQLCode &= "BETWEEN " & $ini_date & " && " & $end_date & " " & "ORDER BY fecha ASC"
+			$SQLCode &= ">= " & $ini_date & " && " & "fecha <= " & $end_date & " " & "ORDER BY fecha ASC"
+			ConsoleWrite($SQLCode & @CRLF)
+			$TableContents = _Query($SQLInstance, $SQLCode)
+
+			$first = True
+			ReDim $sensor[6][1]
+
+			With $TableContents
+				While Not .EOF
+
+					If $first Then			; if array has only 1 cell write the data in it, in other case
+						$first = False
+					Else
+						ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the next data
+					EndIf
+
+					$sensor[0][UBound($sensor,2)-1] = .Fields("fecha").value
+					$sensor[1][UBound($sensor,2)-1] = .Fields("voltajeh").value
+					$sensor[2][UBound($sensor,2)-1] = .Fields("voltajel").value
+					$sensor[3][UBound($sensor,2)-1] = .Fields("amperaje").value
+					$sensor[4][UBound($sensor,2)-1] = .Fields("temperature").value
+					$sensor[5][UBound($sensor,2)-1] = 1
+
+					.MoveNext
+				WEnd
+			EndWith
+			;_ArrayDisplay($sensor, "")
+
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$selecrangeform)
+
+
 		Case $savebutton
-			;*****************************************************************************************************************
-			;*****************************************************************************************************************
+
 			For $k = 0 To (UBound($sensor,2)-1) Step 1
 				$SQLCode = "INSERT INTO battsignals (fecha, battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & $sensor[0][$k] & ", " & "01" & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
+				$SQLCode &= " ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)"    ;Don`t work Error with querry sentence ¿?¿?¿?
 				;$SQLCode = "INSERT INTO battsignals (battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & "01" & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
 				ConsoleWrite($SQLCode & @CRLF)
 				_Query($SQLInstance, $SQLCode) 		;TODO: check success in database write
 			Next
 
 
+
 		Case $printbutton
+
 
 		Case $exitbutton
 			If ($serialconnected) Then      ;If a serial port is open close it before exit application
@@ -1694,6 +1796,45 @@ Func _MenuClicked ()
 EndFunc
 
 
+
+
+Func _imputBoxChange()
+
+	Switch @GUI_CtrlId
+		Case $ini_h
+			If GUICtrlRead($ini_h) < 0 Then
+				GUICtrlSetData($ini_h, 23)
+			ElseIf GUICtrlRead($ini_h) > 23 Then
+				GUICtrlSetData($ini_h, 0)
+			EndIf
+
+		Case $ini_m
+			If GUICtrlRead($ini_m) < 0 Then
+				GUICtrlSetData($ini_m, 59)
+			ElseIf GUICtrlRead($ini_m) > 23 Then
+				GUICtrlSetData($ini_m, 0)
+			EndIf
+
+		Case $end_h
+			If GUICtrlRead($end_h) < 0 Then
+				GUICtrlSetData($end_h, 23)
+			ElseIf GUICtrlRead($end_h) > 23 Then
+				GUICtrlSetData($end_h, 0)
+			EndIf
+
+		Case $end_m
+			If GUICtrlRead($end_m) < 0 Then
+				GUICtrlSetData($end_m, 59)
+			ElseIf GUICtrlRead($end_m) > 23 Then
+				GUICtrlSetData($end_m, 0)
+			EndIf
+
+		Case Else
+
+	EndSwitch
+EndFunc
+
+
 ;****************** GRAPHICAL REPRESENTATION FUNCTIONS **********************
 Func _Draw()
 	Local $j, $x, $y
@@ -1712,7 +1853,7 @@ Func _Draw()
 	Next
 
 	$x=1
-	While ($x<$xmax) And ($c<UBound($sensor,2)-1)
+	While ($x<$xmax/$xgain) And ($c<UBound($sensor,2)-1)  ;Caught enought samples for graphical representation
 		;ConsoleWrite("$xmax=" & $xmax & ", n. of samples=" & UBound($sensor,2)-1 & ", $x=" & $x & ", $tx=" & $tx & ", $c=" & $c & @CRLF)
 		$screen[0][$x] = $tx
 		For $j = 1 To 5
@@ -1831,10 +1972,10 @@ Func _DrawCursors()
 
 		; fill the label with the sensor value for each cursor
 		If (Int(($cursor1/$xgain)+$xoffset) >= 0) And (Int(($cursor1/$xgain)+$xoffset) < (UBound($sensor,2)-1)) Then ; don´t exceded the sensor data range
-			GUICtrlSetData($sensorvalue[0][0], Round($sensor[1][($cursor1/$xgain)+$xoffset],2) & "V")
-			GUICtrlSetData($sensorvalue[1][0], Round($sensor[3][($cursor1/$xgain)+$xoffset],1)& "A")
-			GUICtrlSetData($sensorvalue[2][0], Round($sensor[4][($cursor1/$xgain)+$xoffset],1)& "ºC")
-			GUICtrlSetData($sensorvalue[3][0], Round($sensor[5][($cursor1/$xgain)+$xoffset],1))
+			GUICtrlSetData($sensorvalue[0][0], Round($screen[1][($cursor1/$xgain)+$xoffset],2) & "V")
+			GUICtrlSetData($sensorvalue[1][0], Round($screen[3][($cursor1/$xgain)+$xoffset],1)& "A")
+			GUICtrlSetData($sensorvalue[2][0], Round($screen[4][($cursor1/$xgain)+$xoffset],1)& "ºC")
+			GUICtrlSetData($sensorvalue[3][0], Round($screen[5][($cursor1/$xgain)+$xoffset],1))
 		Else
 			GUICtrlSetData($sensorvalue[0][0], "V")
 			GUICtrlSetData($sensorvalue[1][0], "A")
