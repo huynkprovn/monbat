@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.7.4    Remove duplicated sentence. Now not duplicate periodic function when time is changed
  *              Version 0.7.3    Add some debug lines in tx data and store data procedures
  *              Version 0.7.2    Data calculation like in Set time function. Don´t use pow() funct.
  *              Version 0.7.1    error in data calculation. Probably for type in pow() funct. TODO
@@ -505,7 +506,8 @@ void serialEvent()
           t=t*255+int(rx.getData(1));
           */  
           setTime(t);
-          Alarm.timerRepeat(sample_period,captureData);
+          //Alarm.timerRepeat(sample_period,captureData);  // TODO: Check other way to activate alarms
+                                    // this instruction generate other call to the "captureData" function
           break;
 
         case READ_MEMORY:
@@ -682,7 +684,7 @@ void captureData()
     
     if (debug) {
       debugCon << "Stored. Head pointer= " << fifo.Get_head();
-      debugCon.println("Stored");
+      debugCon.println("");
     }
     
     //these are global vars
