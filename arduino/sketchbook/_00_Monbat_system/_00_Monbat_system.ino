@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.7.5    Add some debug lines in rx frame. Detected UNEXPECTED_START_BYTE and CHECKSUM_FAILURE error in rx's frames
  *              Version 0.7.4    Remove duplicated sentence. Now not duplicate periodic function when time is changed
  *              Version 0.7.3    Add some debug lines in tx data and store data procedures
  *              Version 0.7.2    Data calculation like in Set time function. Don´t use pow() funct.
@@ -312,8 +313,13 @@ void serialEvent()
     // got something
     if (debug){
       debugCon.print("Xbee packet received: ");
-      debugCon.print(xbee.getResponse().getApiId());
+      debugCon.print(byte(xbee.getResponse().getApiId()));
       debugCon.println(" packet.");
+      debugCon.print("Frame data received: ");
+      for(int x=0; x< xbee.getResponse().getFrameDataLength(); x++){
+        debugCon.print(byte(xbee.getResponse().getFrameData()[x]));
+      }
+      debugCon.println();
     }
     
     if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {   // the PC APP send data to Arduino
@@ -597,7 +603,18 @@ void serialEvent()
           break;
       
       }         
-    } //************ OTHER ZB PACKET
+    }else if (xbee.getResponse().getApiId() == MODEM_STATUS_RESPONSE) {      
+      xbee.getResponse().getModemStatusResponse(msr);
+      // the local XBee sends this response on certain events, like association/dissociation
+        
+      if (msr.getStatus() == ASSOCIATED) {
+        ConnToApp = true;  
+      } else if (msr.getStatus() == DISASSOCIATED) {
+        ConnToApp = false;
+      }
+    } else {      //************ OTHER ZB PACKET
+    
+    } 
   } else if (xbee.getResponse().isError()) {
     if (debug){
       debugCon.print("Error in Rx Packet receiving.  Eror code: ");
