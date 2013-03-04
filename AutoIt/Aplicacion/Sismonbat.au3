@@ -9,6 +9,8 @@
  Script Function:
 
  Version:
+			0.17.2	Add checking status of tx data frame and resend if fail.
+			0.17.1	Fix error in display function. Old data were displayed when new samples were reading.
 			0.17.0	Add read from database functionality and read from database form.
 			0.16.0 	Print sensor values from non periodic sampling method. Adapt methods for cursors
 			0.15.0  Add save to database functionality. Date is saved in UNIX format. same error obtained saving in mysql "timestamp" format
@@ -1153,7 +1155,8 @@ Func _ButtonClicked ()
 	Local $dato ;
 	Local $Time ; Used for delay calculation in XBee transmisions/responses
 	Local $first
-
+	Local $received ; a status ok frame is received
+	Local $times ; Used for control the resend xbee frame
 
 	Switch @GUI_CtrlId
 
@@ -1264,42 +1267,60 @@ Func _ButtonClicked ()
 
 
 		Case $readbutton
+			_SetAddress64($addr64)
+			_SetAddress16($addr16)
 			$first = True
+			$received = False
 			ReDim $sensor[6][1]
-			_SendZBData($READ_MEMORY) ; Send the READ_MEMORY_COMMAND to the arduino
-							; must wait until a ack packet received
-			$Time = TimerInit()
-			While ((TimerDiff($Time)/1000) <= 0.25 )  ; Wait until a zb data packet is received or 250ms
-				GUICtrlSetData($status, ".", 1)
-				If _CheckIncomingFrame() Then
-					GUICtrlSetData($status, "-", 1)
-					If _GetApiID() == $ZB_RX_RESPONSE Then
-						GUICtrlSetData($status, "/", 1)
-						$dato = _ReadZBDataResponseValue() ; Extract the data sent by the arduino
-						If StringMid($dato, 1, 2) = $READ_MEMORY Then		; The data is a response for a READ_MEMORY_COMMAND frame request
-							;ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the received data
-							If $first Then			; if array has only 1 cell write the data in it, in other case
-								$first = False
-							Else
-								ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the next data
-							EndIf
 
-							$sensor[0][UBound($sensor,2)-1] = Int(_convert(StringMid($dato, 3, 8)))
-							$sensor[1][UBound($sensor,2)-1] = _voltaje(Dec(StringMid($dato,11, 4)))
-							$sensor[2][UBound($sensor,2)-1] = _voltaje(Dec(StringMid($dato,15, 4)))
-							$sensor[3][UBound($sensor,2)-1] = _current(Dec(StringMid($dato,19, 4)))
-							$sensor[4][UBound($sensor,2)-1] = _temperature(Dec(StringMid($dato,23, 4)))
-							$sensor[5][UBound($sensor,2)-1] = StringMid($dato,27, 2)
-
-							$Time = TimerInit() ; Reset the time counter
+			$times+=1
+			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+				_SendZBData($READ_MEMORY) ; Send the READ_MEMORY_COMMAND to the arduino
+				Sleep(750)
+				If _CheckIncomingFrame() Then        ; check if the frame is received or resend
+					ConsoleWrite(_PrintFrame() & @CRLF)
+					If (_GetApiID() = $ZB_TX_STATUS_RESPONSE) Then
+						If (_ReadZBStatusReponseDeliveryStatus() = $SUCCESS) Then
+							$received = True
 						EndIf
 					EndIf
 				EndIf
-				Sleep(1)
 			WEnd
-			;_ArrayDisplay($sensor, "")
-			GUICtrlSetData($status, @CRLF, 1)
-			_Draw()
+
+			If $received Then
+				$Time = TimerInit()
+				While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+					GUICtrlSetData($status, ".", 1)
+					If _CheckIncomingFrame() Then
+						GUICtrlSetData($status, "-", 1)
+						If _GetApiID() == $ZB_RX_RESPONSE Then
+							GUICtrlSetData($status, "/", 1)
+							$dato = _ReadZBDataResponseValue() ; Extract the data sent by the arduino
+							If StringMid($dato, 1, 2) = $READ_MEMORY Then		; The data is a response for a READ_MEMORY_COMMAND frame request
+								;ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the received data
+								If $first Then			; if array has only 1 cell write the data in it, in other case
+									$first = False
+								Else
+									ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the next data
+								EndIf
+
+								$sensor[0][UBound($sensor,2)-1] = Int(_convert(StringMid($dato, 3, 8)))
+								$sensor[1][UBound($sensor,2)-1] = _voltaje(Dec(StringMid($dato,11, 4)))
+								$sensor[2][UBound($sensor,2)-1] = _voltaje(Dec(StringMid($dato,15, 4)))
+								$sensor[3][UBound($sensor,2)-1] = _current(Dec(StringMid($dato,19, 4)))
+								$sensor[4][UBound($sensor,2)-1] = _temperature(Dec(StringMid($dato,23, 4)))
+								$sensor[5][UBound($sensor,2)-1] = StringMid($dato,27, 2)
+
+								$Time = TimerInit() ; Reset the time counter
+							EndIf
+						EndIf
+					EndIf
+					Sleep(1)
+				WEnd
+				;_ArrayDisplay($sensor, "")
+				GUICtrlSetData($status, @CRLF, 1)
+				_Draw()
+			EndIf
 
 		Case $viewbutton
 
