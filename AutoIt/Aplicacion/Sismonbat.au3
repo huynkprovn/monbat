@@ -1292,6 +1292,7 @@ Func _ButtonClicked ()
 				While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
 					GUICtrlSetData($status, ".", 1)
 					If _CheckIncomingFrame() Then
+						ConsoleWrite(_PrintFrame() & @CRLF)
 						GUICtrlSetData($status, "-", 1)
 						If _GetApiID() == $ZB_RX_RESPONSE Then
 							GUICtrlSetData($status, "/", 1)
