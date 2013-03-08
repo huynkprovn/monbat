@@ -1153,7 +1153,7 @@ Func _ButtonClicked ()
 	Local $k ; General counter
 	Local $res ; Byte to byte char conversion
 	Local $dato ;
-	Local $Time ; Used for delay calculation in XBee transmisions/responses
+	Local $Time, $Time1 ; Used for delay calculation in XBee transmisions/responses
 	Local $first
 	Local $received ; a status ok frame is received
 	Local $times ; Used for control the resend xbee frame
@@ -1274,6 +1274,7 @@ Func _ButtonClicked ()
 			ReDim $sensor[6][1]
 
 			$times+=1
+			#cs
 			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
 				_SendZBData($READ_MEMORY) ; Send the READ_MEMORY_COMMAND to the arduino
 				Sleep(750)
@@ -1286,8 +1287,11 @@ Func _ButtonClicked ()
 					EndIf
 				EndIf
 			WEnd
+			#ce
 
-			If $received Then
+			;If $received Then
+			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+				_SendZBData($READ_MEMORY) ; Send the READ_MEMORY_COMMAND to the arduino
 				$Time = TimerInit()
 				While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
 					GUICtrlSetData($status, ".", 1)
@@ -1296,6 +1300,7 @@ Func _ButtonClicked ()
 						GUICtrlSetData($status, "-", 1)
 						If _GetApiID() == $ZB_RX_RESPONSE Then
 							GUICtrlSetData($status, "/", 1)
+							$received = True
 							$dato = _ReadZBDataResponseValue() ; Extract the data sent by the arduino
 							If StringMid($dato, 1, 2) = $READ_MEMORY Then		; The data is a response for a READ_MEMORY_COMMAND frame request
 								;ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the received data
@@ -1304,24 +1309,23 @@ Func _ButtonClicked ()
 								Else
 									ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the next data
 								EndIf
-
 								$sensor[0][UBound($sensor,2)-1] = Int(_convert(StringMid($dato, 3, 8)))
 								$sensor[1][UBound($sensor,2)-1] = _voltaje(Dec(StringMid($dato,11, 4)))
 								$sensor[2][UBound($sensor,2)-1] = _voltaje(Dec(StringMid($dato,15, 4)))
 								$sensor[3][UBound($sensor,2)-1] = _current(Dec(StringMid($dato,19, 4)))
 								$sensor[4][UBound($sensor,2)-1] = _temperature(Dec(StringMid($dato,23, 4)))
 								$sensor[5][UBound($sensor,2)-1] = StringMid($dato,27, 2)
-
 								$Time = TimerInit() ; Reset the time counter
 							EndIf
 						EndIf
 					EndIf
 					Sleep(1)
 				WEnd
-				;_ArrayDisplay($sensor, "")
-				GUICtrlSetData($status, @CRLF, 1)
-				_Draw()
-			EndIf
+				$times+=1
+			WEnd
+			;_ArrayDisplay($sensor, "")
+			GUICtrlSetData($status, @CRLF, 1)
+			_Draw()
 
 		Case $viewbutton
 
@@ -1867,17 +1871,25 @@ Func _Draw()
 
 	; Fill $screen[][] values with $sensor[][] values
 
+
+	$t0 = Int($sensor[0][0]) + $xoffset ; and take initial moment time
+	$tx = $t0 + 2/$xgain
 	$c = 1		;Pos at sensor[][] begin
-	$t0 = Int($sensor[0][0]) ; and take initial moment time
-	$tx = $t0 + 2
 	ReDim $screen[6][1]
 
-	For $j = 0 To 5
-		$screen[$j][0] = $sensor[$j][0]
-	Next
+	; Take first sample to represent
+	If UBound($sensor,2)-1>=1 Then
+		While ($sensor[0][$c]<$t0) And ($c<UBound($sensor,2)-1)
+			$c+=1
+		WEnd
+
+		For $j = 0 To 5 		; and store it in the first
+			$screen[$j][0] = $sensor[$j][$c]
+		Next
+	EndIf
 
 	$x=1
-	While $c<UBound($sensor,2)-1  ;Until the end of $sensor[][] array
+	While ($c<UBound($sensor,2)-1) And ($x<=$xmax)   ;Until the end of $sensor[][] array or get xmax points
 
 		ReDim $screen[6][UBound($screen,2)+1]		; add space for the next data
 
@@ -1893,7 +1905,7 @@ Func _Draw()
 			EndIf
 		Next
 		$x+=1
-		$tx+=2
+		$tx+=2/$xgain
 	WEnd
 	;_ArrayDisplay($screen, "")
 
@@ -1917,7 +1929,7 @@ Func _Draw()
 					$y=0
 					$first=True
 				Else
-					$y=$ymax - ($yscale[$j]*$ygain*$screen[$j+1][($x/$xgain)+$xoffset]+$offset[$j] + $yoffset)
+					$y=$ymax - ($yscale[$j]*$ygain*$screen[$j+1][($x/$xgain)]+$offset[$j] + $yoffset)
 					;$y=$ymax - ($yscale[$j]*$screen[$j+1][$x]+$offset[$j])
 				EndIf
 
