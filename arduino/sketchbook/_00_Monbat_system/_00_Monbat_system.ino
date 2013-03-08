@@ -141,7 +141,7 @@ const word min_temp = 323;//0x0143 //15ºC (70% batt capacity) minimun permissib
  *  [10..24]: truck model (15 characters)
  *  [25..39]: truck serial number (15 characters)
  *  [40..54]: battery model (15 characters)
- *  [55..69]: battery serial number (15 characters)
+ *  [55..69]: battery serial number (15 characters)  
  *  [70..71]: battery capacity in Ah
  *  [71..72]: reserved
  */
