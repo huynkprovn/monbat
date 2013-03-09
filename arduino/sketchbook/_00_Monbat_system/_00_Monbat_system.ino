@@ -9,6 +9,8 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.8.0    Add frames sent to PC app to confirm the receipt of data
+ *              Version 0.7.6    Modify the fifo read when transmiting data. Prevent infinite loop when reading memory
  *              Version 0.7.5    Add some debug lines in rx frame. Detected UNEXPECTED_START_BYTE and CHECKSUM_FAILURE error in rx's frames
  *              Version 0.7.4    Remove duplicated sentence. Now not duplicate periodic function when time is changed
  *              Version 0.7.3    Add some debug lines in tx data and store data procedures
@@ -302,7 +304,7 @@ void serialEvent()
   unsigned int temp_dir;
   time_t t;
   byte byteR;
-  boolean fin;
+  boolean fin, vuelta;
   
   xbee.readPacket();              // Look for a packet sent by the PC app 
   if (debug){
@@ -409,7 +411,9 @@ void serialEvent()
           break;
         
         case SET_TRUCK_MODEL:
-          blink_led(2,200);
+          //blink_led(2,200);
+          payload[1]=SET_TRUCK_MODEL;
+          xbee.send(zbTx);      // PC App wait for this response o resend
           if (debug){
             debugCon.print("Truck Model received : ");
           }
@@ -428,7 +432,9 @@ void serialEvent()
           break;
         
         case SET_TRUCK_SN:
-          blink_led(2,200);
+          payload[1]=SET_TRUCK_SN;
+          xbee.send(zbTx);      // PC App wait for this response o resend
+          //blink_led(2,200);
           if (debug){
             debugCon.print("Truck SN received : ");
           }
@@ -447,7 +453,9 @@ void serialEvent()
           break;
         
         case SET_BATT_MODEL:
-          blink_led(2,200);
+          payload[1]=SET_BATT_MODEL;
+          xbee.send(zbTx);      // PC App wait for this response o resend
+          //blink_led(2,200);
           if (debug){
             debugCon.print("Battery Model received : ");
           }
@@ -466,7 +474,9 @@ void serialEvent()
           break;
         
         case SET_BATT_SN:
-          blink_led(2,200);
+          payload[1]=SET_BATT_SN;
+          xbee.send(zbTx);      // PC App wait for this response o resend
+          //blink_led(2,200);
           if (debug){
             debugCon.print("Battery SN received : ");
           }
@@ -518,13 +528,25 @@ void serialEvent()
 
         case READ_MEMORY:
           
+          if (fifo.Empty()){  // Prevent read empty fifo
+            fin = true;
+          }else{
+            fin = false;
+          }
+          
+          if (fifo.Get_tail() > fifo.Get_head()){       // Check if fifo pointer has been overflowed
+            vuelta = false;                            // Has read vaules under head pointer?? 
+          }else{                                        // normally be true after several hours of operation
+            vuelta = true;
+          }
+          
           temp_dir = fifo.Get_tail();
           if (debug) {
             debugCon << "Tx samples in memory. Start at:" << temp_dir << "   End at:" << fifo.Get_head();
             debugCon.println();
           }
           
-          while (temp_dir != fifo.Get_head())
+          while (!(fin&&vuelta))    // stop condition = (fifo=true and vuelta=true)
           {
             while (fifo.Busy()) // FIFO is not being accesed
               ;
@@ -535,6 +557,7 @@ void serialEvent()
               payload[k] = fifo.Read(temp_dir);
               if (temp_dir > MAX_LENGHT) {  //have reach the highest mem address
                 temp_dir = FIFO_BASE;
+                vuelta = true;
               }
               else {
                 temp_dir++;
@@ -546,6 +569,9 @@ void serialEvent()
               debugCon.println();
             }
             xbee.send(zbTx);
+            if (temp_dir >= fifo.Get_head()){
+              fin=true;
+            }
           }
           
           /*
