@@ -9,6 +9,7 @@
  Script Function:
 
  Version:
+			0.17.3	Add checking receiving zbrxframe or resend if fail.
 			0.17.2	Add checking status of tx data frame and resend if fail.
 			0.17.1	Fix error in display function. Old data were displayed when new samples were reading.
 			0.17.0	Add read from database functionality and read from database form.
@@ -192,10 +193,10 @@ $selecrangeform = GUICreate("Select date range to show", 666, 444, 192, 124)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 GUICtrlCreateGroup("", 24, 40, 297, 297)
 $ini = GUICtrlCreateMonthCal("2013/02/14", 48, 80, 249, 177)
-$ini_h = GUICtrlCreateInput("", 48, 280, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
+$ini_h = GUICtrlCreateInput("", 48, 280, 81, 21, $GUI_SS_DEFAULT_INPUT);BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
 GUICtrlSetOnEvent(-1,"_imputBoxChange")
 GUICtrlCreateUpdown($ini_h)
-$ini_m = GUICtrlCreateInput("", 176, 280, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
+$ini_m = GUICtrlCreateInput("", 176, 280, 81, 21, $GUI_SS_DEFAULT_INPUT);BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
 GUICtrlSetOnEvent(-1,"_imputBoxChange")
 GUICtrlCreateUpdown($ini_m)
 GUICtrlCreateLabel("Day", 48, 56, 23, 17)
@@ -204,10 +205,10 @@ GUICtrlCreateLabel("Minute", 176, 264, 36, 17)
 
 GUICtrlCreateGroup("", 336, 40, 297, 297)
 $end = GUICtrlCreateMonthCal("2013/02/14", 360, 80, 249, 177)
-$end_h = GUICtrlCreateInput("", 360, 280, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
+$end_h = GUICtrlCreateInput("", 360, 280, 81, 21, $GUI_SS_DEFAULT_INPUT);BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
 GUICtrlSetOnEvent(-1,"_imputBoxChange")
 GUICtrlCreateUpdown($end_h)
-$end_m = GUICtrlCreateInput("", 488, 280, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
+$end_m = GUICtrlCreateInput("", 488, 280, 81, 21, $GUI_SS_DEFAULT_INPUT);BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
 GUICtrlSetOnEvent(-1,"_imputBoxChange")
 GUICtrlCreateUpdown($end_m)
 GUICtrlCreateLabel("Day", 360, 56, 23, 17)
@@ -239,7 +240,7 @@ $alarmoutput = GUICtrlCreateEdit("", 10, 10, 380, 580)
 
 #cs
 * ***************
-*	COM PORT SELEC FORM
+*	COM PORT SELECT FORM
 * ***************
 #ce
 Global $comportselectform, $comportselect, $baudrateselct, $databitselect, $dataparityselect, $stopbitselect, $flowcontrolselect
@@ -1202,57 +1203,64 @@ Func _ButtonClicked ()
 				_SetAddress64($monitorfounded[$count][0])
 				_SetAddress16($monitorfounded[$count][1])
 				GUICtrlSetData($status, @CRLF & "Conecting with :" & $monitorfounded[$count][0] & " / " & $monitorfounded[$count][1] & "      ", 1)
-				_SendZBData($GET_ID)
 
-				ConsoleWrite(@CRLF & "count = " & $count)
+				$first = True
+				$times = 1
+				While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+					_SendZBData($GET_ID)
 
-				$Time = TimerInit()
-				While ((TimerDiff($Time)/1000) <= 1 )  ; Wait until a zb data packet is received or 1second
-					GUICtrlSetData($status, ".", 1)
-					If _CheckIncomingFrame() Then
-						GUICtrlSetData($status, "-", 1)
-						If _GetApiID() == $ZB_RX_RESPONSE Then
-							GUICtrlSetData($status, "/", 1)
-							$dato = _ReadZBDataResponseValue() ; Extract the data sent by the arduino
-							If StringMid($dato, 1, 2) = $GET_ID Then		; The data is a response for a GET_ID frame request
-								Switch StringMid($dato, 3, 2)
-									Case "01"
-										$res=""
-										For $k = 3 to (StringLen($dato)-1)/2
-											$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
-										Next
-										ConsoleWrite(@CRLF & "count = " & $count)
-										$monitorfounded[$count][2] = $res
+					ConsoleWrite(@CRLF & "count = " & $count)
 
-									Case "02"
-										$res=""
-										For $k = 3 to (StringLen($dato)-1)/2
-											$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
-										Next
-										$monitorfounded[$count][3] = $res
+					$Time = TimerInit()
+					While ((TimerDiff($Time)/1000) <= 1 )  ; Wait until a zb data packet is received or 1second
+						GUICtrlSetData($status, ".", 1)
+						If _CheckIncomingFrame() Then
+							GUICtrlSetData($status, "-", 1)
+							If _GetApiID() == $ZB_RX_RESPONSE Then
+								GUICtrlSetData($status, "/", 1)
+								$received=True
+								$dato = _ReadZBDataResponseValue() ; Extract the data sent by the arduino
+								If StringMid($dato, 1, 2) = $GET_ID Then		; The data is a response for a GET_ID frame request
+									Switch StringMid($dato, 3, 2)
+										Case "01"
+											$res=""
+											For $k = 3 to (StringLen($dato)-1)/2
+												$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+											Next
+											ConsoleWrite(@CRLF & "count = " & $count)
+											$monitorfounded[$count][2] = $res
 
-									Case "03"
-										$res=""
-										For $k = 3 to (StringLen($dato)-1)/2
-											$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
-										Next
-										$monitorfounded[$count][4] = $res
+										Case "02"
+											$res=""
+											For $k = 3 to (StringLen($dato)-1)/2
+												$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+											Next
+											$monitorfounded[$count][3] = $res
 
-									Case "04"
-										$res=""
-										For $k = 3 to (StringLen($dato)-1)/2
-											$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
-										Next
-										$monitorfounded[$count][5] = $res
+										Case "03"
+											$res=""
+											For $k = 3 to (StringLen($dato)-1)/2
+												$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+											Next
+											$monitorfounded[$count][4] = $res
 
-								EndSwitch
+										Case "04"
+											$res=""
+											For $k = 3 to (StringLen($dato)-1)/2
+												$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+											Next
+											$monitorfounded[$count][5] = $res
 
-								$Time = TimerInit() ; Reset the time counter
+									EndSwitch
+
+									$Time = TimerInit() ; Reset the time counter
+								EndIf
 							EndIf
 						EndIf
-					EndIf
-					Sleep(100)
-				WEnd
+						Sleep(100)
+					WEnd
+					$times+=1
+				Wend
 			Next
 			_GUICtrlListView_AddArray($monitorlist, $monitorfounded)
 
@@ -1273,7 +1281,7 @@ Func _ButtonClicked ()
 			$received = False
 			ReDim $sensor[6][1]
 
-			$times+=1
+			$times=1
 			#cs
 			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
 				_SendZBData($READ_MEMORY) ; Send the READ_MEMORY_COMMAND to the arduino
@@ -1752,6 +1760,10 @@ EndFunc
 Func _MenuClicked ()
 	Local $comportlist, $k ; Used in COM port detection
 	Local $fecha, $res
+	Local $Time, $Time1 ; Used for delay calculation in XBee transmisions/responses
+	Local $received ; a status ok frame is received
+	Local $times ; Used for control the resend xbee frame
+
 
 	Switch @GUI_CTRLID
 		Case $filemenu_open
@@ -1793,7 +1805,25 @@ Func _MenuClicked ()
 			GUISetState(@SW_SHOW ,$hardwaredataform)
 
 		Case $configmenu_reset
-			_SendZBData("99")
+			$received=False
+			$times=1
+			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+				_SendZBData("99")
+
+				$Time = TimerInit()
+				While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+					GUICtrlSetData($status, ".", 1)
+					If _CheckIncomingFrame() Then
+						ConsoleWrite(_PrintFrame() & @CRLF)
+						GUICtrlSetData($status, "-", 1)
+						If _GetApiID() == $ZB_RX_RESPONSE Then
+							GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+							$received = True
+						EndIf
+					EndIf
+				WEnd
+				$times+=1
+			WEnd
 
 		Case $configmenu_settime
 			$fecha = Int(_DateDiff('s', "1970/01/01 00:00:00", _NowCalc()))
@@ -1802,7 +1832,27 @@ Func _MenuClicked ()
 				$res &= Hex(Mod($fecha, 255),2)
 				$fecha = Int($fecha/255)
 			WEnd
-			_SendZBData("08" & $res)
+
+			$received=False
+			$times=1
+			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+				_SendZBData("08" & $res)
+
+				$Time = TimerInit()
+				While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+					GUICtrlSetData($status, ".", 1)
+					If _CheckIncomingFrame() Then
+						ConsoleWrite(_PrintFrame() & @CRLF)
+						GUICtrlSetData($status, "-", 1)
+						If _GetApiID() == $ZB_RX_RESPONSE Then
+							GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+							$received = True
+						EndIf
+					EndIf
+				WEnd
+				$times+=1
+			WEnd
+
 
 		Case $testmenu_serialport
 
@@ -1837,7 +1887,7 @@ Func _imputBoxChange()
 		Case $ini_m
 			If GUICtrlRead($ini_m) < 0 Then
 				GUICtrlSetData($ini_m, 59)
-			ElseIf GUICtrlRead($ini_m) > 23 Then
+			ElseIf GUICtrlRead($ini_m) > 59 Then
 				GUICtrlSetData($ini_m, 0)
 			EndIf
 
@@ -1851,7 +1901,7 @@ Func _imputBoxChange()
 		Case $end_m
 			If GUICtrlRead($end_m) < 0 Then
 				GUICtrlSetData($end_m, 59)
-			ElseIf GUICtrlRead($end_m) > 23 Then
+			ElseIf GUICtrlRead($end_m) > 59 Then
 				GUICtrlSetData($end_m, 0)
 			EndIf
 
