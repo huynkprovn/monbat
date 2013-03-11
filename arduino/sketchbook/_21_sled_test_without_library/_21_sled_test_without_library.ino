@@ -8,7 +8,7 @@ unsigned int LchCk = 4; //Pin atrached to the latch clock pin in the shift regis
 unsigned int Clr = 6; //Pin attache to the reset pin in the register
 //int lenght;
 int BaudRate = 300 ;
-long period = 400000;
+long period = 100000;
 
 byte data;
 
@@ -72,8 +72,8 @@ void loop(){
     debugConn.println("Lck=0");
   
   blink_led(1,300);
-  delay(500);
-  if (data == 16){
+  delay(100);
+  if (data == 128){
     data=0;
     debugConn.println("Data = 0 ");
   } else{
