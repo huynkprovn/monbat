@@ -11,20 +11,20 @@ unsigned int _Dat; // Pin attached to the serial pin in the shift register
 unsigned int _Ck; // Pin attached to the shift clock pin in the shift register
 unsigned int _LchCk; //Pin atrached to the latch clock pin in the shift register
 unsigned int _Clr; //Pin attache to the reset pin in the register
-int _lenght;
-int _BaudRate;
-long _period;           
+//int _lenght;
+unsigned int _BaudRate;
+unsigned long _period;           
         
 
-//sLed::sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int lenght, unsigned int BaudRate = 300)
-sLed::sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int lenght)
+sLed::sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int BaudRate)
+//sLed::sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin)
 {
     _Dat = DataPin; // Pin attached to the serial pin in the shift register
     _Ck = shiftCkPin; // Pin attached to the shift clock pin in the shift register
     _LchCk = latchCkPin; //Pin atrached to the latch clock pin in the shift register
     _Clr = rstPin; //
-    _lenght = lenght;
-    _BaudRate=300;
+//    _lenght = lenght;
+    _BaudRate=BaudRate;
     _period = long(1000000/_BaudRate);
     pinMode(_Dat, OUTPUT);
     pinMode(_Ck, OUTPUT);

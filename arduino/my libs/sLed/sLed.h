@@ -12,8 +12,8 @@
 class sLed
 {
     public:
-        //sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int lenght, unsigned int BaudRate = 300);
-        sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int lenght);
+        sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int BaudRate);
+        //sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int lenght);
         void Clear();
         void Write(byte data);
         void Write(word data);
@@ -23,9 +23,9 @@ class sLed
         unsigned int _Ck; // Pin attached to the shift clock pin in the shift register
         unsigned int _LchCk; //Pin atrached to the latch clock pin in the shift register
         unsigned int _Clr; //Pin attache to the reset pin in the register
-        int _lenght;
+        //int _lenght;
         unsigned int _BaudRate;
-        long _period;           
+        unsigned long _period;           
         
         
 };  
