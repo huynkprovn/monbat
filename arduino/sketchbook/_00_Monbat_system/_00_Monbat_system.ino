@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.9.0    Add Status pannel controler functions.
  *              Version 0.8.0    Add frames sent to PC app to confirm the receipt of data
  *              Version 0.7.6    Modify the fifo read when transmiting data. Prevent infinite loop when reading memory
  *              Version 0.7.5    Add some debug lines in rx frame. Detected UNEXPECTED_START_BYTE and CHECKSUM_FAILURE error in rx's frames
@@ -53,12 +54,12 @@
                       // http://code.google.com/p/monbat/source/browse/#svn%2Farduino%2Fmy%20libs%2FFifo
 #include <Streaming.h>
 #include <SoftwareSerial.h>  // Used for a serial debug connection (this library is only for Arduino 1.0 or later
-#include <sLed.h>
+#include <sLed.h>  // Define the serial interface for multiple digital output control
 
-sLed led(7,5,4,6,8);    // Create a sLed objet and asociate to the arduino pins;
-//sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int lenght);
+sLed led(7,5,4,6,900);    // Create a sLed objet and asociate to the arduino pins;
+//sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int BaudRate);
 
-char VERSION[] = "MonBat system V0.7.0";
+char VERSION[] = "MonBat system V0.8.0";
 boolean debug = true;
 SoftwareSerial debugCon(9,10); //Rx, Tx arduino digital port for debug serial connection
 
@@ -199,6 +200,7 @@ time_t drain_end;      // time when last discharge end
  * =============================================================================== */
 void setup()
 {
+  led.Clear();  //Reset leds status representation
   time_t last_time = 0;
   
   state=0;
@@ -1055,7 +1057,7 @@ byte calc_charge_level(int a0, int a1)
 /* ===============================================================================
  *
  * Function Name:	blink_led()
- * Description:    	Only for testing, blink a led connected to Arduino pin12 'times' times
+ * Description:    	Only for testing, blink a led connected to Arduino pin13 'times' times
  *                      with a 'period' period
  *                      
  * Parameters:          times:    nº of repetitions
@@ -1067,13 +1069,120 @@ void blink_led(int times, int period)
 {
   for (int x=0; x<=times; x++)
   {
-    digitalWrite(12,HIGH);
+    digitalWrite(13,HIGH);
     delay(period);
-    digitalWrite(12,LOW);
+    digitalWrite(13,LOW);
     delay(period);
   }  
 }
 
+
+
+/* ===============================================================================
+ *
+ * Function Name:	carga()
+ * Description:    	This funtrions convert the battery state of charge (in %) to
+ *                      equivalent 8 leds representation form
+ * Parameters:          carga: SOC in %
+ * Returns;  		a byte with the codification for the 8 leds status display
+ *
+ * =============================================================================== */
+byte charge(unsigned int carga){
+  byte res=0;
+  if (carga>0 && carga<=6) {
+    res|=B00000000;
+  } else if (carga>6 && carga<=18) {
+    res|=B00000001;
+  } else if (carga>18 && carga<=30) {
+    res|=B00000011;
+  } else if (carga>30 && carga<=42) {
+    res|=B00000111;
+  } else if (carga>42 && carga<=54) {
+    res|=B00001111;
+  } else if (carga>54 && carga<=66) {
+    res|=B00011111;
+  } else if (carga>66 && carga<=78) {
+    res|=B00111111;
+  } else if (carga>78 && carga<=90) {
+    res|=B01111111;
+  } else if (carga>90 && carga<=100) {
+    res|=B11111111;
+  } else {
+    
+  }
+  return res;
+}
+
+
+
+/* ===============================================================================
+ *
+ * Function Name:	temp_alamr()
+ * Description:    	Set the appropriate bits to control the representation of the 
+ *                      temperature alarm
+ * Parameters:          alarm (boolean). True: indicates a temperature alarm present
+ *                                       False: indicates temperature is ok
+ * Returns;  		a byte containing the active led for the actual temperature alarm
+ *                      The return must be used with a bit-or opperaion with the other alarms funct
+ *
+ * =============================================================================== */
+byte temp_alarm(boolean alarm){
+ byte res=0;
+ if (alarm){
+   bitSet(res,3);
+ } else {
+   bitSet(res,2);
+ }
+ return res;
+}
+
+
+
+
+/* ===============================================================================
+ *
+ * Function Name:	level_alamr()
+ * Description:    	Set the appropriate bits to control the representation of the 
+ *                      level alarm
+ * Parameters:          alarm (boolean). True: indicates a level alarm present
+ *                                       False: indicates level is ok
+ * Returns;  		a byte containing the active led for the actual level alarm
+ *                      The return must be used with a bit-or opperaion with the other alarms funct
+ *
+ * =============================================================================== */
+ byte level_alarm(boolean alarm){
+ byte res=0;
+ if (alarm){
+   bitSet(res,5);
+ } else {
+   bitSet(res,4);
+ }
+ return res;
+}
+
+
+
+
+/* ===============================================================================
+ *
+ * Function Name:	charge_alamr()
+ * Description:    	Set the appropriate bits to control the representation of the 
+ *                      temperature alarm
+ * Parameters:          alarm (boolean). True: indicates a charge alarm present
+ *                                       False: indicates charge is ok
+ * Returns;  		a byte containing the active led for the actual charge alarm
+ *                      The return must be used with a bit-or opperaion with the other alarms funct
+ *
+ * =============================================================================== */
+byte charge_alarm(boolean alarm){
+ byte res=0;
+ if (alarm){
+   bitSet(res,7);
+ } else {
+   bitSet(res,6);
+ }
+ return res;
+}
 
 
 /* ===============================================================================
