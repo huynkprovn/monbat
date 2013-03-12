@@ -4,11 +4,13 @@
 #cs ----------------------------------------------------------------------------
 
  AutoIt Version: 3.3.8.1
- Author:         myName
+ Author:         Antonio Morales Ruiz
 
  Script Function:
 
  Version:
+			0.18.0	Modify graphic representation. Don´t use dinamic resize array to improve the rendering performance
+			0.17.4	Add checking receiving zbrxframe or resend if fail to "reset mem" and "send local time" functions
 			0.17.3	Add checking receiving zbrxframe or resend if fail.
 			0.17.2	Add checking status of tx data frame and resend if fail.
 			0.17.1	Fix error in display function. Old data were displayed when new samples were reading.
@@ -551,7 +553,7 @@ Global $yscale[5] = [25,25,1,10,1]	 ; scale of each sensor representation
 Global $colours[5] = [0xff0000, 0x000000, 0x14ce00, 0x0000ff, 0xff00ff] ; Sensor representation colours
 Global $visible[5] = [True,True,True,True,True]
 Global $xscale
-Global $screen[6][1] ; For display the sensors signal in graphic control. Used instead $sensor[][] because periodic samples are needed
+Global $screen[6][$xmax] ; For display the sensors signal in graphic control. Used instead $sensor[][] because periodic samples are needed
 					; for expand/contract and cursors fucntionality
 
 ;********************** ONLY FOR TEST ***** REMOVE
@@ -1268,6 +1270,67 @@ Func _ButtonClicked ()
 		Case $searchmonitorconnectbutton
 			$addr64 = $monitorfounded[_GUICtrlListView_GetSelectedIndices($monitorlist)][0]
 			$addr16 = $monitorfounded[_GUICtrlListView_GetSelectedIndices($monitorlist)][1]
+			_SetAddress64($addr64)
+			_SetAddress16($addr16)
+
+
+			$first = True
+			$times = 1
+			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+				_SendZBData($GET_ID)
+				;ConsoleWrite(@CRLF & "count = " & $count)
+
+				$Time = TimerInit()
+				While ((TimerDiff($Time)/1000) <= 1 )  ; Wait until a zb data packet is received or 1second
+					GUICtrlSetData($status, ".", 1)
+					If _CheckIncomingFrame() Then
+						GUICtrlSetData($status, "-", 1)
+						If _GetApiID() == $ZB_RX_RESPONSE Then
+							GUICtrlSetData($status, "/", 1)
+							$received=True
+							$dato = _ReadZBDataResponseValue() ; Extract the data sent by the arduino
+							If StringMid($dato, 1, 2) = $GET_ID Then		; The data is a response for a GET_ID frame request
+								Switch StringMid($dato, 3, 2)
+									Case "01"
+										$res=""
+										For $k = 3 to (StringLen($dato)-1)/2
+											$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+										Next
+										GUICtrlSetData($truckmodel, $res)
+
+									Case "02"
+										$res=""
+										For $k = 3 to (StringLen($dato)-1)/2
+											$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+										Next
+										GUICtrlSetData($truckserial, $res)
+
+									Case "03"
+										$res=""
+										For $k = 3 to (StringLen($dato)-1)/2
+											$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+										Next
+										GUICtrlSetData($batterymodel, $res)
+
+									Case "04"
+										$res=""
+										For $k = 3 to (StringLen($dato)-1)/2
+											$res &= Chr("0x"&StringMid($dato,2*$k-1 ,2))
+										Next
+										GUICtrlSetData($batteryserial, $res)
+
+								EndSwitch
+
+								$Time = TimerInit() ; Reset the time counter
+							EndIf
+						EndIf
+					EndIf
+					Sleep(100)
+				WEnd
+				$times+=1
+			Wend
+
+
 
 			GUISetState(@SW_ENABLE,$myGui)
 			GUISetState(@SW_SHOW ,$myGui)
@@ -1925,7 +1988,7 @@ Func _Draw()
 	$t0 = Int($sensor[0][0]) + $xoffset ; and take initial moment time
 	$tx = $t0 + 2/$xgain
 	$c = 1		;Pos at sensor[][] begin
-	ReDim $screen[6][1]
+	;ReDim $screen[6][1]
 
 	; Take first sample to represent
 	If UBound($sensor,2)-1>=1 Then
@@ -1939,21 +2002,28 @@ Func _Draw()
 	EndIf
 
 	$x=1
-	While ($c<UBound($sensor,2)-1) And ($x<=$xmax)   ;Until the end of $sensor[][] array or get xmax points
+	While ($x<$xmax)   ;Until the end of $sensor[][] array or get xmax points
 
-		ReDim $screen[6][UBound($screen,2)+1]		; add space for the next data
+		;ReDim $screen[6][UBound($screen,2)+1]		; add space for the next data
 
 		;ConsoleWrite("$xmax=" & $xmax & ", n. of samples=" & UBound($sensor,2)-1 & ", $x=" & $x & ", $tx=" & $tx & ", $c=" & $c & @CRLF)
-		$screen[0][$x] = $tx
+		If ($c<UBound($sensor,2)-1) Then	  ;Not the end of sensor array
+			$screen[0][$x] = $tx
 
-		For $j = 1 To 5
-			If $tx < $sensor[0][$c] Then					; No stored value at this time
-				$screen[$j][$x] = $sensor[$j][$c-1]   	; value was previous value
-			Else
-				$screen[$j][$x] = $sensor[$j][$c]
-				$c+=1
-			EndIf
-		Next
+			For $j = 1 To 5
+				If $tx < $sensor[0][$c] Then					; No stored value at this time
+					$screen[$j][$x] = $sensor[$j][$c-1]   	; value was previous value
+				Else
+					$screen[$j][$x] = $sensor[$j][$c]
+					$c+=1
+				EndIf
+			Next
+		Else
+			For $j = 1 To 5
+				ConsoleWrite("j=" & $j & ", x=" & $x & @CRLF)
+				$screen[$j][$x] = 0
+			Next
+		EndIf
 		$x+=1
 		$tx+=2/$xgain
 	WEnd
