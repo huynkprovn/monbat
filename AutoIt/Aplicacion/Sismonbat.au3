@@ -9,7 +9,7 @@
  Script Function:
 
  Version:
-			0.18.0	Modify graphic representation. Don´t use dinamic resize array to improve the rendering performance
+			0.18.0	Modify graphic representation. Don´t use dynamic resize array to improve the rendering performance
 			0.17.4	Add checking receiving zbrxframe or resend if fail to "reset mem" and "send local time" functions
 			0.17.3	Add checking receiving zbrxframe or resend if fail.
 			0.17.2	Add checking status of tx data frame and resend if fail.
@@ -1986,12 +1986,13 @@ Func _Draw()
 
 
 	$t0 = Int($sensor[0][0]) + $xoffset ; and take initial moment time
-	$tx = $t0 + 2/$xgain
-	$c = 1		;Pos at sensor[][] begin
+	$tx = $t0
+	ConsoleWrite(@CRLF & "t0=" & $t0 & " , tx=" & $tx & ", xoffset=" & $xoffset & @CRLF)
+	$c = 0		;Pos at sensor[][] begin
 	;ReDim $screen[6][1]
 
 	; Take first sample to represent
-	If UBound($sensor,2)-1>=1 Then
+	#cs If UBound($sensor,2)-1>=1 Then
 		While ($sensor[0][$c]<$t0) And ($c<UBound($sensor,2)-1)
 			$c+=1
 		WEnd
@@ -2000,35 +2001,87 @@ Func _Draw()
 			$screen[$j][0] = $sensor[$j][$c]
 		Next
 	EndIf
+	#ce
 
-	$x=1
+	$first=True
+	$x=0
+
 	While ($x<$xmax)   ;Until the end of $sensor[][] array or get xmax points
 
-		;ReDim $screen[6][UBound($screen,2)+1]		; add space for the next data
-
-		;ConsoleWrite("$xmax=" & $xmax & ", n. of samples=" & UBound($sensor,2)-1 & ", $x=" & $x & ", $tx=" & $tx & ", $c=" & $c & @CRLF)
-		If ($c<UBound($sensor,2)-1) Then	  ;Not the end of sensor array
-			$screen[0][$x] = $tx
-
-			For $j = 1 To 5
-				If $tx < $sensor[0][$c] Then					; No stored value at this time
-					$screen[$j][$x] = $sensor[$j][$c-1]   	; value was previous value
-				Else
-					$screen[$j][$x] = $sensor[$j][$c]
+		If UBound($sensor,2)-1>=1 Then ; There are some sensor sample
+			ConsoleWrite("" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
+			If $first Then
+				If ($tx < $sensor[0][$c]) Then  ;Add '0' a the begin of the screen
+					$screen[0][$x] = $tx
+					For $j = 1 To 5
+						$screen[$j][$x] = 0
+					Next
+					$x+=1
+					$tx+=2/$xgain
+					ConsoleWrite("<" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
+				ElseIf ( $tx = $sensor[0][$c]) Then  ;This is the first sample
+					$first=False
+					$screen[0][$x] = $tx
+					For $j = 1 To 5
+						$screen[$j][$x] = $sensor[$j][$c]
+					Next
 					$c+=1
+					$x+=1
+					$tx+=2/$xgain
+					ConsoleWrite("f" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
+
+				Else
+					If ($t0 > $sensor[0][$c+1]) Then
+						$c+=1
+						ConsoleWrite(">" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
+					Else
+						$screen[0][$x] = $tx
+						For $j = 1 To 5
+							$screen[$j][$x] = $sensor[$j][$c]
+						Next
+						$c+=1
+						$x+=1
+						$tx+=2/$xgain
+						ConsoleWrite(">f" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
+					EndIf
 				EndIf
-			Next
-		Else
+			Else
+				If ($c<UBound($sensor,2)-1) Then	  ;Not the end of sensor array
+					$screen[0][$x] = $tx
+					ConsoleWrite("p" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
+					For $j = 1 To 5
+						If $tx < $sensor[0][$c] Then					; No stored value at this time
+							$screen[$j][$x] = $sensor[$j][$c-1]   	; value was previous value
+						Else
+							$screen[$j][$x] = $sensor[$j][$c]
+							$c+=1
+						EndIf
+					Next
+					$x+=1
+					$tx+=2/$xgain
+				Else
+					ConsoleWrite(">e" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
+					For $j = 1 To 5
+						;ConsoleWrite("j=" & $j & ", x=" & $x & @CRLF)
+						$screen[$j][$x] = 0
+					Next
+					$x+=1
+					$tx+=2/$xgain
+				EndIf
+			EndIf
+		Else 			; there aren't any sample
 			For $j = 1 To 5
-				ConsoleWrite("j=" & $j & ", x=" & $x & @CRLF)
+				;ConsoleWrite("j=" & $j & ", x=" & $x & @CRLF)
 				$screen[$j][$x] = 0
 			Next
+			$x+=1
+			$tx+=2/$xgain
 		EndIf
-		$x+=1
-		$tx+=2/$xgain
+
 	WEnd
 	;_ArrayDisplay($screen, "")
 
+	$first=True
 	For $j=0 To 4
 		If $visible[$j] = True Then
 			GUICtrlSetState($historygraph[$j], $GUI_SHOW)
@@ -2045,11 +2098,11 @@ Func _Draw()
 
 				;$tx = Int($screen[0][$x])
 
-				If ((($x/$xgain)+$xoffset) < 0) Or ((($x/$xgain)+$xoffset)>(UBound($screen,2)-1)) Then
+				If (($x) < 0) Or (($x)>(UBound($screen,2)-1)) Then
 					$y=0
 					$first=True
 				Else
-					$y=$ymax - ($yscale[$j]*$ygain*$screen[$j+1][($x/$xgain)]+$offset[$j] + $yoffset)
+					$y=$ymax - ($yscale[$j]*$ygain*$screen[$j+1][$x]+$offset[$j] + $yoffset)
 					;$y=$ymax - ($yscale[$j]*$screen[$j+1][$x]+$offset[$j])
 				EndIf
 
