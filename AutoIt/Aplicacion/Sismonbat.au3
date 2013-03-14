@@ -9,6 +9,8 @@
  Script Function:
 
  Version:
+			0.18.2	expand the options range for x axis cursors. Can display data from several days
+			0.18.1	Now works x axis zoom and x axis scroll separately
 			0.18.0	Modify graphic representation. Don´t use dynamic resize array to improve the rendering performance
 			0.17.4	Add checking receiving zbrxframe or resend if fail to "reset mem" and "send local time" functions
 			0.17.3	Add checking receiving zbrxframe or resend if fail.
@@ -1513,6 +1515,14 @@ Func _ButtonClicked ()
 
 		Case $zoominXbutton
 			Switch $xgain
+				Case 0.01
+					$xgain = 0.02
+				Case 0.02
+					$xgain = 0.05
+				Case 0.05
+					$xgain = 0.1
+				Case 0.1
+					$xgain = 0.2
 				Case 0.2
 					$xgain = 0.25
 				Case 0.25
@@ -1536,6 +1546,14 @@ Func _ButtonClicked ()
 
 		Case $zoomoutXbutton
 			Switch $xgain
+				Case 0.02
+					$xgain = 0.01
+				Case 0.05
+					$xgain = 0.02
+				Case 0.1
+					$xgain = 0.05
+				Case 0.2
+					$xgain = 0.1
 				Case 0.25
 					$xgain = 0.2
 				Case 0.33
@@ -2009,17 +2027,18 @@ Func _Draw()
 	While ($x<$xmax)   ;Until the end of $sensor[][] array or get xmax points
 
 		If UBound($sensor,2)-1>=1 Then ; There are some sensor sample
-			ConsoleWrite("" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
+			;ConsoleWrite("" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
 			If $first Then
 				If ($tx < $sensor[0][$c]) Then  ;Add '0' a the begin of the screen
+					ConsoleWrite("<" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
 					$screen[0][$x] = $tx
 					For $j = 1 To 5
 						$screen[$j][$x] = 0
 					Next
 					$x+=1
 					$tx+=2/$xgain
-					ConsoleWrite("<" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
 				ElseIf ( $tx = $sensor[0][$c]) Then  ;This is the first sample
+					ConsoleWrite("f" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
 					$first=False
 					$screen[0][$x] = $tx
 					For $j = 1 To 5
@@ -2028,13 +2047,13 @@ Func _Draw()
 					$c+=1
 					$x+=1
 					$tx+=2/$xgain
-					ConsoleWrite("f" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
 
 				Else
 					If ($t0 > $sensor[0][$c+1]) Then
-						$c+=1
 						ConsoleWrite(">" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
+						$c+=1
 					Else
+						ConsoleWrite(">f" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
 						$screen[0][$x] = $tx
 						For $j = 1 To 5
 							$screen[$j][$x] = $sensor[$j][$c]
@@ -2042,7 +2061,6 @@ Func _Draw()
 						$c+=1
 						$x+=1
 						$tx+=2/$xgain
-						ConsoleWrite(">f" & ", Sensor time=" & $sensor[0][$c] & ", x=" & $x & ", tx=" & $tx & ", c=" & $c & @CRLF)
 					EndIf
 				EndIf
 			Else
@@ -2184,11 +2202,11 @@ Func _DrawCursors()
 		GUICtrlSetColor($cursor[1], 0xffffff)
 
 		; fill the label with the sensor value for each cursor
-		If (Int(($cursor1/$xgain)+$xoffset) >= 0) And (Int(($cursor1/$xgain)+$xoffset) < (UBound($screen,2)-1)) Then ; don´t exceded the sensor data range
-			GUICtrlSetData($sensorvalue[0][0], Round($screen[1][($cursor1/$xgain)+$xoffset],2) & "V")
-			GUICtrlSetData($sensorvalue[1][0], Round($screen[3][($cursor1/$xgain)+$xoffset],1)& "A")
-			GUICtrlSetData($sensorvalue[2][0], Round($screen[4][($cursor1/$xgain)+$xoffset],1)& "ºC")
-			GUICtrlSetData($sensorvalue[3][0], Round($screen[5][($cursor1/$xgain)+$xoffset],1))
+		If (Int($cursor1) >= 0) And (Int($cursor1) < (UBound($screen,2)-1)) Then ; don´t exceded the sensor data range
+			GUICtrlSetData($sensorvalue[0][0], Round($screen[1][$cursor1],2) & "V")
+			GUICtrlSetData($sensorvalue[1][0], Round($screen[3][$cursor1],1)& "A")
+			GUICtrlSetData($sensorvalue[2][0], Round($screen[4][$cursor1],1)& "ºC")
+			GUICtrlSetData($sensorvalue[3][0], Round($screen[5][$cursor1],1))
 		Else
 			GUICtrlSetData($sensorvalue[0][0], "V")
 			GUICtrlSetData($sensorvalue[1][0], "A")
@@ -2196,11 +2214,11 @@ Func _DrawCursors()
 			GUICtrlSetData($sensorvalue[3][0], "")
 		EndIf
 
-		If (Int(($cursor2/$xgain)+$xoffset) >= 0) And (Int(($cursor2/$xgain)+$xoffset) < (UBound($screen,2)-1)) Then
-			GUICtrlSetData($sensorvalue[0][1], Round($screen[1][($cursor2/$xgain)+$xoffset],2)& "V")
-			GUICtrlSetData($sensorvalue[1][1], Round($screen[3][($cursor2/$xgain)+$xoffset],1)& "A")
-			GUICtrlSetData($sensorvalue[2][1], Round($screen[4][($cursor2/$xgain)+$xoffset],1)& "ºC")
-			GUICtrlSetData($sensorvalue[3][1], Round($screen[5][($cursor2/$xgain)+$xoffset],1))
+		If (Int($cursor2) >= 0) And (Int($cursor2) < (UBound($screen,2)-1)) Then
+			GUICtrlSetData($sensorvalue[0][1], Round($screen[1][$cursor2],2)& "V")
+			GUICtrlSetData($sensorvalue[1][1], Round($screen[3][$cursor2],1)& "A")
+			GUICtrlSetData($sensorvalue[2][1], Round($screen[4][$cursor2],1)& "ºC")
+			GUICtrlSetData($sensorvalue[3][1], Round($screen[5][$cursor2],1))
 		Else
 			GUICtrlSetData($sensorvalue[0][1], "V")
 			GUICtrlSetData($sensorvalue[1][1], "A")
@@ -2209,14 +2227,14 @@ Func _DrawCursors()
 		EndIf
 
 		; Fill $cursor1date with the date al cursor position
-		If (Int(($cursor1/$xgain)+$xoffset) >= 0) And (Int(($cursor1/$xgain)+$xoffset) < (UBound($screen,2)-1)) Then
-			GUICtrlSetData($cursor1date, _DateAdd('s',$screen[0][($cursor1/$xgain)+$xoffset],"1970/01/01 00:00:00"))
+		If (Int($cursor2) >= 0) And (Int($cursor1) < (UBound($screen,2)-1)) Then
+			GUICtrlSetData($cursor1date, _DateAdd('s',$screen[0][$cursor1],"1970/01/01 00:00:00"))
 		Else
 			GUICtrlSetData($cursor1date,"")
 		EndIf
 
-		If (Int(($cursor2/$xgain)+$xoffset) >= 0) And (Int(($cursor2/$xgain)+$xoffset) < (UBound($screen,2)-1)) Then
-			GUICtrlSetData($cursor2date, _DateAdd('s',$screen[0][($cursor2/$xgain)+$xoffset],"1970/01/01 00:00:00"))
+		If (Int($cursor2) >= 0) And (Int($cursor2) < (UBound($screen,2)-1)) Then
+			GUICtrlSetData($cursor2date, _DateAdd('s',$screen[0][$cursor2],"1970/01/01 00:00:00"))
 		Else
 			GUICtrlSetData($cursor2date,"")
 		EndIf
