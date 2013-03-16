@@ -9,6 +9,8 @@
  Script Function:
 
  Version:
+			0.19.0	Add X-axis values and some explaining labels
+			0.18.3	Fix bugs in draw() funct
 			0.18.2	expand the options range for x axis cursors. Can display data from several days
 			0.18.1	Now works x axis zoom and x axis scroll separately
 			0.18.0	Modify graphic representation. Don´t use dynamic resize array to improve the rendering performance
@@ -618,6 +620,7 @@ _DrawGrid()
 Global $gridvisible = False
 GUICtrlSetState($grid, $GUI_HIDE)
 
+Global $timesValue[4]
 Global $rulesValue[3][9]
 For $k=0 to 8
 	$rulesValue[0][$k] = GUICtrlCreateLabel("V", 1, $ButtonHeight + $ymax +5 - ($k+1)*$ymax/10, 40)
@@ -628,6 +631,10 @@ For $k=0 to 8
 	GUICtrlSetColor(-1,$colours[2])
 	$rulesValue[2][$k] = GUICtrlCreateLabel("ºC", $xmax + 3, $ButtonHeight + $ymax +5 - ($k+1)*$ymax/10, 40)
 	GUICtrlSetColor(-1,$colours[3])
+Next
+For $k=0 to 3
+	$timesValue[$k] = GUICtrlCreateLabel("XX/XX/XXXX XX:XX:XX", 2*($k+1)*$xmax/10-50, $ButtonHeight+15)
+	GUICtrlSetColor(-1,0x7f7f7f)
 Next
 
 Global $xoffset = 0
@@ -654,12 +661,15 @@ $historygraph[4] = GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax);, $WS_BO
 
 Global $cursor1date, $cursor2date
 $cursor1date=GUICtrlCreateLabel("C1: 23/05/2012 11:23:34", $xmax/5, $ymax+15)
+GUICtrlSetColor(-1,0xff0000)
 GUICtrlSetState(-1, $GUI_HIDE)
 $cursor2date=GUICtrlCreateLabel("C2: 23/05/2012 11:54:20", $xmax*3/5, $ymax+15)
 GUICtrlSetState(-1, $GUI_HIDE)
+GUICtrlSetColor(-1,0x0000ff)
 
 ; Batery charge indicator creation
 Const $chargeWhith = $GUIWidth/4 - $GUIWidth/15
+GUICtrlCreateLabel("State Of Charge",$GUIWidth*3/4 + $GUIWidth/30 + $chargeWhith/2 - 40, $ButtonHeight/2)
 $charge = GUICtrlCreatePic(".\images\default.jpg", $GUIWidth*3/4 + $GUIWidth/30, $ButtonHeight, $chargeWhith, $chargeWhith)
 
 ; Alarm indicator creation
@@ -1454,14 +1464,15 @@ Func _ButtonClicked ()
 
 		Case $savebutton
 
-			For $k = 0 To (UBound($sensor,2)-1) Step 1
-				$SQLCode = "INSERT INTO battsignals (fecha, battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & $sensor[0][$k] & ", " & "01" & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
-				$SQLCode &= " ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)"    ;Don`t work Error with querry sentence ¿?¿?¿?
-				;$SQLCode = "INSERT INTO battsignals (battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & "01" & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
-				ConsoleWrite($SQLCode & @CRLF)
-				_Query($SQLInstance, $SQLCode) 		;TODO: check success in database write
-			Next
-
+			If UBound($sensor,2) > 1 Then
+				For $k = 0 To (UBound($sensor,2)-1) Step 1
+					$SQLCode = "INSERT INTO battsignals (fecha, battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & $sensor[0][$k] & ", " & "01" & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
+					$SQLCode &= " ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)"    ;Don`t work Error with querry sentence ¿?¿?¿?
+					;$SQLCode = "INSERT INTO battsignals (battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & "01" & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
+					ConsoleWrite($SQLCode & @CRLF)
+					_Query($SQLInstance, $SQLCode) 		;TODO: check success in database write
+				Next
+			EndIf
 
 
 		Case $printbutton
@@ -1658,23 +1669,23 @@ Func _ButtonClicked ()
 			EndIf
 
 		Case $xoff_p
-			$xoffset -= 20
+			$xoffset -= 100
 			GUISwitch($myGui)
 			_Draw()
 			_DrawCursors()
 		Case $xoff_m
-			$xoffset += 20
+			$xoffset += 100
 			GUISwitch($myGui)
 			_Draw()
 			_DrawCursors()
 		Case $yoff_p
-			$yoffset += 20
+			$yoffset += 50
 			GUISwitch($myGui)
 			_Draw()
 			_DrawCursors()
 		Case $yoff_m
 			GUISwitch($myGui)
-			$yoffset -= 20
+			$yoffset -= 50
 			GUISwitch($myGui)
 			_Draw()
 			_DrawCursors()
@@ -2003,9 +2014,9 @@ Func _Draw()
 	; Fill $screen[][] values with $sensor[][] values
 
 
-	$t0 = Int($sensor[0][0]) + $xoffset ; and take initial moment time
+	$t0 = Int($sensor[0][0]) + $xoffset/$xgain ; and take initial moment time
 	$tx = $t0
-	ConsoleWrite(@CRLF & "t0=" & $t0 & " , tx=" & $tx & ", xoffset=" & $xoffset & @CRLF)
+	ConsoleWrite(@CRLF & "t0=" & $t0 & " , tx=" & $tx & ", xoffset=" & $xoffset & ", xgain=" & $xgain & @CRLF)
 	$c = 0		;Pos at sensor[][] begin
 	;ReDim $screen[6][1]
 
@@ -2061,6 +2072,7 @@ Func _Draw()
 						$c+=1
 						$x+=1
 						$tx+=2/$xgain
+						$first=False
 					EndIf
 				EndIf
 			Else
@@ -2166,7 +2178,7 @@ Func _DrawGrid()
 	For $k = 1 To 9
 		GUICtrlSetGraphic($grid, $GUI_GR_MOVE, 40, $k*$ymax/10)
 		GUICtrlSetGraphic($grid, $GUI_GR_LINE, $xmax -1 -40, $k*$ymax/10)
-		GUICtrlSetGraphic($grid, $GUI_GR_MOVE,  $k*$xmax/10, 0)
+		GUICtrlSetGraphic($grid, $GUI_GR_MOVE,  $k*$xmax/10, 15)
 		GUICtrlSetGraphic($grid, $GUI_GR_LINE, $k*$xmax/10, $ymax)
 	Next
 	GUICtrlSetColor($grid, 0xffffff)
@@ -2183,6 +2195,12 @@ Func _DrawRules()
 		GUICtrlSetGraphic($rules, $GUI_GR_MOVE, $xmax-1, $k*$ymax/10)
 		GUICtrlSetGraphic($rules, $GUI_GR_LINE, $xmax-1-10, $k*$ymax/10)
 	Next
+
+	For $k = 1 to 4
+		GUICtrlSetGraphic($rules, $GUI_GR_MOVE, 2*$k*$xmax/10, 0)
+		GUICtrlSetGraphic($rules, $GUI_GR_LINE, 2*$k*$xmax/10, 10)
+	Next
+
 	GUICtrlSetColor($rules, 0xffffff)
 
 EndFunc
@@ -2192,11 +2210,13 @@ Func _DrawCursors()
 	If $cursorvisible Then
 		GUICtrlDelete($cursor[0])      ; Delete previous graphic handle
 		$cursor[0] =  GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER); create a new one
+		GUICtrlSetGraphic($cursor[0], $GUI_GR_COLOR, 0xff0000)
 		GUICtrlSetGraphic($cursor[0], $GUI_GR_MOVE, $cursor1, 20)
 		GUICtrlSetGraphic($cursor[0], $GUI_GR_LINE, $cursor1, $ymax)
 		GUICtrlSetColor($cursor[0], 0xffffff)
 		GUICtrlDelete($cursor[1])
 		$cursor[1] =  GUICtrlCreateGraphic(0, $ButtonHeight, $xmax, $ymax, $WS_BORDER); create a new one
+		GUICtrlSetGraphic($cursor[1], $GUI_GR_COLOR, 0x0000ff)
 		GUICtrlSetGraphic($cursor[1], $GUI_GR_MOVE, $cursor2, 20)
 		GUICtrlSetGraphic($cursor[1], $GUI_GR_LINE, $cursor2, $ymax)
 		GUICtrlSetColor($cursor[1], 0xffffff)
