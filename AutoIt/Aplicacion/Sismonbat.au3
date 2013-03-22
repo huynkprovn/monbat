@@ -9,6 +9,7 @@
  Script Function:
 
  Version:
+			0.20.0	Add track and battery identification data send
 			0.19.0	Add X-axis values and some explaining labels
 			0.18.3	Fix bugs in draw() funct
 			0.18.2	expand the options range for x axis cursors. Can display data from several days
@@ -1166,6 +1167,7 @@ EndFunc
 Func _ButtonClicked ()
 
 	Local $k ; General counter
+	Local $dat ;
 	Local $res ; Byte to byte char conversion
 	Local $dato ;
 	Local $Time, $Time1 ; Used for delay calculation in XBee transmisions/responses
@@ -1827,6 +1829,110 @@ Func _ButtonClicked ()
 
 
 		Case $dataconfigokbutton
+			$dat = GUICtrlRead($dataconfigtruckmodel)
+			For $k = 1 To StringLen($dat)
+				$res &= Hex(Asc(StringMid($dat,$k,1)),2)
+			Next
+			ConsoleWrite($res & @CRLF)
+
+			$received=False
+			$times=1
+			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+				_SendZBData($SET_TRUCK_MODEL & $res)
+
+				$Time = TimerInit()
+				While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+					GUICtrlSetData($status, ".", 1)
+					If _CheckIncomingFrame() Then
+						ConsoleWrite(_PrintFrame() & @CRLF)
+						GUICtrlSetData($status, "-", 1)
+						If _GetApiID() == $ZB_RX_RESPONSE Then
+							GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+							$received = True
+						EndIf
+					EndIf
+				WEnd
+				$times+=1
+			WEnd
+
+			$dat = GUICtrlRead($dataconfigtruckserial)
+			For $k = 1 To StringLen($dat)
+				$res &= Hex(Asc(StringMid($dat,$k,1)),2)
+			Next
+			ConsoleWrite($res & @CRLF)
+
+			$received=False
+			$times=1
+			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+				_SendZBData($SET_TRUCK_SN & $res)
+
+				$Time = TimerInit()
+				While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+					GUICtrlSetData($status, ".", 1)
+					If _CheckIncomingFrame() Then
+						ConsoleWrite(_PrintFrame() & @CRLF)
+						GUICtrlSetData($status, "-", 1)
+						If _GetApiID() == $ZB_RX_RESPONSE Then
+							GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+							$received = True
+						EndIf
+					EndIf
+				WEnd
+				$times+=1
+			WEnd
+
+			$dat = GUICtrlRead($dataconfigbatterymodel)
+			For $k = 1 To StringLen($dat)
+				$res &= Hex(Asc(StringMid($dat,$k,1)),2)
+			Next
+			ConsoleWrite($res & @CRLF)
+
+			$received=False
+			$times=1
+			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+				_SendZBData($SET_BATT_MODEL & $res)
+
+				$Time = TimerInit()
+				While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+					GUICtrlSetData($status, ".", 1)
+					If _CheckIncomingFrame() Then
+						ConsoleWrite(_PrintFrame() & @CRLF)
+						GUICtrlSetData($status, "-", 1)
+						If _GetApiID() == $ZB_RX_RESPONSE Then
+							GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+							$received = True
+						EndIf
+					EndIf
+				WEnd
+				$times+=1
+			WEnd
+
+			$dat = GUICtrlRead($dataconfigbatteryserial)
+			For $k = 1 To StringLen($dat)
+				$res &= Hex(Asc(StringMid($dat,$k,1)),2)
+			Next
+			ConsoleWrite($res & @CRLF)
+
+			$received=False
+			$times=1
+			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+				_SendZBData($SET_BATT_SN & $res)
+
+				$Time = TimerInit()
+				While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+					GUICtrlSetData($status, ".", 1)
+					If _CheckIncomingFrame() Then
+						ConsoleWrite(_PrintFrame() & @CRLF)
+						GUICtrlSetData($status, "-", 1)
+						If _GetApiID() == $ZB_RX_RESPONSE Then
+							GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+							$received = True
+						EndIf
+					EndIf
+				WEnd
+				$times+=1
+			WEnd
+
 			GUISetState(@SW_ENABLE,$myGui)
 			GUISetState(@SW_SHOW ,$myGui)
 			GUISetState(@SW_HIDE,$hardwaredataform)
