@@ -9,6 +9,7 @@
  Script Function:
 
  Version:
+			0.21.0	Add battery selection when reading from database. Don't work
 			0.20.0	Add track and battery identification data send
 			0.19.0	Add X-axis values and some explaining labels
 			0.18.3	Fix bugs in draw() funct
@@ -68,6 +69,7 @@
 #include <ButtonConstants.au3>
 #include <ComboConstants.au3>
 #include <GuiListView.au3>
+#include <GuiTab.au3>
 #include <Date.au3>
 #include <Misc.au3>    ; For mouse click detection handle
 #include '..\libs\mysql\mysql.au3'
@@ -79,7 +81,7 @@ Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
-Const $PROGRAM_VERSION = "0.13.0"
+Const $PROGRAM_VERSION = "0.21.0"
 Const $ConfigFile = "Sismonbat.ini" ; File where store last com port configuration and database access
 
 #cs
@@ -192,45 +194,75 @@ GUICtrlCreateLabel("Detected trucks/batteries monitorized ", 40, 8, 234, 34, Bit
 *	SELECT FROM DATABASE FORM
 * ***************
 #ce
-Global $ini, $ini_h, $ini_m, $end, $end_h, $end_m, $selecrangeform, $selecRangeCancel, $selecRangeOk
+Global $selecrangeform
+Global $monitortab, $datetab, $myTab, $monitoridlist
+Global $selecidNext, $selectidCancel, $selectidScan
+Global $ini, $ini_h, $ini_m, $end, $end_h, $end_m, $selecrangePrev, $selecRangeCancel, $selecRangeOk
 Global $ini_date, $end_date
 
 #Region ### START Koda GUI section ###
-$selecrangeform = GUICreate("Select date range to show", 666, 444, 192, 124)
+$selecrangeform = GUICreate("Select date range to show", 666, 464, 192, 124)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
-GUICtrlCreateGroup("", 24, 40, 297, 297)
-$ini = GUICtrlCreateMonthCal("2013/02/14", 48, 80, 249, 177)
-$ini_h = GUICtrlCreateInput("", 48, 280, 81, 21, $GUI_SS_DEFAULT_INPUT);BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
+
+$myTab = GUICtrlCreateTab( 10, 10, 666 - 20, 464 - 20)
+
+$monitortab=GUICtrlCreateTabItem("Monitor") ;
+GUISwitch($myTab, $monitortab)
+;$monitortab=_GUICtrlTab_InsertItem($myTab, 0, "Monitor")
+$monitoridlist = GUICtrlCreateListView("", 20, 40, 666-40, 338,-1, BitOR($LVS_EX_FULLROWSELECT, $LVS_EX_SUBITEMIMAGES))
+_GUICtrlListView_InsertColumn($monitoridlist,0,"Id", 50)
+_GUICtrlListView_InsertColumn($monitoridlist,1,"Truck Model", 125)
+_GUICtrlListView_InsertColumn($monitoridlist,2,"Truck S/N", 125)
+_GUICtrlListView_InsertColumn($monitoridlist,3,"Battery Model", 125)
+_GUICtrlListView_InsertColumn($monitoridlist,4,"Battery S/N", 125)
+_GUICtrlListView_SetItemCount($monitoridlist, 40)       ; allocate memory for 40 rows in the listview control for prevent allocation every time a item is added
+
+$selectidScan= GUICtrlCreateButton("Scan", 70 , 388, 129, 41)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$selectidCancel = GUICtrlCreateButton("Cancel", 265 , 388, 129, 41)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+$selecidNext = GUICtrlCreateButton("Next", 460, 388, 129, 41)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+
+$datetab=GUICtrlCreateTabItem("Date") ;
+;$datetab=_GUICtrlTab_InsertItem($myTab, 0, "Date")
+GUISwitch($myTab, $datetab)
+GUICtrlCreateGroup("", 24, 60, 297, 297)
+$ini = GUICtrlCreateMonthCal("2013/02/14", 48, 100, 249, 177)
+$ini_h = GUICtrlCreateInput("", 48, 300, 81, 21, $GUI_SS_DEFAULT_INPUT);BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
 GUICtrlSetOnEvent(-1,"_imputBoxChange")
 GUICtrlCreateUpdown($ini_h)
-$ini_m = GUICtrlCreateInput("", 176, 280, 81, 21, $GUI_SS_DEFAULT_INPUT);BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
+$ini_m = GUICtrlCreateInput("", 176, 300, 81, 21, $GUI_SS_DEFAULT_INPUT);BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
 GUICtrlSetOnEvent(-1,"_imputBoxChange")
 GUICtrlCreateUpdown($ini_m)
-GUICtrlCreateLabel("Day", 48, 56, 23, 17)
-GUICtrlCreateLabel("Hour", 48, 264, 27, 17)
-GUICtrlCreateLabel("Minute", 176, 264, 36, 17)
+GUICtrlCreateLabel("Day", 48, 76, 23, 17)
+GUICtrlCreateLabel("Hour", 48, 284, 27, 17)
+GUICtrlCreateLabel("Minute", 176, 284, 36, 17)
 
-GUICtrlCreateGroup("", 336, 40, 297, 297)
-$end = GUICtrlCreateMonthCal("2013/02/14", 360, 80, 249, 177)
-$end_h = GUICtrlCreateInput("", 360, 280, 81, 21, $GUI_SS_DEFAULT_INPUT);BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
+GUICtrlCreateGroup("", 336, 60, 297, 297)
+$end = GUICtrlCreateMonthCal("2013/02/14", 360, 100, 249, 177)
+$end_h = GUICtrlCreateInput("", 360, 300, 81, 21, $GUI_SS_DEFAULT_INPUT);BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
 GUICtrlSetOnEvent(-1,"_imputBoxChange")
 GUICtrlCreateUpdown($end_h)
-$end_m = GUICtrlCreateInput("", 488, 280, 81, 21, $GUI_SS_DEFAULT_INPUT);BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
+$end_m = GUICtrlCreateInput("", 488, 300, 81, 21, $GUI_SS_DEFAULT_INPUT);BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
 GUICtrlSetOnEvent(-1,"_imputBoxChange")
 GUICtrlCreateUpdown($end_m)
-GUICtrlCreateLabel("Day", 360, 56, 23, 17)
-GUICtrlCreateLabel("Hour", 360, 264, 27, 17)
-GUICtrlCreateLabel("Minute", 488, 264, 36, 17)
+GUICtrlCreateLabel("Day", 360, 76, 23, 17)
+GUICtrlCreateLabel("Hour", 360, 284, 27, 17)
+GUICtrlCreateLabel("Minute", 488, 284, 36, 17)
 GUICtrlCreateGroup("", -99, -99, 1, 1)
 
-$selecRangeCancel = GUICtrlCreateButton("Cancel", 96, 368, 129, 41)
+$selecrangePrev= GUICtrlCreateButton("Prev", 70 , 388, 129, 41)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$selecRangeOk = GUICtrlCreateButton("Ok", 416, 368, 129, 41)
+$selecRangeCancel = GUICtrlCreateButton("Cancel", 265, 388, 129, 41)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-GUICtrlCreateLabel("INITIAL DATE", 120, 24, 88, 20)
+$selecRangeOk = GUICtrlCreateButton("Ok", 460, 388, 129, 41)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+GUICtrlCreateLabel("INITIAL DATE", 120, 44, 88, 20)
 GUICtrlSetFont(-1, 10, 400, 0, "MS Sans Serif")
-GUICtrlCreateLabel("END DATE", 440, 24, 73, 20)
+GUICtrlCreateLabel("END DATE", 440, 44, 73, 20)
 GUICtrlSetFont(-1, 10, 400, 0, "MS Sans Serif")
+GUICtrlCreateTabItem("")
 #EndRegion ### END Koda GUI section ###
 
 #cs
@@ -1415,6 +1447,14 @@ Func _ButtonClicked ()
 		Case $viewbutton
 
 			GUISetState(@SW_SHOW ,$selecrangeform)
+
+		Case $selecidNext
+			GUISwitch($myTab,$datetab)
+			;_GUICtrlTab_SetCurSel($myTab, 1)
+
+		Case $selecrangePrev
+			GUISwitch($myTab,$monitortab)
+			;_GUICtrlTab_SetCurSel($myTab, 0)
 
 		Case $selecRangeCancel
 			GUISetState(@SW_ENABLE,$myGui)
