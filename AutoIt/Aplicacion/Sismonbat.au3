@@ -6,6 +6,7 @@
  Script Function:
 
  Version:
+			0.23.1	Add calibration form secuence structure
 			0.23.0	Add new form for software calibration procedure.
 			0.22.0	Add battery selection when writing to battsignals in database. not checked.
 			0.21.2	Select from database with battery identification now work.
@@ -57,7 +58,6 @@
 			0.1		Created main GUI
 #ce ----------------------------------------------------------------------------
 
-
 ; LIBRERIAS
 #include '..\XbeeAPI\XbeeAPI.au3'
 #include <array.au3>
@@ -82,7 +82,7 @@ Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
-Const $PROGRAM_VERSION = "0.23.0"
+Const $PROGRAM_VERSION = "0.23.1"
 Const $ConfigFile = "Sismonbat.ini" ; File where store last com port configuration and database access
 
 #cs
@@ -142,7 +142,7 @@ Global $myGui ; main GUI handler
 
 Global $filemenu, $filemenu_open, $filemenu_exit, $filemenu_save, $filemenu_printpreview, $filemenu_print
 Global $editmenu, $editmenu_copy, $editmenu_paste, $editmenu_cut
-Global $configmenu, $configmenu_serialport, $configmenu_database, $configmenu_hardware, $configmenu_reset, $configmenu_settime
+Global $configmenu, $configmenu_serialport, $configmenu_database, $configmenu_hardware, $configmenu_reset, $configmenu_settime, $configmenu_calibrate
 Global $testmenu, $testmenu_serialport, $testmenu_database
 Global $helpmenu, $helpmenu_help, $helpmenu_about, $helpmenu_version ; form menu vars
 Global $searchbutton, $readbutton, $viewbutton, $savebutton, $printbutton, $exitbutton ; button vars
@@ -382,9 +382,10 @@ GUIctrlSetOnEvent(-1, "_ButtonClicked")
 *	CALIBRATION FORM
 * ***************
 #ce
-Global $calibrationForm, $calibrationInstruction, $calibrationNext, $calibrationCancel
+Global $calibrationForm, $calibrationInstruction, $calibrationNextbutton, $calibrationCancelbutton
 Global $calibrationSensor, $calibrationHightvalue, $calibrationLowvalue, $calibrationValue1unit, $calibrationValue2unit
 Global $calibrationHightvaluereaded, $calibrationLowvaluereaded, $calibrationValue1unitreaded, $calibrationValue2unitreaded
+Global $calibrationLabel1,$calibrationLabel2,$calibrationLabel3,$calibrationLabel4
 Global $calibrationStage
 
 #Region ### START Koda GUI section ###
@@ -396,28 +397,29 @@ $calibrationInstruction = GUICtrlCreateLabel("Select one sensor for calibrate an
 GUICtrlSetFont(-1, 12, 800, 0, "MS Sans Serif")
 GUICtrlSetBkColor(-1, 0xFFFFFF)
 $calibrationSensor = GUICtrlCreateCombo("", 28, 136, 161, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
-GUICtrlSetData(-1, "VOLTAJE +|VOLTAJE -|CURRENT|TEMPERATURE")
+GUICtrlSetData(-1, "VOLTAJE +|VOLTAJE -|CURRENT|TEMPERATURE","VOLTAJE +")
 $calibrationHightvalue = GUICtrlCreateInput("12,43", 264, 192, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_NUMBER))
 $calibrationLowvalue = GUICtrlCreateInput("", 264, 248, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_NUMBER))
 GUICtrlCreateLabel("Sensor", 28, 120, 37, 17)
-GUICtrlCreateLabel("Value 1", 264, 176, 40, 17)
-GUICtrlCreateLabel("Value 2", 264, 232, 40, 17)
 $calibrationValue1unit = GUICtrlCreateLabel("V", 352, 192, 15, 24)
 GUICtrlSetFont(-1, 12, 400, 0, "MS Sans Serif")
 $calibrationValue2unit = GUICtrlCreateLabel("V", 352, 248, 15, 24)
 GUICtrlSetFont(-1, 12, 400, 0, "MS Sans Serif")
 $calibrationHightvaluereaded = GUICtrlCreateInput("", 32, 192, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY,$ES_NUMBER))
 $calibrationLowvaluereaded = GUICtrlCreateInput("", 32, 248, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY,$ES_NUMBER))
-GUICtrlCreateLabel("Value readed", 32, 176, 67, 17)
-GUICtrlCreateLabel("Value reades", 32, 232, 66, 17)
 $calibrationValue1unitreaded = GUICtrlCreateLabel("V", 120, 192, 15, 24)
 GUICtrlSetFont(-1, 12, 400, 0, "MS Sans Serif")
 $calibrationValue2unitreaded = GUICtrlCreateLabel("V", 120, 248, 15, 24)
 GUICtrlSetFont(-1, 12, 400, 0, "MS Sans Serif")
-$calibrationNext = GUICtrlCreateButton("Next", 264, 304, 137, 41)
+$calibrationNextbutton = GUICtrlCreateButton("Next", 264, 304, 137, 41)
 GUIctrlSetOnEvent(-1, "_ButtonClicked")
-$calibrationCancel = GUICtrlCreateButton("Cancel", 28, 304, 137, 41)
+$calibrationCancelbutton = GUICtrlCreateButton("Cancel", 28, 304, 137, 41)
 GUIctrlSetOnEvent(-1, "_ButtonClicked")
+$calibrationLabel1=GUICtrlCreateLabel("Value 1", 264, 176, 40, 17)
+$calibrationLabel2=GUICtrlCreateLabel("Value 2", 264, 232, 40, 17)
+$calibrationLabel3=GUICtrlCreateLabel("Value readed", 32, 176, 67, 17)
+$calibrationLabel4=GUICtrlCreateLabel("Value readed", 32, 232, 66, 17)
+
 #EndRegion ### END Koda GUI section ###
 
 
@@ -463,6 +465,8 @@ GUICtrlSetOnEvent(-1, "_MenuClicked")
 $configmenu_reset = GUICtrlCreateMenuItem("&Reset Monitor Memory", $configmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
 $configmenu_settime = GUICtrlCreateMenuItem("Send local &time to monitor", $configmenu)
+GUICtrlSetOnEvent(-1, "_MenuClicked")
+$configmenu_calibrate = GUICtrlCreateMenuItem("&Calibrate monitor", $configmenu)
 GUICtrlSetOnEvent(-1, "_MenuClicked")
 $testmenu = GUICtrlCreateMenu("&Test")
 $testmenu_serialport = GUICtrlCreateMenuItem("Test &Serial Port Conection", $testmenu)
@@ -638,41 +642,6 @@ Global $visible[5] = [True,True,True,True,True]
 Global $xscale
 Global $screen[6][$xmax] ; For display the sensors signal in graphic control. Used instead $sensor[][] because periodic samples are needed
 					; for expand/contract and cursors fucntionality
-
-;********************** ONLY FOR TEST ***** REMOVE
-#cs ReDim $sensor[6][$xmax/4] ; redim
-be used by +1 when receiving each sensor sample
-
-For $k = 0 To $xmax/4 -1
-	$sensor[0][$k] = $k * 2
-Next
-
-For $k = 0 To $xmax/4 -1
-	$sensor[1][$k] = 12+5*Sin($k/50)
-Next
-
-For $k = 0 To $xmax/4 -1
-	$sensor[2][$k] = 11.5+5*Sin($k/50)
-Next
-
-Dim $inc = 2
-Dim $val = 0
-For $k = 0 To $xmax/4 -1
-
-	$sensor[3][$k] = $val
-	If $val > 150 Then
-		$inc = -2
-	ElseIf $val < -150 Then
-		$inc = 2
-	EndIf
-	$val = $val + $inc
-Next
-
-For $k = 0 To $xmax/4 -1
-	$sensor[4][$k] = 25+20*Cos($k/30)
-Next
-;***************************************** REMOVE
-#ce
 
 Global $xoff_m, $xoff_p, $yoff_m, $yoff_p
 
@@ -853,6 +822,8 @@ EndFunc
 ;
 ;***************************************************************************************************
 Func _CLOSEClicked ()
+	Local $res
+
 	Switch @GUI_WINHANDLE
 		Case $myGui
 			If ($serialconnected) Then      ;If a serial port is open close it before exit application
@@ -899,6 +870,13 @@ Func _CLOSEClicked ()
 			GUISetState(@SW_SHOW ,$myGui)
 			GUISetState(@SW_HIDE,$selectdateform)
 
+		Case $calibrationForm
+			$res = MsgBox(4,"Confirm exit calibration","Are you sure you want to exit calibration process??")
+			IF $res = 6 Then
+				GUISetState(@SW_ENABLE,$myGui)
+				GUISetState(@SW_SHOW ,$myGui)
+				GUISetState(@SW_HIDE,$calibrationForm)
+			EndIf
 
 		Case Else
 
@@ -1613,7 +1591,7 @@ Func _ButtonClicked ()
 					$TableContents = _Query($SQLInstance, $SQLCode)
 					$batteryID = $TableContents.Fields("battid").value
 				Else
-					$batteryID = $TableContents.Fields("battid").value
+					$batteryID = $TableContents.Fields("battid").value  ;The first value in the response. Asume only one item in the response.
 				EndIf
 
 				For $k = 0 To (UBound($sensor,2)-1) Step 1
@@ -2093,6 +2071,114 @@ Func _ButtonClicked ()
 
 		Case $dataconfighelpbutton
 
+		Case $calibrationCancelbutton
+			$res = MsgBox(4,"Confirm exit calibration","Are you sure you want to exit calibration process??")
+			IF $res = 6 Then
+				GUISetState(@SW_ENABLE,$myGui)
+				GUISetState(@SW_SHOW ,$myGui)
+				GUISetState(@SW_HIDE,$calibrationForm)
+			EndIf
+
+		Case $calibrationNextbutton
+			Switch $calibrationStage
+				Case 1
+					Switch GUICtrlRead($calibrationSensor)
+						Case "VOLTAJE +"
+							GUICtrlSetData($calibrationValue1unitreaded,"V")
+							GUICtrlSetData($calibrationInstruction,"Connect the monbat sistem to a variable power supply and set the posivite half tension to a value bigger than 15Vdc" & @CRLF & "Strike the 'Next' button")
+						Case "VOLTAJE -"
+							GUICtrlSetData($calibrationValue1unitreaded,"V")
+							GUICtrlSetData($calibrationInstruction,"Connect the monbat sistem to a variable power supply and set the negative half tension to a value bigger than -15Vdc" & @CRLF & "Strike the 'Next' button")
+						Case "CURRENT"
+							GUICtrlSetData($calibrationValue1unitreaded,"A")
+
+						Case "TEMPERATURE"
+							GUICtrlSetData($calibrationValue1unitreaded,"ºC")
+							GUICtrlSetData($calibrationInstruction,"Introduce the temperature sensor in a warm fluid hoter than 40ºC and wait for temperature reading stabilization" & @CRLF & "Strike the 'Next' button")
+
+						Case Else
+							MsgBox(0,"Not a sensor selected", "Please select a sensor to calibrate and strike the 'Next' button")
+					EndSwitch
+					GUICtrlSetState($calibrationHightvaluereaded,$GUI_SHOW)
+					GUICtrlSetState($calibrationLabel3,$GUI_SHOW)
+					GUICtrlSetState($calibrationValue1unitreaded,$GUI_SHOW)
+					GUICtrlSetState($calibrationSensor, $GUI_DISABLE)
+					$calibrationStage = 2
+
+				Case 2
+					Switch GUICtrlRead($calibrationSensor)
+						Case "VOLTAJE +"
+							GUICtrlSetData($calibrationValue1unit,"V")
+							GUICtrlSetData($calibrationInstruction,"Measure the power supply voltaje with a multimeter and introduce the value. RESPECT THE MEASURE SIGN" & @CRLF & "Strike the 'Next' button")
+						Case "VOLTAJE -"
+							GUICtrlSetData($calibrationValue1unit,"V")
+							GUICtrlSetData($calibrationInstruction,"Measure the power supply voltaje with a multimeter and introduce the value. RESPECT THE MEASURE SIGN" & @CRLF & "Strike the 'Next' button")
+						Case "CURRENT"
+							GUICtrlSetData($calibrationValue1unit,"A")
+
+						Case "TEMPERATURE"
+							GUICtrlSetData($calibrationValue1unit,"ºC")
+							GUICtrlSetData($calibrationInstruction,"Measure the fluid temperature with an external reference termometer and introduce the value." & @CRLF & "Strike the 'Next' button")
+					EndSwitch
+					GUICtrlSetState($calibrationHightvalue, $GUI_ENABLE)
+					GUICtrlSetState($calibrationHightvalue,$GUI_SHOW)
+					GUICtrlSetState($calibrationLabel1,$GUI_SHOW)
+					GUICtrlSetState($calibrationValue1unit,$GUI_SHOW)
+					$calibrationStage = 3
+
+				Case 3
+					Switch GUICtrlRead($calibrationSensor)
+						Case "VOLTAJE +"
+							GUICtrlSetData($calibrationValue2unitreaded,"V")
+							GUICtrlSetData($calibrationInstruction,"Set the posivite half tension in the power supply to a value between 9.5Vdc and 10Vdc" & @CRLF & "Strike the 'Next' button")
+						Case "VOLTAJE -"
+							GUICtrlSetData($calibrationValue2unitreaded,"V")
+							GUICtrlSetData($calibrationInstruction,"Set the posivite half tension in the power supply to a value between -9.5Vdc and -10Vdc" & @CRLF & "Strike the 'Next' button")
+						Case "CURRENT"
+							GUICtrlSetData($calibrationValue2unitreaded,"A")
+
+						Case "TEMPERATURE"
+							GUICtrlSetData($calibrationValue2unitreaded,"ºC")
+							GUICtrlSetData($calibrationInstruction,"Introduce the temperature sensor in a fluid cooler than 20ºC and wait for temperature reading stabilization" & @CRLF & "Strike the 'Next' button")
+					EndSwitch
+					GUICtrlSetState($calibrationLowvaluereaded,$GUI_SHOW)
+					GUICtrlSetState($calibrationLabel4,$GUI_SHOW)
+					GUICtrlSetState($calibrationValue2unitreaded,$GUI_SHOW)
+					GUICtrlSetState($calibrationHightvalue, $GUI_DISABLE)
+					$calibrationStage = 4
+
+				Case 4
+					Switch GUICtrlRead($calibrationSensor)
+						Case "VOLTAJE +"
+							GUICtrlSetData($calibrationValue1unit,"V")
+							GUICtrlSetData($calibrationInstruction,"Measure the power supply voltaje with a multimeter and introduce the value. RESPECT THE MEASURE SIGN" & @CRLF & "Strike the 'Next' button")
+						Case "VOLTAJE -"
+							GUICtrlSetData($calibrationValue1unit,"V")
+							GUICtrlSetData($calibrationInstruction,"Measure the power supply voltaje with a multimeter and introduce the value. RESPECT THE MEASURE SIGN" & @CRLF & "Strike the 'Next' button")
+						Case "CURRENT"
+							GUICtrlSetData($calibrationValue1unit,"A")
+
+						Case "TEMPERATURE"
+							GUICtrlSetData($calibrationValue1unit,"ºC")
+							GUICtrlSetData($calibrationInstruction,"Measure the fluid temperature with an external reference termometer and introduce the value." & @CRLF & "Strike the 'Next' button")
+					EndSwitch
+					GUICtrlSetState($calibrationHightvalue, $GUI_ENABLE)
+					GUICtrlSetState($calibrationLowvalue,$GUI_SHOW)
+					GUICtrlSetState($calibrationLabel2,$GUI_SHOW)
+					GUICtrlSetState($calibrationValue2unit,$GUI_SHOW)
+					$calibrationStage = 5
+
+				Case 5
+					GUICtrlSetState($calibrationHightvalue, $GUI_DISABLE)
+					GUICtrlSetData($calibrationInstruction,"Strike the 'Next' button to confirm the values and send data calibration to the Monitor hardware")
+					$calibrationStage = 6
+
+				Case 6
+					; Calculate calibration data and send to Arduino
+
+				Case Else
+
+			EndSwitch
 
 		case $versionformokbutton
 			GUISetState(@SW_HIDE, $versionform)
@@ -2199,6 +2285,13 @@ Func _MenuClicked ()
 				WEnd
 				$times+=1
 			WEnd
+
+		Case $configmenu_calibrate
+			$calibrationStage = 1
+
+			GUISetState(@SW_DISABLE,$myGui)
+			GUISetState(@SW_SHOW ,$calibrationForm)
+			GUICtrlSetState($calibrationSensor, $GUI_ENABLE)
 
 
 		Case $testmenu_serialport
