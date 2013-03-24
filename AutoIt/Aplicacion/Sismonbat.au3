@@ -1,7 +1,4 @@
-﻿#Region ;**** Directives created by AutoIt3Wrapper_GUI ****
-#AutoIt3Wrapper_Res_Fileversion=0.8.1
-#EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
-#cs ----------------------------------------------------------------------------
+﻿#cs ----------------------------------------------------------------------------
 
  AutoIt Version: 3.3.8.1
  Author:         Antonio Morales Ruiz
@@ -9,6 +6,7 @@
  Script Function:
 
  Version:
+			0.22.0	Add battery selection when writing to battsignals in database. not checked.
 			0.21.2	Select from database with battery identification now work.
 			0.21.1	Tab changes don't work. Change to severals forms
 			0.21.0	Add battery selection when reading from database. Don't work
@@ -1532,7 +1530,7 @@ Func _ButtonClicked ()
 						.MoveNext
 					WEnd
 				EndWith
-				_ArrayDisplay($sensor, "")
+				;_ArrayDisplay($sensor, "")
 
 				GUISetState(@SW_ENABLE,$myGui)
 				GUISetState(@SW_SHOW ,$myGui)
@@ -1542,8 +1540,34 @@ Func _ButtonClicked ()
 		Case $savebutton
 
 			If UBound($sensor,2) > 1 Then
+				; Check if the battery exist in batteries table
+				$SQLCode = 'SELECT battid FROM batteries WHERE truckmodel = "' & $truckmodel
+				$SQLCode &= '" && truckserial = "' & $truckserial
+				$SQLCode &= '" && battmodel = "' & $batterymodel
+				$SQLCode &= '" && battserial = "' & $batteryserial
+				ConsoleWrite($SQLCode & @CRLF)
+				$TableContents = _Query($SQLInstance, $SQLCode)
+
+				If $TableContents.EOF then ; Querry is empty
+					; Insert the battery data in table
+					$SQLCode = 'INSERT INTO batteries (truckmodel, truckserial, battmodel, battserial) VALUES('
+					$SQLCode &= '"' & $truckmodel & '", "' & $truckserial & '", "' & $batterymodel & '", "' & $batteryserial & '")'
+					ConsoleWrite($SQLCode & @CRLF)
+					_Query($SQLInstance, $SQLCode)
+					; Get the battery id
+					$SQLCode = 'SELECT battid FROM batteries WHERE truckmodel = "' & $truckmodel
+					$SQLCode &= '" && truckserial = "' & $truckserial
+					$SQLCode &= '" && battmodel = "' & $batterymodel
+					$SQLCode &= '" && battserial = "' & $batteryserial
+					ConsoleWrite($SQLCode & @CRLF)
+					$TableContents = _Query($SQLInstance, $SQLCode)
+					$batteryID = $TableContents.Fields("battid").value
+				Else
+					$batteryID = $TableContents.Fields("battid").value
+				EndIf
+
 				For $k = 0 To (UBound($sensor,2)-1) Step 1
-					$SQLCode = "INSERT INTO battsignals (fecha, battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & $sensor[0][$k] & ", " & "01" & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
+					$SQLCode = "INSERT INTO battsignals (fecha, battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & $sensor[0][$k] & ", " & $batteryID & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
 					$SQLCode &= " ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)"    ;Don`t work Error with querry sentence ¿?¿?¿?
 					;$SQLCode = "INSERT INTO battsignals (battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & "01" & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
 					ConsoleWrite($SQLCode & @CRLF)
