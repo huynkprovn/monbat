@@ -9,6 +9,8 @@
  Script Function:
 
  Version:
+			0.21.2	Select from database with battery identification now work.
+			0.21.1	Tab changes don't work. Change to severals forms
 			0.21.0	Add battery selection when reading from database. Don't work
 			0.20.0	Add track and battery identification data send
 			0.19.0	Add X-axis values and some explaining labels
@@ -194,28 +196,25 @@ GUICtrlCreateLabel("Detected trucks/batteries monitorized ", 40, 8, 234, 34, Bit
 *	SELECT FROM DATABASE FORM
 * ***************
 #ce
-Global $selecrangeform
-Global $monitortab, $datetab, $myTab, $monitoridlist
+Global $selectidform, $selectdateform
+Global $batterylist[1][5]    ;the list of batteries stored in database for select one
+Global $monitortab, $datetab, $myTab, $batteryidlist, $batteryID
 Global $selecidNext, $selectidCancel, $selectidScan
-Global $ini, $ini_h, $ini_m, $end, $end_h, $end_m, $selecrangePrev, $selecRangeCancel, $selecRangeOk
+Global $ini, $ini_h, $ini_m, $end, $end_h, $end_m, $selectDatePrev, $selectDateCancel, $selectDateOk
 Global $ini_date, $end_date
 
+$batteryID = 0
 #Region ### START Koda GUI section ###
-$selecrangeform = GUICreate("Select date range to show", 666, 464, 192, 124)
+$selectidform = GUICreate("Select battery to show", 666, 464, 192, 124)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 
-$myTab = GUICtrlCreateTab( 10, 10, 666 - 20, 464 - 20)
-
-$monitortab=GUICtrlCreateTabItem("Monitor") ;
-GUISwitch($myTab, $monitortab)
-;$monitortab=_GUICtrlTab_InsertItem($myTab, 0, "Monitor")
-$monitoridlist = GUICtrlCreateListView("", 20, 40, 666-40, 338,-1, BitOR($LVS_EX_FULLROWSELECT, $LVS_EX_SUBITEMIMAGES))
-_GUICtrlListView_InsertColumn($monitoridlist,0,"Id", 50)
-_GUICtrlListView_InsertColumn($monitoridlist,1,"Truck Model", 125)
-_GUICtrlListView_InsertColumn($monitoridlist,2,"Truck S/N", 125)
-_GUICtrlListView_InsertColumn($monitoridlist,3,"Battery Model", 125)
-_GUICtrlListView_InsertColumn($monitoridlist,4,"Battery S/N", 125)
-_GUICtrlListView_SetItemCount($monitoridlist, 40)       ; allocate memory for 40 rows in the listview control for prevent allocation every time a item is added
+$batteryidlist = GUICtrlCreateListView("", 20, 40, 666-40, 338,-1, BitOR($LVS_EX_FULLROWSELECT, $LVS_EX_SUBITEMIMAGES))
+_GUICtrlListView_InsertColumn($batteryidlist,0,"Id", 50)
+_GUICtrlListView_InsertColumn($batteryidlist,1,"Truck Model", 125)
+_GUICtrlListView_InsertColumn($batteryidlist,2,"Truck S/N", 125)
+_GUICtrlListView_InsertColumn($batteryidlist,3,"Battery Model", 125)
+_GUICtrlListView_InsertColumn($batteryidlist,4,"Battery S/N", 125)
+_GUICtrlListView_SetItemCount($batteryidlist, 40)       ; allocate memory for 40 rows in the listview control for prevent allocation every time a item is added
 
 $selectidScan= GUICtrlCreateButton("Scan", 70 , 388, 129, 41)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
@@ -224,9 +223,8 @@ GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $selecidNext = GUICtrlCreateButton("Next", 460, 388, 129, 41)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 
-$datetab=GUICtrlCreateTabItem("Date") ;
-;$datetab=_GUICtrlTab_InsertItem($myTab, 0, "Date")
-GUISwitch($myTab, $datetab)
+$selectdateform = GUICreate("Select date range to show", 666, 464, 192, 124)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 GUICtrlCreateGroup("", 24, 60, 297, 297)
 $ini = GUICtrlCreateMonthCal("2013/02/14", 48, 100, 249, 177)
 $ini_h = GUICtrlCreateInput("", 48, 300, 81, 21, $GUI_SS_DEFAULT_INPUT);BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY))
@@ -252,11 +250,11 @@ GUICtrlCreateLabel("Hour", 360, 284, 27, 17)
 GUICtrlCreateLabel("Minute", 488, 284, 36, 17)
 GUICtrlCreateGroup("", -99, -99, 1, 1)
 
-$selecrangePrev= GUICtrlCreateButton("Prev", 70 , 388, 129, 41)
+$selectDatePrev= GUICtrlCreateButton("Prev", 70 , 388, 129, 41)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$selecRangeCancel = GUICtrlCreateButton("Cancel", 265, 388, 129, 41)
+$selectDateCancel = GUICtrlCreateButton("Cancel", 265, 388, 129, 41)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
-$selecRangeOk = GUICtrlCreateButton("Ok", 460, 388, 129, 41)
+$selectDateOk = GUICtrlCreateButton("Ok", 460, 388, 129, 41)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 GUICtrlCreateLabel("INITIAL DATE", 120, 44, 88, 20)
 GUICtrlSetFont(-1, 10, 400, 0, "MS Sans Serif")
@@ -843,10 +841,16 @@ Func _CLOSEClicked ()
 			GUISetState(@SW_SHOW ,$myGui)
 			GUISetState(@SW_HIDE,$searchform)
 
-		Case $selecrangeform
+		Case $selectidform
 			GUISetState(@SW_ENABLE,$myGui)
 			GUISetState(@SW_SHOW ,$myGui)
-			GUISetState(@SW_HIDE,$selecrangeform)
+			GUISetState(@SW_HIDE,$selectidform)
+
+		Case $selectdateform
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$selectdateform)
+
 
 		Case Else
 
@@ -1445,64 +1449,95 @@ Func _ButtonClicked ()
 			_Draw()
 
 		Case $viewbutton
+			GUISetState(@SW_SHOW ,$selectidform)
 
-			GUISetState(@SW_SHOW ,$selecrangeform)
+		Case $selectidScan
+			$SQLCode = "SELECT * FROM batteries"
+			$TableContents = _Query($SQLInstance, $SQLCode)
+			ReDim $batterylist[1][5]
+			_GUICtrlListView_DeleteAllItems(GUICtrlGetHandle($batteryidlist)) ; Clear previous printed list
+
+			$first = True
+			With $TableContents
+				While Not .EOF
+					If $first Then			; if array has only 1 cell write the data in it, in other case
+						$first = False
+					Else
+						ReDim $batterylist[UBound($batterylist,1)+1][5]		; add space for the next data
+					EndIf
+
+					$batterylist[UBound($batterylist,1)-1][0] = .Fields("battid").value
+					$batterylist[UBound($batterylist,1)-1][1] = .Fields("truckmodel").value
+					$batterylist[UBound($batterylist,1)-1][2] = .Fields("truckserial").value
+					$batterylist[UBound($batterylist,1)-1][3] = .Fields("battmodel").value
+					$batterylist[UBound($batterylist,1)-1][4] = .Fields("battserial").value
+
+					.MoveNext
+				WEnd
+			EndWith
+			_GUICtrlListView_AddArray($batteryidlist,  $batterylist)
 
 		Case $selecidNext
-			GUISwitch($myTab,$datetab)
-			;_GUICtrlTab_SetCurSel($myTab, 1)
+			$batteryID = $batterylist[_GUICtrlListView_GetSelectedIndices($batteryidlist)][0]
+			;MsgBox(0,"","Selected " & $batteryID & " battery id")
+			GUISetState(@SW_SHOW,$selectdateform)
+			GUISetState(@SW_HIDE,$selectidform)
 
-		Case $selecrangePrev
-			GUISwitch($myTab,$monitortab)
-			;_GUICtrlTab_SetCurSel($myTab, 0)
+		Case $selectDatePrev
+			GUISetState(@SW_SHOW,$selectidform)
+			GUISetState(@SW_HIDE,$selectdateform)
 
-		Case $selecRangeCancel
+		Case $selectDateCancel
 			GUISetState(@SW_ENABLE,$myGui)
 			GUISetState(@SW_SHOW ,$myGui)
-			GUISetState(@SW_HIDE,$selecrangeform)
+			GUISetState(@SW_HIDE,$selectdateform)
 
-		Case $selecRangeOk
+		Case $selectidCancel
+			GUISetState(@SW_ENABLE,$myGui)
+			GUISetState(@SW_SHOW ,$myGui)
+			GUISetState(@SW_HIDE,$selectidform)
+
+		Case $selectDateOk
 			$ini_date = _DateDiff('s', "1970/01/01 00:00:00", GUICtrlRead($ini) & " " & GUICtrlRead($ini_h) & ":" & GUICtrlRead($ini_m) & ":00")
 			$end_date = _DateDiff('s', "1970/01/01 00:00:00", GUICtrlRead($end) & " " & GUICtrlRead($end_h) & ":" & GUICtrlRead($end_m) & ":00")
 
 			If ($ini_date >= $end_date) Then
 				MsgBox(0,"Invalid date range","The selected date range is invalid" & @CRLF & "Initial date must be before the end date")
+			Else
+				$SQLCode = "SELECT * FROM battsignals WHERE battid = "
+				;$SQLCode &= "BETWEEN " & $ini_date & " && " & $end_date & " " & "ORDER BY fecha ASC"
+				$SQLCode &= $batteryID & " && " & "fecha >= " & $ini_date & " && " & "fecha <= " & $end_date & " " & "ORDER BY fecha ASC"
+				ConsoleWrite($SQLCode & @CRLF)
+				$TableContents = _Query($SQLInstance, $SQLCode)
+
+				$first = True
+				ReDim $sensor[6][1]
+
+				With $TableContents
+					While Not .EOF
+
+						If $first Then			; if array has only 1 cell write the data in it, in other case
+							$first = False
+						Else
+							ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the next data
+						EndIf
+
+						$sensor[0][UBound($sensor,2)-1] = .Fields("fecha").value
+						$sensor[1][UBound($sensor,2)-1] = .Fields("voltajeh").value
+						$sensor[2][UBound($sensor,2)-1] = .Fields("voltajel").value
+						$sensor[3][UBound($sensor,2)-1] = .Fields("amperaje").value
+						$sensor[4][UBound($sensor,2)-1] = .Fields("temperature").value
+						$sensor[5][UBound($sensor,2)-1] = 1
+
+						.MoveNext
+					WEnd
+				EndWith
+				_ArrayDisplay($sensor, "")
+
+				GUISetState(@SW_ENABLE,$myGui)
+				GUISetState(@SW_SHOW ,$myGui)
+				GUISetState(@SW_HIDE,$selectdateform)
 			EndIf
-
-			$SQLCode = "SELECT * FROM battsignals WHERE fecha "
-			;$SQLCode &= "BETWEEN " & $ini_date & " && " & $end_date & " " & "ORDER BY fecha ASC"
-			$SQLCode &= ">= " & $ini_date & " && " & "fecha <= " & $end_date & " " & "ORDER BY fecha ASC"
-			ConsoleWrite($SQLCode & @CRLF)
-			$TableContents = _Query($SQLInstance, $SQLCode)
-
-			$first = True
-			ReDim $sensor[6][1]
-
-			With $TableContents
-				While Not .EOF
-
-					If $first Then			; if array has only 1 cell write the data in it, in other case
-						$first = False
-					Else
-						ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the next data
-					EndIf
-
-					$sensor[0][UBound($sensor,2)-1] = .Fields("fecha").value
-					$sensor[1][UBound($sensor,2)-1] = .Fields("voltajeh").value
-					$sensor[2][UBound($sensor,2)-1] = .Fields("voltajel").value
-					$sensor[3][UBound($sensor,2)-1] = .Fields("amperaje").value
-					$sensor[4][UBound($sensor,2)-1] = .Fields("temperature").value
-					$sensor[5][UBound($sensor,2)-1] = 1
-
-					.MoveNext
-				WEnd
-			EndWith
-			;_ArrayDisplay($sensor, "")
-
-			GUISetState(@SW_ENABLE,$myGui)
-			GUISetState(@SW_SHOW ,$myGui)
-			GUISetState(@SW_HIDE,$selecrangeform)
-
 
 		Case $savebutton
 
