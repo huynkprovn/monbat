@@ -6,6 +6,7 @@
  Script Function:
 
  Version:
+			0.23.0	Add new form for software calibration procedure.
 			0.22.0	Add battery selection when writing to battsignals in database. not checked.
 			0.21.2	Select from database with battery identification now work.
 			0.21.1	Tab changes don't work. Change to severals forms
@@ -81,7 +82,7 @@ Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
-Const $PROGRAM_VERSION = "0.21.0"
+Const $PROGRAM_VERSION = "0.23.0"
 Const $ConfigFile = "Sismonbat.ini" ; File where store last com port configuration and database access
 
 #cs
@@ -376,7 +377,56 @@ $versionformokbutton = GUICtrlCreateButton("Ok", 75, 110, 50, 30)
 GUIctrlSetOnEvent(-1, "_ButtonClicked")
 
 
+#cs
+* ***************
+*	CALIBRATION FORM
+* ***************
+#ce
+Global $calibrationForm, $calibrationInstruction, $calibrationNext, $calibrationCancel
+Global $calibrationSensor, $calibrationHightvalue, $calibrationLowvalue, $calibrationValue1unit, $calibrationValue2unit
+Global $calibrationHightvaluereaded, $calibrationLowvaluereaded, $calibrationValue1unitreaded, $calibrationValue2unitreaded
+Global $calibrationStage
 
+#Region ### START Koda GUI section ###
+$calibrationStage = 1; First step in calibration procedure
+$calibrationForm = GUICreate("MonBat Software Calibration Interface", 444, 369, 192, 124)
+GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
+
+$calibrationInstruction = GUICtrlCreateLabel("Select one sensor for calibrate and strike Next", 28, 24, 375, 24, $WS_BORDER)
+GUICtrlSetFont(-1, 12, 800, 0, "MS Sans Serif")
+GUICtrlSetBkColor(-1, 0xFFFFFF)
+$calibrationSensor = GUICtrlCreateCombo("", 28, 136, 161, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+GUICtrlSetData(-1, "VOLTAJE +|VOLTAJE -|CURRENT|TEMPERATURE")
+$calibrationHightvalue = GUICtrlCreateInput("12,43", 264, 192, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_NUMBER))
+$calibrationLowvalue = GUICtrlCreateInput("", 264, 248, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_NUMBER))
+GUICtrlCreateLabel("Sensor", 28, 120, 37, 17)
+GUICtrlCreateLabel("Value 1", 264, 176, 40, 17)
+GUICtrlCreateLabel("Value 2", 264, 232, 40, 17)
+$calibrationValue1unit = GUICtrlCreateLabel("V", 352, 192, 15, 24)
+GUICtrlSetFont(-1, 12, 400, 0, "MS Sans Serif")
+$calibrationValue2unit = GUICtrlCreateLabel("V", 352, 248, 15, 24)
+GUICtrlSetFont(-1, 12, 400, 0, "MS Sans Serif")
+$calibrationHightvaluereaded = GUICtrlCreateInput("", 32, 192, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY,$ES_NUMBER))
+$calibrationLowvaluereaded = GUICtrlCreateInput("", 32, 248, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY,$ES_NUMBER))
+GUICtrlCreateLabel("Value readed", 32, 176, 67, 17)
+GUICtrlCreateLabel("Value reades", 32, 232, 66, 17)
+$calibrationValue1unitreaded = GUICtrlCreateLabel("V", 120, 192, 15, 24)
+GUICtrlSetFont(-1, 12, 400, 0, "MS Sans Serif")
+$calibrationValue2unitreaded = GUICtrlCreateLabel("V", 120, 248, 15, 24)
+GUICtrlSetFont(-1, 12, 400, 0, "MS Sans Serif")
+$calibrationNext = GUICtrlCreateButton("Next", 264, 304, 137, 41)
+GUIctrlSetOnEvent(-1, "_ButtonClicked")
+$calibrationCancel = GUICtrlCreateButton("Cancel", 28, 304, 137, 41)
+GUIctrlSetOnEvent(-1, "_ButtonClicked")
+#EndRegion ### END Koda GUI section ###
+
+
+
+#cs
+* ***************
+*	MAIN FORM
+* ***************
+#ce
 ; Form creation
 $myGui = GUICreate("Traction batteries monitor system", $GUIWidth, $GUIHeight, 5, 5)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
