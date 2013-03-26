@@ -6,7 +6,10 @@
  Script Function:
 
  Version:
-			0.23.1	Add calibration form secuence structure
+			0.23.4	Fix error in time axis stops representation
+			0.23.3	Fix error in visualization structure
+			0.23.2	Add previous stage possibility in calibration procedure
+			0.23.1	Add calibration form sequence structure
 			0.23.0	Add new form for software calibration procedure.
 			0.22.0	Add battery selection when writing to battsignals in database. not checked.
 			0.21.2	Select from database with battery identification now work.
@@ -82,14 +85,8 @@ Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
-Const $PROGRAM_VERSION = "0.23.1"
+Const $PROGRAM_VERSION = "0.23.4"
 Const $ConfigFile = "Sismonbat.ini" ; File where store last com port configuration and database access
-
-#cs
-* ***************
-*	MAIN FORM
-* ***************
-#ce
 
 ;$dllpath = "commg.dll"
 
@@ -165,6 +162,7 @@ Global $response ; manage the msgbox pressed button
 *	SCAN MONITORIZED BATTERIES FORM
 * ***************
 #ce
+#Region ###
 Global $searchform, $monitorlist, $searchmonitorconnectbutton, $searchmonitorscanbutton
 Global $monitor64addr, $monitor16addr
 Global $monitorfounded[1][6]    ;the list of search of found
@@ -188,6 +186,7 @@ GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $searchmonitorconnectbutton = GUICtrlCreateButton("Connect", 208, 400, 75, 25)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 GUICtrlCreateLabel("Detected trucks/batteries monitorized ", 40, 8, 234, 34, BitOR($SS_CENTER,$SS_CENTERIMAGE))
+#EndRegion ###
 
 
 #cs
@@ -195,6 +194,7 @@ GUICtrlCreateLabel("Detected trucks/batteries monitorized ", 40, 8, 234, 34, Bit
 *	SELECT FROM DATABASE FORM
 * ***************
 #ce
+#Region ### START Koda GUI section ###
 Global $selectidform, $selectdateform
 Global $batterylist[1][5]    ;the list of batteries stored in database for select one
 Global $monitortab, $datetab, $myTab, $batteryidlist, $batteryID
@@ -203,7 +203,7 @@ Global $ini, $ini_h, $ini_m, $end, $end_h, $end_m, $selectDatePrev, $selectDateC
 Global $ini_date, $end_date
 
 $batteryID = 0
-#Region ### START Koda GUI section ###
+
 $selectidform = GUICreate("Select battery to show", 666, 464, 192, 124)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 
@@ -262,23 +262,28 @@ GUICtrlSetFont(-1, 10, 400, 0, "MS Sans Serif")
 GUICtrlCreateTabItem("")
 #EndRegion ### END Koda GUI section ###
 
+
 #cs
 * ***************
 *	ALARM VISUALIZATION FORM
 * ***************
 #ce
+#Region ###
 Global $alarmform
 Global $alarmoutput
 
 $alarmform = GUICreate("Alarm List",400,600)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 $alarmoutput = GUICtrlCreateEdit("", 10, 10, 380, 580)
+#EndRegion ###
+
 
 #cs
 * ***************
 *	COM PORT SELECT FORM
 * ***************
 #ce
+#Region ###
 Global $comportselectform, $comportselect, $baudrateselct, $databitselect, $dataparityselect, $stopbitselect, $flowcontrolselect
 Global $comselectokbutton, $comselectcancelbutton, $comselecthelpbutton
 
@@ -307,6 +312,7 @@ $comselectcancelbutton = GUICtrlCreateButton("&Cancel", 220, 76, 89, 33)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $comselecthelpbutton = GUICtrlCreateButton("&Help", 220, 140, 89, 33)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
+#EndRegion ###
 
 
 #cs
@@ -314,6 +320,7 @@ GUICtrlSetOnEvent(-1, "_ButtonClicked")
 *	DATABASE ACCESS CONFIG FORM
 * ***************
 #ce
+#Region ###
 Global $databaseconfigform, $databaseselectokbutton, $databaseselectcancelbutton, $databaseselecthelpbutton
 Global $databaseselectdatabase, $databaseselectuser, $databaseselectpassword
 
@@ -331,12 +338,15 @@ $databaseselectcancelbutton = GUICtrlCreateButton("&Cancel", 136, 160, 89, 32)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $databaseselecthelpbutton = GUICtrlCreateButton("&Help", 248, 160, 89, 32)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
+#EndRegion ###
+
 
 #cs
 * ***************
 *	HARDWARE DATA CONFIG FORM
 * ***************
 #ce
+#Region ###
 Global $hardwaredataform, $dataconfigtruckmodel, $dataconfigtruckserial, $dataconfigbatterymodel, $dataconfigbatteryserial
 Global $dataconfigcancelbutton, $dataconfigokbutton, $dataconfighelpbutton
 
@@ -360,6 +370,7 @@ $dataconfigokbutton = GUICtrlCreateButton("&OK", 25, 160, 89, 32)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $dataconfighelpbutton = GUICtrlCreateButton("&Help", 248, 160, 89, 32)
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
+#EndRegion ###
 
 
 #cs
@@ -367,6 +378,7 @@ GUICtrlSetOnEvent(-1, "_ButtonClicked")
 *	VERSION FORM
 * ***************
 #ce
+#Region ###
 Global $versionform
 Global $versionformokbutton
 
@@ -375,6 +387,7 @@ GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 GUICtrlCreateLabel("Traction batteries monitor system" & @CRLF & "Version: " & $PROGRAM_VERSION, 10,10)
 $versionformokbutton = GUICtrlCreateButton("Ok", 75, 110, 50, 30)
 GUIctrlSetOnEvent(-1, "_ButtonClicked")
+#EndRegion ###
 
 
 #cs
@@ -382,13 +395,14 @@ GUIctrlSetOnEvent(-1, "_ButtonClicked")
 *	CALIBRATION FORM
 * ***************
 #ce
+#Region ###
 Global $calibrationForm, $calibrationInstruction, $calibrationNextbutton, $calibrationCancelbutton
 Global $calibrationSensor, $calibrationHightvalue, $calibrationLowvalue, $calibrationValue1unit, $calibrationValue2unit
 Global $calibrationHightvaluereaded, $calibrationLowvaluereaded, $calibrationValue1unitreaded, $calibrationValue2unitreaded
 Global $calibrationLabel1,$calibrationLabel2,$calibrationLabel3,$calibrationLabel4
 Global $calibrationStage
 
-#Region ### START Koda GUI section ###
+;#Region ### START Koda GUI section ###
 $calibrationStage = 1; First step in calibration procedure
 $calibrationForm = GUICreate("MonBat Software Calibration Interface", 444, 369, 192, 124)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
@@ -424,11 +438,13 @@ $calibrationLabel4=GUICtrlCreateLabel("Value readed", 32, 232, 66, 17)
 
 
 
+
 #cs
 * ***************
 *	MAIN FORM
 * ***************
 #ce
+#Region ###
 ; Form creation
 $myGui = GUICreate("Traction batteries monitor system", $GUIWidth, $GUIHeight, 5, 5)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
@@ -774,11 +790,11 @@ $ypos += $labelspacer
 GUICtrlCreateLabel("Battery serial",$xpos, $ypos, $labelwith, 15)
 $batteryserial = GUICtrlCreateLabel("",$xpos + $labelwith, $ypos, $GUIWidth - $GUIWidth/40 -($xpos+$labelwith),15)
 GUICtrlSetBkColor(-1,0xffffff)
-
+#EndRegion ###
 
 
 _Main()
-
+#Region ###
 Func _Main ()
 
 	;Local $hDLL = DllOpen("user32.dll")
@@ -815,12 +831,14 @@ Func _Main ()
 	WEnd
 
 EndFunc
+#EndRegion ###
 
 
 ;***************************************************************************************************
-;
+;		_CLOSECLICKED()
 ;
 ;***************************************************************************************************
+#Region ###
 Func _CLOSEClicked ()
 	Local $res
 
@@ -883,7 +901,14 @@ Func _CLOSEClicked ()
 	EndSwitch
 
 EndFunc
+#EndRegion ###
 
+
+;***************************************************************************************************
+;		_MOUSEMOVE()
+;
+;***************************************************************************************************
+#Region ###
 ;check if mouse is over a button to display a description
 Func _MouseMove ()
 	Local $mouseinfo
@@ -1220,12 +1245,15 @@ Func _MouseMove ()
 
 		EndSwitch
 	EndIf
-
-
-
 EndFunc
+#EndRegion ###
 
 
+;***************************************************************************************************
+;		_BUTTONCLICKED()
+;
+;***************************************************************************************************
+#Region ###
 Func _ButtonClicked ()
 
 	Local $k ; General counter
@@ -2090,13 +2118,14 @@ Func _ButtonClicked ()
 			EndIf
 
 		Case $calibrationNextbutton
-			If $calibrationStage = 1 Then
-				_CalibrationProcess($calibrationStage)
+			If $calibrationStage = 0 Then
 				$calibrationStage += 1
+				_CalibrationProcess($calibrationStage)
 				GUICtrlSetData($calibrationCancelbutton,"Prev")
 			ElseIf $calibrationStage < 6 Then
-				_CalibrationProcess($calibrationStage)
 				$calibrationStage += 1
+				_CalibrationProcess($calibrationStage)
+
 			Else
 				GUISetState(@SW_ENABLE,$myGui)
 				GUISetState(@SW_SHOW ,$myGui)
@@ -2111,8 +2140,14 @@ Func _ButtonClicked ()
 	EndSwitch
 
 EndFunc
+#EndRegion ###
 
 
+;***************************************************************************************************
+;		_MENUCLICKED()
+;
+;***************************************************************************************************
+#Region ###
 Func _MenuClicked ()
 	Local $comportlist, $k ; Used in COM port detection
 	Local $fecha, $res
@@ -2210,27 +2245,31 @@ Func _MenuClicked ()
 			WEnd
 
 		Case $configmenu_calibrate
-			$calibrationStage = 1
+			If (NoT $serialconnected) Then
+				$response = MsgBox(0,"No battery monitor connection stablished","There is not a connection stablished with a battery monitor!" & @CRLF & "Please, search battery monitors in range and connect to it before inic a cablibration routine")
+				GUICtrlSetData($status, $response & @CRLF)
+			Else
+				$calibrationStage = 0
+				_CalibrationProcess($calibrationStage)
+				GUICtrlSetState($calibrationHightvalue,$GUI_HIDE)
+				GUICtrlSetState($calibrationLowvalue,$GUI_HIDE)
+				GUICtrlSetState($calibrationValue1unit,$GUI_HIDE)
+				GUICtrlSetState($calibrationValue2unit,$GUI_HIDE)
+				GUICtrlSetState($calibrationHightvaluereaded,$GUI_HIDE)
+				GUICtrlSetState($calibrationLowvaluereaded,$GUI_HIDE)
+				GUICtrlSetState($calibrationValue1unitreaded,$GUI_HIDE)
+				GUICtrlSetState($calibrationValue2unitreaded,$GUI_HIDE)
+				GUICtrlSetState($calibrationLabel1,$GUI_HIDE)
+				GUICtrlSetState($calibrationLabel2,$GUI_HIDE)
+				GUICtrlSetState($calibrationLabel3,$GUI_HIDE)
+				GUICtrlSetState($calibrationLabel4,$GUI_HIDE)
 
-			GUICtrlSetState($calibrationHightvalue,$GUI_HIDE)
-			GUICtrlSetState($calibrationLowvalue,$GUI_HIDE)
-			GUICtrlSetState($calibrationValue1unit,$GUI_HIDE)
-			GUICtrlSetState($calibrationValue2unit,$GUI_HIDE)
-			GUICtrlSetState($calibrationHightvaluereaded,$GUI_HIDE)
-			GUICtrlSetState($calibrationLowvaluereaded,$GUI_HIDE)
-			GUICtrlSetState($calibrationValue1unitreaded,$GUI_HIDE)
-			GUICtrlSetState($calibrationValue2unitreaded,$GUI_HIDE)
-			GUICtrlSetState($calibrationLabel1,$GUI_HIDE)
-			GUICtrlSetState($calibrationLabel2,$GUI_HIDE)
-			GUICtrlSetState($calibrationLabel3,$GUI_HIDE)
-			GUICtrlSetState($calibrationLabel4,$GUI_HIDE)
 
+				GUISetState(@SW_DISABLE,$myGui)
+				GUISetState(@SW_SHOW ,$calibrationForm)
+				GUICtrlSetState($calibrationSensor, $GUI_ENABLE)
 
-
-
-			GUISetState(@SW_DISABLE,$myGui)
-			GUISetState(@SW_SHOW ,$calibrationForm)
-			GUICtrlSetState($calibrationSensor, $GUI_ENABLE)
+			EndIf
 
 
 		Case $testmenu_serialport
@@ -2249,10 +2288,14 @@ Func _MenuClicked ()
 	EndSwitch
 
 EndFunc
+#EndRegion ###
 
 
-
-
+;***************************************************************************************************
+;		_INPUTBOXCHANGE()
+;
+;***************************************************************************************************
+#Region ###
 Func _imputBoxChange()
 
 	Switch @GUI_CtrlId
@@ -2288,8 +2331,14 @@ Func _imputBoxChange()
 
 	EndSwitch
 EndFunc
+#EndRegion ###
 
 
+;***************************************************************************************************
+;		_CALIBRATIONPROCESS()
+;
+;***************************************************************************************************
+#Region ###
 Func _CalibrationProcess($stage)
 
 	Switch $stage
@@ -2298,6 +2347,8 @@ Func _CalibrationProcess($stage)
 			GUICtrlSetState($calibrationLabel3,$GUI_HIDE)
 			GUICtrlSetState($calibrationValue1unitreaded,$GUI_HIDE)
 			GUICtrlSetState($calibrationSensor, $GUI_ENABLE)
+			GUICtrlSetData($calibrationInstruction,"Select one sensor for calibrate and strike Next")
+
 		Case 1
 			Switch GUICtrlRead($calibrationSensor)
 				Case "VOLTAJE +"
@@ -2405,9 +2456,14 @@ Func _CalibrationProcess($stage)
 	EndSwitch
 
 EndFunc
+#EndRegion ###
 
 
-
+;***************************************************************************************************
+;		_DRAW()
+;
+;***************************************************************************************************
+#Region ###
 ;****************** GRAPHICAL REPRESENTATION FUNCTIONS **********************
 Func _Draw()
 	Local $j, $x, $y
@@ -2556,7 +2612,7 @@ Func _Draw()
 					GUICtrlSetGraphic($historygraph[$j], $GUI_GR_LINE, $x, $y)
 					;GUICtrlSetData($status, "," & $x, 1)
 				EndIf
-				;EndIf
+				;EndIf4
 			Next
 
 			GUICtrlSetColor($historygraph[$j], 0xffffff)
@@ -2575,8 +2631,21 @@ Func _Draw()
 		GUICtrlSetData($rulesValue[1][$j],Round((($j+1)/10)*($ymax/($yscale[2]*$ygain))-($offset[2]+$yoffset)/($yscale[2]*$ygain),1) & "A")
 		GUICtrlSetData($rulesValue[2][$j],Round((($j+1)/10)*($ymax/($yscale[3]*$ygain))-($offset[3]+$yoffset)/($yscale[3]*$ygain),1) & "ºC")
 	Next
-EndFunc
+	If UBound($sensor,2)-1>=1 Then
+		For $j = 0 to 3
+			GUICtrlSetData($timesValue[$j],_DateAdd('s',$screen[0][2*($j+1)*$xmax/10],"1970/01/01 00:00:00"))
+		Next
+	EndIf
 
+EndFunc
+#EndRegion ###
+
+
+;***************************************************************************************************
+;		OTHER DRAW FUNCTION
+;
+;***************************************************************************************************
+#Region ###
 Func _DrawGrid()
 	Local $k
 	GUICtrlSetGraphic($grid, $GUI_GR_COLOR, 0xDDDDDD)
@@ -2703,7 +2772,14 @@ Func _ShowCursorsValues()
 		EndIf
 	EndIf
 EndFunc
+#EndRegion ###
 
+
+;***************************************************************************************************
+;		OTHER FUNCTION
+;
+;***************************************************************************************************
+#Region ###
 Func _voltaje($sensorvalue)
 	Return ((($sensorvalue*3.2226/1000)+4.1030)/0.4431);
 EndFunc
@@ -2761,3 +2837,4 @@ Func _convertFromDatabase($dato)
 	Next
 	Return $res
 EndFunc
+#EndRegion ###
