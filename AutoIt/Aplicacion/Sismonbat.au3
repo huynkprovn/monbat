@@ -1588,6 +1588,17 @@ Func _ButtonClicked ()
 				EndWith
 				;_ArrayDisplay($sensor, "")
 
+				$SQLCode = "SELECT * FROM batteries WHERE battid = " & $batteryID
+				ConsoleWrite($SQLCode & @CRLF)
+				$TableContents = _Query($SQLInstance, $SQLCode)
+				With $TableContents
+					GUICtrlSetData($truckmodel, .Fields("truckmodel").value)
+					GUICtrlSetData($truckserial, .Fields("truckserial").value)
+					GUICtrlSetData($batterymodel, .Fields("battmodel").value)
+					GUICtrlSetData($batteryserial, .Fields("battserial").value)
+				EndWith
+
+
 				GUISetState(@SW_ENABLE,$myGui)
 				GUISetState(@SW_SHOW ,$myGui)
 				GUISetState(@SW_HIDE,$selectdateform)
