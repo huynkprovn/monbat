@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.10.2   Add received calibration parameter storage in EEPROM
  *              Version 0.10.1   Difference calibration from normal state in periodic sample capture
  *              Version 0.10.0   Add remote calibration functionality.
  *              Version 0.9.0    Add Status pannel controler functions.
@@ -577,21 +578,38 @@ void serialEvent()
           Calibrate = true;
           sensorCalibrate=rx.getData(1);
           if (rx.getDataLength()>2){
-            switch (rx.getData(2))
+          
+            switch (rx.getData(1))   // Modify sensor gain and offset 
             {         
-              case 0x01:
+              case 0x01:      // vh 
+                vh_gain=rx.getData(2);   
+                vh_off=rx.getData(3);
+                EEPROM.write(80, rx.getData(2));
+                EEPROM.write(81, rx.getData(3));
                 Calibrate = false;
                 break;
               
               case 0x02:
+                vl_gain=rx.getData(2);
+                vl_off=rx.getData(3);
+                EEPROM.write(82, rx.getData(2));
+                EEPROM.write(83, rx.getData(3));
                 Calibrate = false;
                 break;
     
               case 0x03:
+                a_gain=rx.getData(2);
+                a_off=rx.getData(3);
+                EEPROM.write(84, rx.getData(2));
+                EEPROM.write(85, rx.getData(3));
                 Calibrate = false;
                 break;
               
               case 0x04:
+                t_gain=rx.getData(2);
+                t_off=rx.getData(3);
+                EEPROM.write(86, rx.getData(2));
+                EEPROM.write(87, rx.getData(3));
                 Calibrate = false;
                 break;
   
