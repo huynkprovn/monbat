@@ -6,6 +6,7 @@
  Script Function:
 
  Version:
+			0.23.8	Fix error in save in database, and other minor changes
 			0.23.7	Add new function to adapt data identifications sent to Arduino to a 15chars string
 			0.23.6	Fix bug in send identification data to Arduino
 			0.23.5	Add battery and truck identification when readin from database
@@ -806,7 +807,7 @@ Func _Main ()
 	Local $pos[2]
 	Local $dato, $value
 
-	_Draw()
+	;_Draw()
 	While 1
 		If $cursorvisible Then
 			If _IsPressed("01") Then
@@ -833,25 +834,26 @@ Func _Main ()
 				Wend
 			EndIf
 		EndIf
-		Sleep(200)
+		;Sleep(200)
 	WEnd
 	If $calibrar Then  ;Represent the xbee data readed from arduino in the appropiate imputbox
-		If (_CheckIncomingFrame() And _GetApiID() == $ZB_RX_RESPONSE)  Then
-			$dato = _ReadZBDataResponseValue()
-			If (StringMid($dato, 1, 2) = $CALIBRATE) then
-				$value = Int(_convert(StringMid($dato, 3, 2)))  ;this is the sensor value readed in the Arduino.
+		If (_CheckIncomingFrame()) Then
+			if (_GetApiID() == $ZB_RX_RESPONSE)  Then
+				$dato = _ReadZBDataResponseValue()
+				If (StringMid($dato, 1, 2) = $CALIBRATE) then
+					$value = Int(_convert(StringMid($dato, 3, 2)))  ;this is the sensor value readed in the Arduino.
+					ConsoleWrite("calibration data received = " & $dato & @CRLF)
 
-				Switch $calibrationStage
-					Case 1
-						GUICtrlSetData($calibrationHightvaluereaded,$value)
-					Case 3
-						GUICtrlSetData($calibrationLowvaluereaded,$value)
-					Case Else
+					Switch $calibrationStage
+						Case 1
+							GUICtrlSetData($calibrationHightvaluereaded,$value)
+						Case 3
+							GUICtrlSetData($calibrationLowvaluereaded,$value)
+						Case Else
 
-				EndSwitch
-
+					EndSwitch
+				EndIf
 			EndIf
-
 		EndIf
 	EndIf
 
@@ -1634,24 +1636,24 @@ Func _ButtonClicked ()
 
 			If UBound($sensor,2) > 1 Then
 				; Check if the battery exist in batteries table
-				$SQLCode = 'SELECT battid FROM batteries WHERE truckmodel = "' & $truckmodel
-				$SQLCode &= '" && truckserial = "' & $truckserial
-				$SQLCode &= '" && battmodel = "' & $batterymodel
-				$SQLCode &= '" && battserial = "' & $batteryserial
+				$SQLCode = 'SELECT battid FROM batteries WHERE truckmodel = "' & GUICtrlRead($truckmodel)
+				$SQLCode &= '" && truckserial = "' & GUICtrlRead($truckserial)
+				$SQLCode &= '" && battmodel = "' & GUICtrlRead($batterymodel)
+				$SQLCode &= '" && battserial = "' & GUICtrlRead($batteryserial) & '"'
 				ConsoleWrite($SQLCode & @CRLF)
 				$TableContents = _Query($SQLInstance, $SQLCode)
 
 				If $TableContents.EOF then ; Querry is empty
 					; Insert the battery data in table
 					$SQLCode = 'INSERT INTO batteries (truckmodel, truckserial, battmodel, battserial) VALUES('
-					$SQLCode &= '"' & $truckmodel & '", "' & $truckserial & '", "' & $batterymodel & '", "' & $batteryserial & '")'
+					$SQLCode &= '"' & GUICtrlRead($truckmodel) & '", "' & GUICtrlRead($truckserial) & '", "' & GUICtrlRead($batterymodel) & '", "' & GUICtrlRead($batteryserial) & '")'
 					ConsoleWrite($SQLCode & @CRLF)
 					_Query($SQLInstance, $SQLCode)
 					; Get the battery id
-					$SQLCode = 'SELECT battid FROM batteries WHERE truckmodel = "' & $truckmodel
-					$SQLCode &= '" && truckserial = "' & $truckserial
-					$SQLCode &= '" && battmodel = "' & $batterymodel
-					$SQLCode &= '" && battserial = "' & $batteryserial
+					$SQLCode = 'SELECT battid FROM batteries WHERE truckmodel = "' & GUICtrlRead($truckmodel)
+					$SQLCode &= '" && truckserial = "' & GUICtrlRead($truckserial)
+					$SQLCode &= '" && battmodel = "' & GUICtrlRead($batterymodel)
+					$SQLCode &= '" && battserial = "' & GUICtrlRead($batteryserial) & '"'
 					ConsoleWrite($SQLCode & @CRLF)
 					$TableContents = _Query($SQLInstance, $SQLCode)
 					$batteryID = $TableContents.Fields("battid").value
