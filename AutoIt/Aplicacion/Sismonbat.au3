@@ -6,6 +6,8 @@
  Script Function:
 
  Version:
+			0.23.6	Fix bug in send identification data to Arduino
+			0.23.5	Add battery and truck identification when readin from database
 			0.23.4	Fix error in time axis stops representation
 			0.23.3	Fix error in visualization structure
 			0.23.2	Add previous stage possibility in calibration procedure
@@ -401,8 +403,10 @@ Global $calibrationSensor, $calibrationHightvalue, $calibrationLowvalue, $calibr
 Global $calibrationHightvaluereaded, $calibrationLowvaluereaded, $calibrationValue1unitreaded, $calibrationValue2unitreaded
 Global $calibrationLabel1,$calibrationLabel2,$calibrationLabel3,$calibrationLabel4
 Global $calibrationStage
+Global $calibrar
 
 ;#Region ### START Koda GUI section ###
+$calibrar = False
 $calibrationStage = 1; First step in calibration procedure
 $calibrationForm = GUICreate("MonBat Software Calibration Interface", 444, 369, 192, 124)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
@@ -799,6 +803,7 @@ Func _Main ()
 
 	;Local $hDLL = DllOpen("user32.dll")
 	Local $pos[2]
+	Local $dato, $value
 
 	_Draw()
 	While 1
@@ -829,6 +834,25 @@ Func _Main ()
 		EndIf
 		Sleep(200)
 	WEnd
+	If $calibrar Then  ;Represent the xbee data readed from arduino in the appropiate imputbox
+		If (_CheckIncomingFrame() And _GetApiID() == $ZB_RX_RESPONSE)  Then
+			$dato = _ReadZBDataResponseValue()
+			If (StringMid($dato, 1, 2) = $CALIBRATE) then
+				$value = Int(_convert(StringMid($dato, 3, 2)))  ;this is the sensor value readed in the Arduino.
+
+				Switch $calibrationStage
+					Case 1
+						GUICtrlSetData($calibrationHightvaluereaded,$value)
+					Case 3
+						GUICtrlSetData($calibrationLowvaluereaded,$value)
+					Case Else
+
+				EndSwitch
+
+			EndIf
+
+		EndIf
+	EndIf
 
 EndFunc
 #EndRegion ###
@@ -891,6 +915,7 @@ Func _CLOSEClicked ()
 		Case $calibrationForm
 			$res = MsgBox(4,"Confirm exit calibration","Are you sure you want to exit calibration process??")
 			IF $res = 6 Then
+				$calibrar = False
 				GUISetState(@SW_ENABLE,$myGui)
 				GUISetState(@SW_SHOW ,$myGui)
 				GUISetState(@SW_HIDE,$calibrationForm)
@@ -1995,11 +2020,12 @@ Func _ButtonClicked ()
 
 
 		Case $dataconfigokbutton
+			$res=""
 			$dat = GUICtrlRead($dataconfigtruckmodel)
 			For $k = 1 To StringLen($dat)
 				$res &= Hex(Asc(StringMid($dat,$k,1)),2)
 			Next
-			ConsoleWrite($res & @CRLF)
+			ConsoleWrite("Sending truck model " & $res & @CRLF)
 
 			$received=False
 			$times=1
@@ -2017,15 +2043,17 @@ Func _ButtonClicked ()
 							$received = True
 						EndIf
 					EndIf
+					Sleep(100)
 				WEnd
 				$times+=1
 			WEnd
 
+			$res=""
 			$dat = GUICtrlRead($dataconfigtruckserial)
 			For $k = 1 To StringLen($dat)
 				$res &= Hex(Asc(StringMid($dat,$k,1)),2)
 			Next
-			ConsoleWrite($res & @CRLF)
+			ConsoleWrite("Sending truck serial " & $res & @CRLF)
 
 			$received=False
 			$times=1
@@ -2043,15 +2071,17 @@ Func _ButtonClicked ()
 							$received = True
 						EndIf
 					EndIf
+					Sleep(100)
 				WEnd
 				$times+=1
 			WEnd
 
+			$res=""
 			$dat = GUICtrlRead($dataconfigbatterymodel)
 			For $k = 1 To StringLen($dat)
 				$res &= Hex(Asc(StringMid($dat,$k,1)),2)
 			Next
-			ConsoleWrite($res & @CRLF)
+			ConsoleWrite("Sending battery model " & $res & @CRLF)
 
 			$received=False
 			$times=1
@@ -2069,15 +2099,17 @@ Func _ButtonClicked ()
 							$received = True
 						EndIf
 					EndIf
+					Sleep(100)
 				WEnd
 				$times+=1
 			WEnd
 
+			$res=""
 			$dat = GUICtrlRead($dataconfigbatteryserial)
 			For $k = 1 To StringLen($dat)
 				$res &= Hex(Asc(StringMid($dat,$k,1)),2)
 			Next
-			ConsoleWrite($res & @CRLF)
+			ConsoleWrite("Sending battery serial " & $res & @CRLF)
 
 			$received=False
 			$times=1
@@ -2095,6 +2127,7 @@ Func _ButtonClicked ()
 							$received = True
 						EndIf
 					EndIf
+					Sleep(100)
 				WEnd
 				$times+=1
 			WEnd
@@ -2122,6 +2155,7 @@ Func _ButtonClicked ()
 			Else
 				$res = MsgBox(4,"Confirm exit calibration","Are you sure you want to exit calibration process??")
 				IF $res = 6 Then
+					$calibrar = False
 					GUISetState(@SW_ENABLE,$myGui)
 					GUISetState(@SW_SHOW ,$myGui)
 					GUISetState(@SW_HIDE,$calibrationForm)
@@ -2138,6 +2172,7 @@ Func _ButtonClicked ()
 				_CalibrationProcess($calibrationStage)
 
 			Else
+				$calibrar = False
 				GUISetState(@SW_ENABLE,$myGui)
 				GUISetState(@SW_SHOW ,$myGui)
 				GUISetState(@SW_HIDE,$calibrationForm)
@@ -2260,6 +2295,7 @@ Func _MenuClicked ()
 				$response = MsgBox(0,"No battery monitor connection stablished","There is not a connection stablished with a battery monitor!" & @CRLF & "Please, search battery monitors in range and connect to it before inic a cablibration routine")
 				GUICtrlSetData($status, $response & @CRLF)
 			Else
+				$calibrar = True
 				$calibrationStage = 0
 				_CalibrationProcess($calibrationStage)
 				GUICtrlSetState($calibrationHightvalue,$GUI_HIDE)
@@ -2351,6 +2387,7 @@ EndFunc
 ;***************************************************************************************************
 #Region ###
 Func _CalibrationProcess($stage)
+	Local $received, $times, $Time
 
 	Switch $stage
 		Case 0
@@ -2362,16 +2399,95 @@ Func _CalibrationProcess($stage)
 
 		Case 1
 			Switch GUICtrlRead($calibrationSensor)
+
 				Case "VOLTAJE +"
+					$received=False
+					$times=1
+					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+						_SendZBData($CALIBRATE & 0x1)
+
+						$Time = TimerInit()
+						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+							GUICtrlSetData($status, ".", 1)
+							If _CheckIncomingFrame() Then
+								ConsoleWrite(_PrintFrame() & @CRLF)
+								GUICtrlSetData($status, "-", 1)
+								If _GetApiID() == $ZB_RX_RESPONSE Then
+									GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+									$received = True
+								EndIf
+							EndIf
+						WEnd
+						$times+=1
+					WEnd
 					GUICtrlSetData($calibrationValue1unitreaded,"V")
 					GUICtrlSetData($calibrationInstruction,"Connect the monbat sistem to a variable power supply and set the posivite half tension to a value bigger than 15Vdc" & @CRLF & "Strike the 'Next' button")
+
 				Case "VOLTAJE -"
+					$received=False
+					$times=1
+					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+						_SendZBData($CALIBRATE & 0x2)
+
+						$Time = TimerInit()
+						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+							GUICtrlSetData($status, ".", 1)
+							If _CheckIncomingFrame() Then
+								ConsoleWrite(_PrintFrame() & @CRLF)
+								GUICtrlSetData($status, "-", 1)
+								If _GetApiID() == $ZB_RX_RESPONSE Then
+									GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+									$received = True
+								EndIf
+							EndIf
+						WEnd
+						$times+=1
+					WEnd
 					GUICtrlSetData($calibrationValue1unitreaded,"V")
-					GUICtrlSetData($calibrationInstruction,"Connect the monbat sistem to a variable power supply and set the negative half tension to a value bigger than -15Vdc" & @CRLF & "Strike the 'Next' button")
+					GUICtrlSetData($calibrationInstruction,"Connect the monbat sistem to a variable power supply and set the posivite half tension to a value bigger than 15Vdc" & @CRLF & "Strike the 'Next' button")
+
 				Case "CURRENT"
+					$received=False
+					$times=1
+					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+						_SendZBData($CALIBRATE & 0x3)
+
+						$Time = TimerInit()
+						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+							GUICtrlSetData($status, ".", 1)
+							If _CheckIncomingFrame() Then
+								ConsoleWrite(_PrintFrame() & @CRLF)
+								GUICtrlSetData($status, "-", 1)
+								If _GetApiID() == $ZB_RX_RESPONSE Then
+									GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+									$received = True
+								EndIf
+							EndIf
+						WEnd
+						$times+=1
+					WEnd
 					GUICtrlSetData($calibrationValue1unitreaded,"A")
 
 				Case "TEMPERATURE"
+					$received=False
+					$times=1
+					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+						_SendZBData($CALIBRATE & 0x4)
+
+						$Time = TimerInit()
+						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+							GUICtrlSetData($status, ".", 1)
+							If _CheckIncomingFrame() Then
+								ConsoleWrite(_PrintFrame() & @CRLF)
+								GUICtrlSetData($status, "-", 1)
+								If _GetApiID() == $ZB_RX_RESPONSE Then
+									GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+									$received = True
+								EndIf
+							EndIf
+						WEnd
+						$times+=1
+					WEnd
 					GUICtrlSetData($calibrationValue1unitreaded,"ºC")
 					GUICtrlSetData($calibrationInstruction,"Introduce the temperature sensor in a warm fluid hoter than 40ºC and wait for temperature reading stabilization" & @CRLF & "Strike the 'Next' button")
 
@@ -2461,7 +2577,94 @@ Func _CalibrationProcess($stage)
 
 		Case 6
 			; Calculate calibration data and send to Arduino
+			Switch GUICtrlRead($calibrationSensor)
 
+				Case "VOLTAJE +"
+					$received=False
+					$times=1
+					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+						_SendZBData($CALIBRATE & 0x1 & 0xff & 0xff)
+
+						$Time = TimerInit()
+						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+							GUICtrlSetData($status, ".", 1)
+							If _CheckIncomingFrame() Then
+								ConsoleWrite(_PrintFrame() & @CRLF)
+								GUICtrlSetData($status, "-", 1)
+								If _GetApiID() == $ZB_RX_RESPONSE Then
+									GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+									$received = True
+								EndIf
+							EndIf
+						WEnd
+						$times+=1
+					WEnd
+
+				Case "VOLTAJE -"
+					$received=False
+					$times=1
+					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+						_SendZBData($CALIBRATE & 0x2 & 0xff & 0xff)
+
+						$Time = TimerInit()
+						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+							GUICtrlSetData($status, ".", 1)
+							If _CheckIncomingFrame() Then
+								ConsoleWrite(_PrintFrame() & @CRLF)
+								GUICtrlSetData($status, "-", 1)
+								If _GetApiID() == $ZB_RX_RESPONSE Then
+									GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+									$received = True
+								EndIf
+							EndIf
+						WEnd
+						$times+=1
+					WEnd
+
+				Case "CURRENT"
+					$received=False
+					$times=1
+					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+						_SendZBData($CALIBRATE & 0x3 & 0xff & 0xff)
+
+						$Time = TimerInit()
+						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+							GUICtrlSetData($status, ".", 1)
+							If _CheckIncomingFrame() Then
+								ConsoleWrite(_PrintFrame() & @CRLF)
+								GUICtrlSetData($status, "-", 1)
+								If _GetApiID() == $ZB_RX_RESPONSE Then
+									GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+									$received = True
+								EndIf
+							EndIf
+						WEnd
+						$times+=1
+					WEnd
+					GUICtrlSetData($calibrationValue1unitreaded,"A")
+
+				Case "TEMPERATURE"
+					$received=False
+					$times=1
+					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+						_SendZBData($CALIBRATE & 0x4 & 0xff & 0xff)
+
+						$Time = TimerInit()
+						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+							GUICtrlSetData($status, ".", 1)
+							If _CheckIncomingFrame() Then
+								ConsoleWrite(_PrintFrame() & @CRLF)
+								GUICtrlSetData($status, "-", 1)
+								If _GetApiID() == $ZB_RX_RESPONSE Then
+									GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+									$received = True
+								EndIf
+							EndIf
+						WEnd
+						$times+=1
+					WEnd
+
+			EndSwitch
 		Case Else
 
 	EndSwitch
