@@ -9,6 +9,8 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.10.1   Difference calibration from normal state in periodic sample capture
+ *              Version 0.10.0   Add remote calibration functionality.
  *              Version 0.9.0    Add Status pannel controler functions.
  *              Version 0.8.0    Add frames sent to PC app to confirm the receipt of data
  *              Version 0.7.6    Modify the fifo read when transmiting data. Prevent infinite loop when reading memory
@@ -79,7 +81,10 @@ SoftwareSerial debugCon(9,10); //Rx, Tx arduino digital port for debug serial co
 
 // ******** XBEE PARAMETER DEFINITION ********
 boolean ConnToApp = false;     // Used to determinate when an Xbee connection with the 
-                              // PC app is established  
+boolean Calibrate = false;    // Used to determinate when the monitor is in software calibration process
+                              // PC app is established 
+byte sensorCalibrate = 0;    // Which sensor is been calibreted (00=none, 01 = Vh, 02 = Vl, 03 = A, 04 = T) 
+
 XBee xbee = XBee();  // Xbee object to manage the xbee connection 
 // state capturated by the arduino. 4 bytes for time, 2 bytes for V+, 2 bytes for V-
 // 2 byte for Amperaje, 2 bytes for Tª, 1 byte for level and alarms.
@@ -140,13 +145,21 @@ const word min_temp = 323;//0x0143 //15ºC (70% batt capacity) minimun permissib
 /*
  *  [0..1]: tail fifo address
  *  [2..3]: heal fifo address
- *  [4..9]: reserved
+ *
  *  [10..24]: truck model (15 characters)
  *  [25..39]: truck serial number (15 characters)
  *  [40..54]: battery model (15 characters)
  *  [55..69]: battery serial number (15 characters)  
  *  [70..71]: battery capacity in Ah
  *  [71..72]: reserved
+ *  [80]: vh_gain
+ *  [81]: vh_off
+ *  [82]: vl_gain
+ *  [83]: vl_off
+ *  [84]: a_gain
+ *  [85]: a_off
+ *  [86]: t_gain
+ *  [87]: t_off 
  */
  
  
@@ -154,10 +167,14 @@ const word min_temp = 323;//0x0143 //15ºC (70% batt capacity) minimun permissib
 // Calibrated data = SensorAnalogData * gain + off
 // Adjusting gain increase/decrease 10% the AnalogData
 // Adjunting off increase/decrease 10%FS the zero value of AnalogData.
-char vh_gain, vh_off;  
-char vl_gain, vl_off;
-char a_gain, a_off;
-char t_gain, t_off;
+byte vh_gain = EEPROM.read(80);
+byte vh_off = EEPROM.read(81);  
+byte vl_gain = EEPROM.read(82);
+byte vl_off = EEPROM.read(83);
+byte a_gain = EEPROM.read(84);
+byte a_off = EEPROM.read(85);
+byte t_gain = EEPROM.read(86);
+byte t_off = EEPROM.read(87);
 
 //Actual and Previous sensor values
 word sensorVh; // Analog pin values
@@ -250,6 +267,45 @@ void setup()
     debugCon.println("");
   }
   
+  
+  /*if (debug) {
+    debugCon.println("|                      SENSORS SOFTWARE CALIBRATION DATA                        |");
+    debugCon.println("|-------------------------------------------------------------------------------|");
+    debugCon.println("| vh_gain |  vh_off | vl_gain |  vl_off |  a_gain |  a_off  |  t_gain |  t_off  |");
+    debugCon.println("|         |         |         |         |         |         |         |         |");
+    debugCon << "|   " << vh_gain << "   |   " << vh_off << "   |   " << vl_gain << "   |   " << vl_off << "   |   " << a_gain << "   |   " << a_off << "   |   " << t_gain << "   |   " << t_off << "   |";   
+    debugCon.println("");
+    debugCon.println("|         |         |         |         |         |         |         |         |");
+    debugCon.println("|-------------------------------------------------------------------------------|");
+  }*/   // this code causes the arduino reset!!! why??  Only God knows
+  
+  if (debug) {
+    debugCon.println("SENSORS SOFTWARE CALIBRATION DATA");
+    debugCon.print("vh_gain = ");
+    debugCon.print(vh_gain);
+    debugCon.print("      vh_off = ");
+    debugCon.println(vh_off);
+    debugCon.print("vl_gain = ");
+    debugCon.print(vl_gain);
+    debugCon.print("      vl_off = ");
+    debugCon.println(vl_off);
+    debugCon.print("a_gain = ");
+    debugCon.print(a_gain);
+    debugCon.print("      a_off = ");
+    debugCon.println(a_off);
+    debugCon.print("t_gain = ");
+    debugCon.print(t_gain);
+    debugCon.print("      t_off = ");
+    debugCon.println(t_off);
+    if (Calibrate){
+      debugCon.println("In calibration process");
+    } else {
+      debugCon.println("Not in calibretion process");
+    } 
+  }
+  
+  delay(3000);
+    
   setTime(last_time);
   //setTime(11,0,0,17,11,2012);
   Alarm.timerRepeat(sample_period,captureData);  // Periodic function for reading sensors values
@@ -414,8 +470,8 @@ void serialEvent()
         
         case SET_TRUCK_MODEL:
           //blink_led(2,200);
-          payload[1]=SET_TRUCK_MODEL;
-          xbee.send(zbTx);      // PC App wait for this response o resend
+          payload[0]=SET_TRUCK_MODEL;
+          xbee.send(zbTx);      // PC App wait for this response or resend
           if (debug){
             debugCon.print("Truck Model received : ");
           }
@@ -434,8 +490,8 @@ void serialEvent()
           break;
         
         case SET_TRUCK_SN:
-          payload[1]=SET_TRUCK_SN;
-          xbee.send(zbTx);      // PC App wait for this response o resend
+          payload[0]=SET_TRUCK_SN;
+          xbee.send(zbTx);      // PC App wait for this response or resend
           //blink_led(2,200);
           if (debug){
             debugCon.print("Truck SN received : ");
@@ -455,8 +511,8 @@ void serialEvent()
           break;
         
         case SET_BATT_MODEL:
-          payload[1]=SET_BATT_MODEL;
-          xbee.send(zbTx);      // PC App wait for this response o resend
+          payload[0]=SET_BATT_MODEL;
+          xbee.send(zbTx);      // PC App wait for this response or resend
           //blink_led(2,200);
           if (debug){
             debugCon.print("Battery Model received : ");
@@ -476,8 +532,8 @@ void serialEvent()
           break;
         
         case SET_BATT_SN:
-          payload[1]=SET_BATT_SN;
-          xbee.send(zbTx);      // PC App wait for this response o resend
+          payload[0]=SET_BATT_SN;
+          xbee.send(zbTx);      // PC App wait for this response or resend
           //blink_led(2,200);
           if (debug){
             debugCon.print("Battery SN received : ");
@@ -497,7 +553,9 @@ void serialEvent()
           break;
         
         case SET_BATT_CAPACITY:
-          blink_led(2,200);
+          payload[0]=SET_BATT_CAPACITY;
+          xbee.send(zbTx);      // PC App wait for this response o resend
+          //blink_led(2,200);
           if (debug){
             debugCon.print("Battery capacity received : ");
           }
@@ -510,10 +568,44 @@ void serialEvent()
           break;
         
         case CALIBRATE:
+          payload[0]=CALIBRATE;
+          xbee.send(zbTx);      // PC App wait for this response o resend
+          if (debug){
+            debugCon.print("Calibration in procces in sensor : ");
+            debugCon.println(rx.getData(1));
+          }
+          Calibrate = true;
+          sensorCalibrate=rx.getData(1);
+          if (rx.getDataLength()>2){
+            switch (rx.getData(2))
+            {         
+              case 0x01:
+                Calibrate = false;
+                break;
+              
+              case 0x02:
+                Calibrate = false;
+                break;
+    
+              case 0x03:
+                Calibrate = false;
+                break;
+              
+              case 0x04:
+                Calibrate = false;
+                break;
+  
+              default:
+                Calibrate = false;
+                break;
+            }
+          }  
+        
           break;
                 
         case SET_TIME:
-          
+          payload[0]=SET_TIME;
+          xbee.send(zbTx);      // PC App wait for this response o resend
           t=0;
           for (int k = rx.getDataLength()-1; k>=1 ; k--) //read in reverse mode
             t = t*255+int(rx.getData(k));
@@ -611,6 +703,8 @@ void serialEvent()
           break;
         
         case RESET_MEM:
+          payload[0]=RESET_MEM;
+          xbee.send(zbTx);      // PC App wait for this response o resend
           fifo.Clear();
           fifo_tail = fifo.Get_tail();
           fifo_head =  fifo.Get_head();
@@ -688,66 +782,94 @@ void captureData()
   charge=calc_ah_drained(i_p,i,charge,sample_period);
   i_p=i;   // this is a local var used only for charge load/drained calculation
   
-  if (debug){
-    debugCon.print(now());
-    debugCon.print(" :  Voltaje+ : ");  
-    debugCon.print(vh);
-    debugCon.print("Vdc,  Voltaje- : ");  
-    debugCon.print(vl);
-    debugCon.print("Vdc,  Corriente : ");
-    debugCon.print(i);
-    debugCon.print("A, Temperatura : ");
-    debugCon.print(t);
-    debugCon.println("ºC");
-    /*debugCon.print("A,  Carga : ");
-    debugCon.print(charge);
-    debugCon.print("Ah,    ");
-    debugCon.println(charge*100/capacity);*/
-  }
-  if (changed()) {
+  if (!Calibrate) {    // STORE DATA PROCESS
+  
+    if (debug){
+      debugCon.print(now());
+      debugCon.print(" :  Voltaje+ : ");  
+      debugCon.print(vh);
+      debugCon.print("Vdc,  Voltaje- : ");  
+      debugCon.print(vl);
+      debugCon.print("Vdc,  Corriente : ");
+      debugCon.print(i);
+      debugCon.print("A, Temperatura : ");
+      debugCon.print(t);
+       debugCon.println("ºC");
+      /*debugCon.print("A,  Carga : ");
+      debugCon.print(charge);
+      debugCon.print("Ah,    ");
+      debugCon.println(charge*100/capacity);*/
+    }
+    if (changed()) {
     
-    while (fifo.Busy()) // FIFO is  being accesed. TODO: analice is Xbee conn is established
-        ;
-    fifo.Block(true); //  Block the FIFO access
+      while (fifo.Busy()) // FIFO is  being accesed. TODO: analice is Xbee conn is established
+          ;
+       fifo.Block(true); //  Block the FIFO access
 
-    while (fecha != 0 ){         // and store it in the FIFO converting the date
-      fifo.Write(fecha%255);     // in a byte data succesion
-      fecha /= 255;
+      while (fecha != 0 ){         // and store it in the FIFO converting the date
+        fifo.Write(fecha%255);     // in a byte data succesion
+        fecha /= 255;
+      }
+  
+      fifo.Write(highByte(sensorVh));
+      fifo.Write(lowByte(sensorVh));
+      fifo.Write(highByte(sensorVl));
+      fifo.Write(lowByte(sensorVl));
+      fifo.Write(highByte(sensorA));
+      fifo.Write(lowByte(sensorA));
+      fifo.Write(highByte(sensorT));
+      fifo.Write(lowByte(sensorT));
+      fifo.Write(state);
+  
+      fifo.Block(false); //  Releases the FIFO access 
+    
+      if (debug) {
+        debugCon << "Stored. Head pointer= " << fifo.Get_head();
+        debugCon.println("");
+      }
+    
+      //these are global vars
+      vh_prev = sensorVh;
+      vl_prev = sensorVl;
+      a_prev = sensorA;
+      t_prev = sensorT;
+      s_prev = state;
+    } else {
+      if (debug) {
+        debugCon.println("Not Stored"); 
+      }
     }
   
-    fifo.Write(highByte(sensorVh));
-    fifo.Write(lowByte(sensorVh));
-    fifo.Write(highByte(sensorVl));
-    fifo.Write(lowByte(sensorVl));
-    fifo.Write(highByte(sensorA));
-    fifo.Write(lowByte(sensorA));
-    fifo.Write(highByte(sensorT));
-    fifo.Write(lowByte(sensorT));
-    fifo.Write(state);
-  
-    fifo.Block(false); //  Releases the FIFO access 
-    
-    if (debug) {
-      debugCon << "Stored. Head pointer= " << fifo.Get_head();
-      debugCon.println("");
+    /*if (debug){
+      debugCon.print(times);
+      debugCon.println(" times in capture data");
+    }*/
+  } else {          // CALIBRATION PROCESS
+    payload[0] = CALIBRATE;
+    payload[1] = sensorCalibrate;
+    switch (sensorCalibrate) {
+      case 1:
+        payload[2]=highByte(sensorVh);
+        payload[2]=lowByte(sensorVh);
+        break;
+      case 2:
+        payload[2]=highByte(sensorVl);
+        payload[2]=lowByte(sensorVl);      
+        break;
+      case 3:
+        payload[2]=highByte(sensorA);
+        payload[2]=lowByte(sensorA);
+        break;
+      case 4:
+        payload[2]=highByte(sensorT);
+        payload[2]=lowByte(sensorT);
+        break;
+      default:
+        break;
     }
-    
-    //these are global vars
-    vh_prev = sensorVh;
-    vl_prev = sensorVl;
-    a_prev = sensorA;
-    t_prev = sensorT;
-    s_prev = state;
-  } else {
-    if (debug) {
-      debugCon.println("Not Stored"); 
-    }
+  xbee.send(zbTx); // Send the sensor value to the PC application
   }
   
-  /*if (debug){
-    debugCon.print(times);
-    debugCon.println(" times in capture data");
-  }*/
   if (times == 60){
     fifo_tail = fifo.Get_tail();
     fifo_head =  fifo.Get_head();
