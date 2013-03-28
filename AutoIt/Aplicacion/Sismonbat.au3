@@ -6,6 +6,7 @@
  Script Function:
 
  Version:
+			0.23.7	Add new function to adapt data identifications sent to Arduino to a 15chars string
 			0.23.6	Fix bug in send identification data to Arduino
 			0.23.5	Add battery and truck identification when readin from database
 			0.23.4	Fix error in time axis stops representation
@@ -2021,7 +2022,7 @@ Func _ButtonClicked ()
 
 		Case $dataconfigokbutton
 			$res=""
-			$dat = GUICtrlRead($dataconfigtruckmodel)
+			$dat = _StringTo15Chars(GUICtrlRead($dataconfigtruckmodel))
 			For $k = 1 To StringLen($dat)
 				$res &= Hex(Asc(StringMid($dat,$k,1)),2)
 			Next
@@ -2049,7 +2050,7 @@ Func _ButtonClicked ()
 			WEnd
 
 			$res=""
-			$dat = GUICtrlRead($dataconfigtruckserial)
+			$dat = _StringTo15Chars(GUICtrlRead($dataconfigtruckserial))
 			For $k = 1 To StringLen($dat)
 				$res &= Hex(Asc(StringMid($dat,$k,1)),2)
 			Next
@@ -2077,7 +2078,7 @@ Func _ButtonClicked ()
 			WEnd
 
 			$res=""
-			$dat = GUICtrlRead($dataconfigbatterymodel)
+			$dat =_StringTo15Chars(GUICtrlRead($dataconfigbatterymodel))
 			For $k = 1 To StringLen($dat)
 				$res &= Hex(Asc(StringMid($dat,$k,1)),2)
 			Next
@@ -2105,7 +2106,7 @@ Func _ButtonClicked ()
 			WEnd
 
 			$res=""
-			$dat = GUICtrlRead($dataconfigbatteryserial)
+			$dat = _StringTo15Chars(GUICtrlRead($dataconfigbatteryserial))
 			For $k = 1 To StringLen($dat)
 				$res &= Hex(Asc(StringMid($dat,$k,1)),2)
 			Next
@@ -3050,5 +3051,22 @@ Func _convertFromDatabase($dato)
 		EndIf
 	Next
 	Return $res
+EndFunc
+
+Func _StringTo15Chars($dato)
+	Local $k
+	Local $res
+
+	If StringLen($dato) >= 15 Then
+		$res = StringLeft($dato,15)
+	Else
+		$res = $dato
+		For $k = 1 To (15-Stringlen($dato))
+			$res &= " "
+		Next
+	EndIf
+
+	Return $res
+
 EndFunc
 #EndRegion ###
