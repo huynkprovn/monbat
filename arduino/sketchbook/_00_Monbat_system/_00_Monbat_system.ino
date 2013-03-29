@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.10.4   Add some debug lines and fix an error in previous version
  *              Version 0.10.3   Add some debug lines.
  *              Version 0.10.2   Add received calibration parameter storage in EEPROM
  *              Version 0.10.1   Difference calibration from normal state in periodic sample capture
@@ -279,23 +280,22 @@ void setup()
     debugCon.println("");
     debugCon.println("|         |         |         |         |         |         |         |         |");
     debugCon.println("|-------------------------------------------------------------------------------|");
-  }*/   // this code causes the arduino reset!!! why??  Only God knows
   
   if (debug) {
     debugCon.println("SENSORS SOFTWARE CALIBRATION DATA");
     debugCon.print("vh_gain = ");
     debugCon.print(vh_gain);
     debugCon.print("      vh_off = ");
-    debugCon.println(vh_off);
-    debugCon.print("vl_gain = ");
+    debugCon.print(vh_off);
+    debugCon.print("      vl_gain = ");
     debugCon.print(vl_gain);
     debugCon.print("      vl_off = ");
-    debugCon.println(vl_off);
-    debugCon.print("a_gain = ");
+    debugCon.print(vl_off);
+    debugCon.print("      a_gain = ");
     debugCon.print(a_gain);
     debugCon.print("      a_off = ");
-    debugCon.println(a_off);
-    debugCon.print("t_gain = ");
+    debugCon.print(a_off);
+    debugCon.print("      t_gain = ");
     debugCon.print(t_gain);
     debugCon.print("      t_off = ");
     debugCon.println(t_off);
@@ -305,7 +305,8 @@ void setup()
       debugCon.println("Not in calibretion process");
     } 
   }
-  
+    }*/   // this code causes the arduino reset!!! why??  Only God knows
+    
   //delay(3000);
     
   setTime(last_time);
@@ -590,6 +591,10 @@ void serialEvent()
                 calibrar = false;
                 if (debug){
                   debugCon.println("Sensor 1 calibrated");
+                  debugCon.print("vh_gain = ");
+                  debugCon.print(vh_gain);
+                  debugCon.print("      vh_off = ");
+                  debugCon.println(vh_off);
                 }
                 break;
               
@@ -601,6 +606,10 @@ void serialEvent()
                 calibrar = false;
                 if (debug){
                   debugCon.println("Sensor 2 calibrated");
+                  debugCon.print("vl_gain = ");
+                  debugCon.print(vl_gain);
+                  debugCon.print("      vl_off = ");
+                  debugCon.println(vl_off);
                 }
                 break;
     
@@ -612,6 +621,10 @@ void serialEvent()
                 calibrar = false;
                 if (debug){
                   debugCon.println("Sensor 3 calibrated");
+                  debugCon.print("a_gain = ");
+                  debugCon.print(a_gain);
+                  debugCon.print("      a_off = ");
+                  debugCon.println(a_off);
                 }
                 break;
               
@@ -623,6 +636,10 @@ void serialEvent()
                 calibrar = false;
                 if (debug){
                   debugCon.println("Sensor 4 calibrated");
+                  debugCon.print("t_gain = ");
+                  debugCon.print(t_gain);
+                  debugCon.print("      t_off = ");
+                  debugCon.println(t_off);
                 }
                 break;
   
@@ -881,7 +898,7 @@ void captureData()
     if (debug){
       debugCon.print("Sending sensor ");
       debugCon.print(sensorCalibrate);
-      debunCon.println(" to App for calibration process");
+      debugCon.println(" to App for calibration process");
     }
     switch (sensorCalibrate) {
       case 1:
