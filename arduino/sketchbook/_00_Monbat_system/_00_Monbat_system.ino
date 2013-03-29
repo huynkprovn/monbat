@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.10.3   Some debug lines
  *              Version 0.10.2   Add received calibration parameter storage in EEPROM
  *              Version 0.10.1   Difference calibration from normal state in periodic sample capture
  *              Version 0.10.0   Add remote calibration functionality.
@@ -82,7 +83,7 @@ SoftwareSerial debugCon(9,10); //Rx, Tx arduino digital port for debug serial co
 
 // ******** XBEE PARAMETER DEFINITION ********
 boolean ConnToApp = false;     // Used to determinate when an Xbee connection with the 
-boolean Calibrate = false;    // Used to determinate when the monitor is in software calibration process
+boolean Calibrar = false;    // Used to determinate when the monitor is in software calibration process
                               // PC app is established 
 byte sensorCalibrate = 0;    // Which sensor is been calibreted (00=none, 01 = Vh, 02 = Vl, 03 = A, 04 = T) 
 
@@ -103,7 +104,7 @@ ModemStatusResponse msr = ModemStatusResponse(); // Manage the status API frames
 // ******** EEPROM PARAMETER DEFINITION ********
 const byte EEPROM_ID = 0x50;      // I2C address for 24LC128 EEPROM
 const int FRAME_LENGHT = 13;   // Frame write in FIFO 
-const unsigned int MAX_LENGHT = 4000; //EEPROM Max lenght in bytes
+const unsigned int MAX_LENGHT = 131071; //EEPROM Max lenght in bytes
 const unsigned int FIFO_BASE = 0; 
 unsigned int fifo_tail = word(EEPROM.read(0),EEPROM.read(1));
 unsigned int fifo_head =  word(EEPROM.read(2),EEPROM.read(3));
@@ -298,7 +299,7 @@ void setup()
     debugCon.print(t_gain);
     debugCon.print("      t_off = ");
     debugCon.println(t_off);
-    if (Calibrate){
+    if (Calibrar){
       debugCon.println("In calibration process");
     } else {
       debugCon.println("Not in calibretion process");
@@ -575,7 +576,7 @@ void serialEvent()
             debugCon.print("Calibration in procces in sensor : ");
             debugCon.println(rx.getData(1));
           }
-          Calibrate = true;
+          Calibrar = true;
           sensorCalibrate=rx.getData(1);
           if (rx.getDataLength()>2){
           
@@ -586,7 +587,7 @@ void serialEvent()
                 vh_off=rx.getData(3);
                 EEPROM.write(80, rx.getData(2));
                 EEPROM.write(81, rx.getData(3));
-                Calibrate = false;
+                Calibrar = false;
                 break;
               
               case 0x02:
@@ -594,7 +595,7 @@ void serialEvent()
                 vl_off=rx.getData(3);
                 EEPROM.write(82, rx.getData(2));
                 EEPROM.write(83, rx.getData(3));
-                Calibrate = false;
+                Calibrar = false;
                 break;
     
               case 0x03:
@@ -602,7 +603,7 @@ void serialEvent()
                 a_off=rx.getData(3);
                 EEPROM.write(84, rx.getData(2));
                 EEPROM.write(85, rx.getData(3));
-                Calibrate = false;
+                Calibrar = false;
                 break;
               
               case 0x04:
@@ -610,11 +611,11 @@ void serialEvent()
                 t_off=rx.getData(3);
                 EEPROM.write(86, rx.getData(2));
                 EEPROM.write(87, rx.getData(3));
-                Calibrate = false;
+                Calibrar = false;
                 break;
   
               default:
-                Calibrate = false;
+                Calibrar = false;
                 break;
             }
           }  
@@ -800,7 +801,7 @@ void captureData()
   charge=calc_ah_drained(i_p,i,charge,sample_period);
   i_p=i;   // this is a local var used only for charge load/drained calculation
   
-  if (!Calibrate) {    // STORE DATA PROCESS
+  if (!Calibrar) {    // STORE DATA PROCESS
   
     if (debug){
       debugCon.print(now());
@@ -863,29 +864,36 @@ void captureData()
       debugCon.println(" times in capture data");
     }*/
   } else {          // CALIBRATION PROCESS
+    if (debug){
+      debugCon.print("Sending value for calibration. Sensor ");
+      debugCon.println(sensorCalibrate);
+    }
     payload[0] = CALIBRATE;
     payload[1] = sensorCalibrate;
     switch (sensorCalibrate) {
       case 1:
         payload[2]=highByte(sensorVh);
-        payload[2]=lowByte(sensorVh);
+        payload[3]=lowByte(sensorVh);
         break;
       case 2:
         payload[2]=highByte(sensorVl);
-        payload[2]=lowByte(sensorVl);      
+        payload[3]=lowByte(sensorVl);      
         break;
       case 3:
         payload[2]=highByte(sensorA);
-        payload[2]=lowByte(sensorA);
+        payload[3]=lowByte(sensorA);
         break;
       case 4:
         payload[2]=highByte(sensorT);
-        payload[2]=lowByte(sensorT);
+        payload[3]=lowByte(sensorT);
         break;
       default:
         break;
     }
-  xbee.send(zbTx); // Send the sensor value to the PC application
+    for (int k = 4; k <= 14  ; k++) {
+      payload[k] = 0x00;
+    }
+    xbee.send(zbTx); // Send the sensor value to the PC application
   }
   
   if (times == 60){
