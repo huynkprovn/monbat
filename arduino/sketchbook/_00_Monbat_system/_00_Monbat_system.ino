@@ -9,6 +9,8 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.11.0   Remove debug lines. Arduino crases into a cyclic restart. I don't know if is for an internal memory flash error
+ *                               or for an memory overflow. Add software functionality to Vh sensor and work fine. TODO: add to all sensors.
  *              Version 0.10.4   Add some debug lines and fix an error in previous version
  *              Version 0.10.3   Add some debug lines.
  *              Version 0.10.2   Add received calibration parameter storage in EEPROM
@@ -64,7 +66,7 @@
 sLed led(7,5,4,6,900);    // Create a sLed objet and asociate to the arduino pins;
 //sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int BaudRate);
 
-char VERSION[] = "MonBat system V0.8.0";
+char VERSION[] = "MonBat system V0.11.0";
 boolean debug = true;
 SoftwareSerial debugCon(9,10); //Rx, Tx arduino digital port for debug serial connection
 
@@ -105,7 +107,7 @@ ModemStatusResponse msr = ModemStatusResponse(); // Manage the status API frames
 // ******** EEPROM PARAMETER DEFINITION ********
 const byte EEPROM_ID = 0x50;      // I2C address for 24LC128 EEPROM
 const int FRAME_LENGHT = 13;   // Frame write in FIFO 
-const unsigned int MAX_LENGHT = 4000; //EEPROM Max lenght in bytes
+const unsigned int MAX_LENGHT = 127000; //EEPROM Max lenght in bytes
 const unsigned int FIFO_BASE = 0; 
 unsigned int fifo_tail = word(EEPROM.read(0),EEPROM.read(1));
 unsigned int fifo_head =  word(EEPROM.read(2),EEPROM.read(3));
@@ -287,15 +289,15 @@ void setup()
     debugCon.print(vh_gain);
     debugCon.print("      vh_off = ");
     debugCon.print(vh_off);
-    debugCon.print("      vl_gain = ");
+    debugCon.print("vl_gain = ");
     debugCon.print(vl_gain);
     debugCon.print("      vl_off = ");
     debugCon.print(vl_off);
-    debugCon.print("      a_gain = ");
+    debugCon.print("a_gain = ");
     debugCon.print(a_gain);
     debugCon.print("      a_off = ");
     debugCon.print(a_off);
-    debugCon.print("      t_gain = ");
+    debugCon.print("t_gain = ");
     debugCon.print(t_gain);
     debugCon.print("      t_off = ");
     debugCon.println(t_off);
@@ -306,7 +308,7 @@ void setup()
     } 
   }
     }*/   // this code causes the arduino reset!!! why??  Only God knows
-    
+  
   //delay(3000);
     
   setTime(last_time);
@@ -573,14 +575,14 @@ void serialEvent()
         case CALIBRATE:
           payload[0]=CALIBRATE;
           xbee.send(zbTx);      // PC App wait for this response o resend
-          if (debug){
-            debugCon.print("Calibration in procces in sensor : ");
-            debugCon.println(rx.getData(1));
-          }
+          
           calibrar = true;
           sensorCalibrate=rx.getData(1);
           if (rx.getDataLength()>2){
-          
+            if (debug){
+              debugCon.print("Calibration in procces in sensor : ");
+              debugCon.println(rx.getData(1));
+            }
             switch (rx.getData(1))   // Modify sensor gain and offset 
             {         
               case 0x01:      // vh 
@@ -589,13 +591,13 @@ void serialEvent()
                 EEPROM.write(80, rx.getData(2));
                 EEPROM.write(81, rx.getData(3));
                 calibrar = false;
-                if (debug){
-                  debugCon.println("Sensor 1 calibrated");
-                  debugCon.print("vh_gain = ");
-                  debugCon.print(vh_gain);
-                  debugCon.print("      vh_off = ");
-                  debugCon.println(vh_off);
-                }
+                /*if (debug){
+		  debugCon.println("Sensor 1 calibrated");
+		  debugCon.print("vh_gain = ");
+		  debugCon.print(vh_gain);
+		  debugCon.print(" vh_off = ");
+		  debugCon.println(vh_off);
+		}*/
                 break;
               
               case 0x02:
@@ -604,13 +606,13 @@ void serialEvent()
                 EEPROM.write(82, rx.getData(2));
                 EEPROM.write(83, rx.getData(3));
                 calibrar = false;
-                if (debug){
-                  debugCon.println("Sensor 2 calibrated");
-                  debugCon.print("vl_gain = ");
-                  debugCon.print(vl_gain);
-                  debugCon.print("      vl_off = ");
-                  debugCon.println(vl_off);
-                }
+                /*if (debug){
+		  debugCon.println("Sensor 2 calibrated");
+		  debugCon.print("vl_gain = ");
+		  debugCon.print(vl_gain);
+		  debugCon.print(" vl_off = ");
+		  debugCon.println(vl_off);
+		}*/
                 break;
     
               case 0x03:
@@ -619,13 +621,13 @@ void serialEvent()
                 EEPROM.write(84, rx.getData(2));
                 EEPROM.write(85, rx.getData(3));
                 calibrar = false;
-                if (debug){
-                  debugCon.println("Sensor 3 calibrated");
-                  debugCon.print("a_gain = ");
-                  debugCon.print(a_gain);
-                  debugCon.print("      a_off = ");
-                  debugCon.println(a_off);
-                }
+	       	/*if (debug){
+	          debugCon.println("Sensor 3 calibrated");
+		  debugCon.print("a_gain = ");
+		  debugCon.print(a_gain);
+		  debugCon.print(" a_off = ");
+		  debugCon.println(a_off);
+		}*/
                 break;
               
               case 0x04:
@@ -634,13 +636,13 @@ void serialEvent()
                 EEPROM.write(86, rx.getData(2));
                 EEPROM.write(87, rx.getData(3));
                 calibrar = false;
-                if (debug){
-                  debugCon.println("Sensor 4 calibrated");
-                  debugCon.print("t_gain = ");
-                  debugCon.print(t_gain);
-                  debugCon.print("      t_off = ");
-                  debugCon.println(t_off);
-                }
+                /*if (debug){
+		  debugCon.println("Sensor 4 calibrated");
+		  debugCon.print("t_gain = ");
+		  debugCon.print(t_gain);
+		  debugCon.print(" t_off = ");
+		  debugCon.println(t_off);
+		}*/
                 break;
   
               default:
@@ -809,7 +811,7 @@ void serialEvent()
  * =============================================================================== */
 void captureData()
 {
-
+    
   //boolean aliAlarm;
   sensorVh = analogRead(vUpPin);
   sensorVl = analogRead(vLowPin);
@@ -820,7 +822,13 @@ void captureData()
   
   static int times = 0;
   
+  word Vh_c = int((float(vh_gain)*0.000781+0.9)*float(sensorVh)+(float(vh_off)*0.8-102.4));
+  //word Vl_c
+  //word T_c
+  //word A_c
+  
   float vh=voltaje(sensorVh);
+  float vh1=voltaje(Vh_c);
   float vl=voltaje(sensorVl);
   float i=current(sensorA);
   float t=temperature(sensorT);
@@ -831,11 +839,13 @@ void captureData()
   i_p=i;   // this is a local var used only for charge load/drained calculation
   
   if (!calibrar) {    // STORE DATA PROCESS
-  
+    
     if (debug){
       debugCon.print(now());
       debugCon.print(" :  Voltaje+ : ");  
       debugCon.print(vh);
+      debugCon.print("Vdc   ");
+      debugCon.print(vh1);
       debugCon.print("Vdc,  Voltaje- : ");  
       debugCon.print(vl);
       debugCon.print("Vdc,  Corriente : ");
@@ -921,7 +931,7 @@ void captureData()
         break;
     }
   for (int k=4; k<=14; k++){
-    payload[k]=0x00;  
+    payload[k]=0x00;
   }
   xbee.send(zbTx); // Send the sensor value to the PC application
   }
