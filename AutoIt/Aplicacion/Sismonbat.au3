@@ -407,6 +407,8 @@ Global $calibrationHightvaluereaded, $calibrationLowvaluereaded, $calibrationVal
 Global $calibrationLabel1,$calibrationLabel2,$calibrationLabel3,$calibrationLabel4
 Global $calibrationStage
 Global $calibrar
+Global $calibrationX1, $calibrationY1, $calibrationX2, $calibrationY2
+Global $calibrationGain, $calibrationOff
 
 ;#Region ### START Koda GUI section ###
 $calibrar = False
@@ -419,8 +421,8 @@ GUICtrlSetFont(-1, 12, 800, 0, "MS Sans Serif")
 GUICtrlSetBkColor(-1, 0xFFFFFF)
 $calibrationSensor = GUICtrlCreateCombo("", 28, 136, 161, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
 GUICtrlSetData(-1, "VOLTAJE +|VOLTAJE -|CURRENT|TEMPERATURE","VOLTAJE +")
-$calibrationHightvalue = GUICtrlCreateInput("", 264, 192, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_NUMBER))
-$calibrationLowvalue = GUICtrlCreateInput("", 264, 248, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_NUMBER))
+$calibrationHightvalue = GUICtrlCreateInput("", 264, 192, 81, 21, $GUI_SS_DEFAULT_INPUT)
+$calibrationLowvalue = GUICtrlCreateInput("", 264, 248, 81, 21, $GUI_SS_DEFAULT_INPUT)
 GUICtrlCreateLabel("Sensor", 28, 120, 37, 17)
 $calibrationValue1unit = GUICtrlCreateLabel("V", 352, 192, 15, 24)
 GUICtrlSetFont(-1, 12, 400, 0, "MS Sans Serif")
@@ -428,9 +430,9 @@ $calibrationValue2unit = GUICtrlCreateLabel("V", 352, 248, 15, 24)
 GUICtrlSetFont(-1, 12, 400, 0, "MS Sans Serif")
 $calibrationHightvaluereaded = GUICtrlCreateInput("", 32, 192, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY,$ES_NUMBER))
 $calibrationLowvaluereaded = GUICtrlCreateInput("", 32, 248, 81, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_READONLY,$ES_NUMBER))
-$calibrationValue1unitreaded = GUICtrlCreateLabel("V", 120, 192, 15, 24)
+$calibrationValue1unitreaded = GUICtrlCreateLabel("V", 120, 192, 25, 24)
 GUICtrlSetFont(-1, 12, 400, 0, "MS Sans Serif")
-$calibrationValue2unitreaded = GUICtrlCreateLabel("V", 120, 248, 15, 24)
+$calibrationValue2unitreaded = GUICtrlCreateLabel("V", 120, 248, 25, 24)
 GUICtrlSetFont(-1, 12, 400, 0, "MS Sans Serif")
 $calibrationNextbutton = GUICtrlCreateButton("Next", 264, 304, 137, 41)
 GUIctrlSetOnEvent(-1, "_ButtonClicked")
@@ -846,7 +848,7 @@ Func _Main ()
 					GUICtrlSetData($status, "/", 1)
 					If (StringMid($dato, 1, 2) = $CALIBRATE) then
 						$value = Dec(StringMid($dato, 5, 4))  ;this is the sensor value readed in the Arduino.
-						ConsoleWrite("calibration data received = " & $dato & @CRLF)
+						;ConsoleWrite("calibration data received = " & $dato & @CRLF)
 
 						Switch $calibrationStage
 							Case 1
@@ -927,7 +929,7 @@ Func _CLOSEClicked ()
 				$received=False
 				$times=1
 				While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
-					_SendZBData($CALIBRATE & "00" & 0xff & 0xff)
+					_SendZBData($CALIBRATE & "00" & "FF" & "FF")
 						$Time = TimerInit()
 					While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
 						GUICtrlSetData($status, ".", 1)
@@ -2186,7 +2188,7 @@ Func _ButtonClicked ()
 					$received=False
 					$times=1
 					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
-						_SendZBData($CALIBRATE & "00" & 0xff & 0xff)
+						_SendZBData($CALIBRATE & "00" & "FF" & "FF")
 
 						$Time = TimerInit()
 						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
@@ -2469,7 +2471,7 @@ Func _CalibrationProcess($stage)
 						WEnd
 						$times+=1
 					WEnd
-					GUICtrlSetData($calibrationValue1unitreaded,"Ud")
+					GUICtrlSetData($calibrationValue1unitreaded,"ud")
 					GUICtrlSetData($calibrationInstruction,"Connect the monbat sistem to a variable power supply and set the posivite half tension to a value bigger than 15Vdc" & @CRLF & "Strike the 'Next' button")
 
 				Case "VOLTAJE -"
@@ -2492,7 +2494,7 @@ Func _CalibrationProcess($stage)
 						WEnd
 						$times+=1
 					WEnd
-					GUICtrlSetData($calibrationValue1unitreaded,"Ud")
+					GUICtrlSetData($calibrationValue1unitreaded,"ud")
 					GUICtrlSetData($calibrationInstruction,"Connect the monbat sistem to a variable power supply and set the posivite half tension to a value bigger than 15Vdc" & @CRLF & "Strike the 'Next' button")
 
 				Case "CURRENT"
@@ -2515,7 +2517,7 @@ Func _CalibrationProcess($stage)
 						WEnd
 						$times+=1
 					WEnd
-					GUICtrlSetData($calibrationValue1unitreaded,"Ud")
+					GUICtrlSetData($calibrationValue1unitreaded,"ud")
 
 				Case "TEMPERATURE"
 					$received=False
@@ -2537,7 +2539,7 @@ Func _CalibrationProcess($stage)
 						WEnd
 						$times+=1
 					WEnd
-					GUICtrlSetData($calibrationValue1unitreaded,"Ud")
+					GUICtrlSetData($calibrationValue1unitreaded,"ud")
 					GUICtrlSetData($calibrationInstruction,"Introduce the temperature sensor in a warm fluid hoter than 40ºC and wait for temperature reading stabilization" & @CRLF & "Strike the 'Next' button")
 
 				Case Else
@@ -2567,6 +2569,9 @@ Func _CalibrationProcess($stage)
 					GUICtrlSetData($calibrationValue1unit,"ºC")
 					GUICtrlSetData($calibrationInstruction,"Measure the fluid temperature with an external reference termometer and introduce the value." & @CRLF & "Strike the 'Next' button")
 			EndSwitch
+
+			$calibrationY2=GUICtrlRead($calibrationHightvaluereaded)
+
 			GUICtrlSetState($calibrationHightvalue, $GUI_ENABLE)
 			GUICtrlSetState($calibrationHightvalue,$GUI_SHOW)
 			GUICtrlSetState($calibrationLabel1,$GUI_SHOW)
@@ -2579,17 +2584,20 @@ Func _CalibrationProcess($stage)
 		Case 3
 			Switch GUICtrlRead($calibrationSensor)
 				Case "VOLTAJE +"
-					GUICtrlSetData($calibrationValue2unitreaded,"Ud")
+					GUICtrlSetData($calibrationValue2unitreaded,"ud")
 					GUICtrlSetData($calibrationInstruction,"Set the posivite half tension in the power supply to a value between 9.5Vdc and 10Vdc" & @CRLF & "Strike the 'Next' button")
 				Case "VOLTAJE -"
-					GUICtrlSetData($calibrationValue2unitreaded,"Ud")
+					GUICtrlSetData($calibrationValue2unitreaded,"ud")
 					GUICtrlSetData($calibrationInstruction,"Set the posivite half tension in the power supply to a value between -9.5Vdc and -10Vdc" & @CRLF & "Strike the 'Next' button")
 				Case "CURRENT"
-					GUICtrlSetData($calibrationValue2unitreaded,"Ud")
+					GUICtrlSetData($calibrationValue2unitreaded,"ud")
 				Case "TEMPERATURE"
-					GUICtrlSetData($calibrationValue2unitreaded,"Ud")
+					GUICtrlSetData($calibrationValue2unitreaded,"ud")
 					GUICtrlSetData($calibrationInstruction,"Introduce the temperature sensor in a fluid cooler than 20ºC and wait for temperature reading stabilization" & @CRLF & "Strike the 'Next' button")
 			EndSwitch
+
+			$calibrationX2=GUICtrlRead($calibrationHightvalue)
+
 			GUICtrlSetState($calibrationLowvaluereaded,$GUI_SHOW)
 			GUICtrlSetState($calibrationLabel4,$GUI_SHOW)
 			GUICtrlSetState($calibrationValue2unitreaded,$GUI_SHOW)
@@ -2603,36 +2611,54 @@ Func _CalibrationProcess($stage)
 
 			Switch GUICtrlRead($calibrationSensor)
 				Case "VOLTAJE +"
-					GUICtrlSetData($calibrationValue1unit,"V")
+					GUICtrlSetData($calibrationValue2unit,"V")
 					GUICtrlSetData($calibrationInstruction,"Measure the power supply voltaje with a multimeter and introduce the value. RESPECT THE MEASURE SIGN" & @CRLF & "Strike the 'Next' button")
 				Case "VOLTAJE -"
-					GUICtrlSetData($calibrationValue1unit,"V")
+					GUICtrlSetData($calibrationValue2unit,"V")
 					GUICtrlSetData($calibrationInstruction,"Measure the power supply voltaje with a multimeter and introduce the value. RESPECT THE MEASURE SIGN" & @CRLF & "Strike the 'Next' button")
 				Case "CURRENT"
-					GUICtrlSetData($calibrationValue1unit,"A")
+					GUICtrlSetData($calibrationValue2unit,"A")
 
 				Case "TEMPERATURE"
-					GUICtrlSetData($calibrationValue1unit,"ºC")
+					GUICtrlSetData($calibrationValue2unit,"ºC")
 					GUICtrlSetData($calibrationInstruction,"Measure the fluid temperature with an external reference termometer and introduce the value." & @CRLF & "Strike the 'Next' button")
 			EndSwitch
+
+			$calibrationY1=GUICtrlRead($calibrationLowvaluereaded)
+
 			GUICtrlSetState($calibrationLowvalue, $GUI_ENABLE)
 			GUICtrlSetState($calibrationLowvalue,$GUI_SHOW)
 			GUICtrlSetState($calibrationLabel2,$GUI_SHOW)
 			GUICtrlSetState($calibrationValue2unit,$GUI_SHOW)
 
 		Case 5
+			$calibrationX1=GUICtrlRead($calibrationLowvalue)
+
 			GUICtrlSetState($calibrationLowvalue, $GUI_DISABLE)
-			GUICtrlSetData($calibrationInstruction,"Strike the 'Next' button to confirm the values and send data calibration to the Monitor hardware")
+			Switch GUICtrlRead($calibrationSensor)
+				Case "VOLTAJE +"
+					_CalculateCalibration($calibrationX1, $calibrationY1, $calibrationX2, $calibrationY2, 137.4798, -1273.1733, $calibrationGain, $calibrationOff)
+				Case "VOLTAJE -"
+					_CalculateCalibration($calibrationX1, $calibrationY1, $calibrationX2, $calibrationY2, 137.4798, -1273.1733, $calibrationGain, $calibrationOff)
+				Case "CURRENT"
+					_CalculateCalibration($calibrationX1, $calibrationY1, $calibrationX2, $calibrationY2, 1.9686, 511.1001, $calibrationGain, $calibrationOff)
+				Case "TEMPERATURE"
+					_CalculateCalibration($calibrationX1, $calibrationY1, $calibrationX2, $calibrationY2, 9.1935, 185.0978, $calibrationGain, $calibrationOff)
+			EndSwitch
+			GUICtrlSetData($calibrationInstruction,"Correction Gain = " & $calibrationGain & ", correction Off = " & $calibrationOff & @CRLF & "Strike the 'Next' button to confirm the values and send data calibration to the Monitor hardware")
 
 		Case 6
 			; Calculate calibration data and send to Arduino
+			ConsoleWrite("Correction Gain = " & $calibrationGain & ", correction Off = " & $calibrationOff & @CRLF)
+			ConsoleWrite("Correction Gain = " & Hex(Round(($calibrationGain-0.9)/0.000781),2) &", correction Off = " & Hex(Round(($calibrationOff+102.4)/0.8),2) & @CRLF & @CRLF)
+
 			Switch GUICtrlRead($calibrationSensor)
 
 				Case "VOLTAJE +"
 					$received=False
 					$times=1
 					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
-						_SendZBData($CALIBRATE & "01" & 0xff & 0xff)
+						_SendZBData($CALIBRATE & "01" & Hex(Round(($calibrationGain-0.9)/0.000781),2) & Hex(Round(($calibrationOff+102.4)/0.8),2))
 
 						$Time = TimerInit()
 						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
@@ -2654,7 +2680,7 @@ Func _CalibrationProcess($stage)
 					$received=False
 					$times=1
 					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
-						_SendZBData($CALIBRATE & "02" & 0xff & 0xff)
+						_SendZBData($CALIBRATE & "02" & "FF" & "FF")
 
 						$Time = TimerInit()
 						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
@@ -2676,7 +2702,7 @@ Func _CalibrationProcess($stage)
 					$received=False
 					$times=1
 					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
-						_SendZBData($CALIBRATE & "03" & 0xff & 0xff)
+						_SendZBData($CALIBRATE & "03" & "FF" & "FF")
 
 						$Time = TimerInit()
 						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
@@ -2699,7 +2725,7 @@ Func _CalibrationProcess($stage)
 					$received=False
 					$times=1
 					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
-						_SendZBData($CALIBRATE & "04" & 0xff & 0xff)
+						_SendZBData($CALIBRATE & "04" & "FF" & "FF")
 
 						$Time = TimerInit()
 						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
@@ -2718,7 +2744,7 @@ Func _CalibrationProcess($stage)
 					WEnd
 
 			EndSwitch
-			GUICtrlSetData($calibrationInstruction,"Calibration Done! Strike 'Next' button to exit" & @CRLF "Repeat calibration process if necessary")
+			GUICtrlSetData($calibrationInstruction,"Calibration Done! Strike 'Next' button to exit" & @CRLF & "Repeat calibration process if necessary")
 
 		Case Else
 
@@ -3054,12 +3080,24 @@ Func _voltaje($sensorvalue)
 EndFunc
 
 
+Func _voltaje2($sensorvalue)
+	Return (($sensorvalue+1273.1733)/137.4798);
+EndFunc
+
 Func _current($sensorvalue)
 	Return ((($sensorvalue*3.2226/1000)-1.6471)/0.0063);
 EndFunc
 
+Func _current2($sensorvalue)
+	Return(($sensorvalue-511.1001)/1.9686);
+EndFunc
+
 Func _temperature($sensorvalue)
 	Return ((($sensorvalue*3.2226/1000)-0.5965)/0.0296);
+EndFunc
+
+Func _temperature2($sensorvalue)
+	Return (($sensorvalue-185.0978)/9.1935);
 EndFunc
 
 Func _convert($dato)
@@ -3123,4 +3161,31 @@ Func _StringTo15Chars($dato)
 	Return $res
 
 EndFunc
+
+;===============================================================================
+;
+; Function Name:	_CheckIncomingFrame()
+; Description:		Calculate the correction parameter to apply to the readed sensor data
+;					to obtain a calibrated rate
+; Parameters:		$x1, $x2: values (V, ºC ...) in two different instants. $x2 must be > $x1
+;					$y1, $y2: values (in D/A steps) readed by the Arduino at these two moments.
+;					$iGain, $iOff:  Desired lineal gain and offset
+;					$cGain, $cOff:	Calculates correction to apply to the readed values to obtain the
+;									desired lineal calibration.
+; Returns;  		on success -
+;
+;           		on error -
+;===============================================================================
+Func _CalculateCalibration($x1, $y1, $x2, $y2, $iGain, $iOff, ByRef $cGain, ByRef $cOff)
+	Local $rGain, $rOff   ;
+
+	ConsoleWrite("X1 = " & $x1 & "     Y1 = " & $y1 & @CRLF & "X2 = " & $x2 & "     Y2 = " & $y2 & @CRLF)
+	$rGain = ($y2-$y1)/($x2-$x1)
+	$rOff = $y2-($rGain*$x2)
+	MsgBox(0,"Calibration line calculation","Actual calibration line: Y= " & $rGain & " * X + " & $rOff & @CRLF & "Ideal calibration line: Y= " & $iGain & " * X + " & $iOff)
+	$cGain = $iGain/$rGain
+	$cOff = $iOff - $cGain*$rOff
+
+EndFunc
+
 #EndRegion ###
