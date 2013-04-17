@@ -9,7 +9,9 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
- *              Version 0.11.0   Remove debug lines. Arduino crases into a cyclic restart. I don't know if is for an internal memory flash error
+ *              Version 0.11.2   Fix some debug and comment some unused code
+ *              Version 0.11.1   Add software calibration to the rest of the sensors
+ *              Version 0.11.0   Remove debug lines. Arduino crashes into a cyclic restart. I don't know if is for an internal memory flash error
  *                               or for an memory overflow. Add software functionality to Vh sensor and work fine. TODO: add to all sensors.
  *              Version 0.10.4   Add some debug lines and fix an error in previous version
  *              Version 0.10.3   Add some debug lines.
@@ -66,7 +68,7 @@
 sLed led(7,5,4,6,900);    // Create a sLed objet and asociate to the arduino pins;
 //sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int BaudRate);
 
-char VERSION[] = "MonBat system V0.11.0";
+char VERSION[] = "MonBat system V0.11.2";
 boolean debug = true;
 SoftwareSerial debugCon(9,10); //Rx, Tx arduino digital port for debug serial connection
 
@@ -272,8 +274,8 @@ void setup()
     debugCon.println("");
   }
   
-  
-  /*if (debug) {
+  /*
+  if (debug) {
     debugCon.println("|                      SENSORS SOFTWARE CALIBRATION DATA                        |");
     debugCon.println("|-------------------------------------------------------------------------------|");
     debugCon.println("| vh_gain |  vh_off | vl_gain |  vl_off |  a_gain |  a_off  |  t_gain |  t_off  |");
@@ -282,6 +284,7 @@ void setup()
     debugCon.println("");
     debugCon.println("|         |         |         |         |         |         |         |         |");
     debugCon.println("|-------------------------------------------------------------------------------|");
+  }
   
   if (debug) {
     debugCon.println("SENSORS SOFTWARE CALIBRATION DATA");
@@ -307,7 +310,7 @@ void setup()
       debugCon.println("Not in calibretion process");
     } 
   }
-    }*/   // this code causes the arduino reset!!! why??  Only God knows
+  //  }*/   // this code causes the arduino reset!!! why??  Only God knows
   
   //delay(3000);
     
@@ -823,36 +826,46 @@ void captureData()
   static int times = 0;
   
   word Vh_c = int((float(vh_gain)*0.000781+0.9)*float(sensorVh)+(float(vh_off)*0.8-102.4));
-  //word Vl_c
-  //word T_c
-  //word A_c
+  word Vl_c = int((float(vl_gain)*0.000781+0.9)*float(sensorVl)+(float(vl_off)*0.8-102.4));
+  word T_c = int((float(t_gain)*0.000781+0.9)*float(sensorT)+(float(t_off)*0.8-102.4));
+  word A_c = int((float(a_gain)*0.000781+0.9)*float(sensorA)+(float(a_off)*0.8-102.4));
   
   float vh=voltaje(sensorVh);
   float vh1=voltaje(Vh_c);
   float vl=voltaje(sensorVl);
+  float vll=voltaje(Vl_c);
   float i=current(sensorA);
+  float il=current(A_c);
   float t=temperature(sensorT);
-  static float i_p= 0.0000;
-  float iprev=current(a_prev);
-  static float charge;
-  charge=calc_ah_drained(i_p,i,charge,sample_period);
-  i_p=i;   // this is a local var used only for charge load/drained calculation
+  float tl=temperature(T_c);
+  
+  //static float i_p= 0.0000;
+  //float iprev=current(a_prev);
+  //static float charge;
+  //charge=calc_ah_drained(i_p,i,charge,sample_period);
+  //i_p=i;   // this is a local var used only for charge load/drained calculation
   
   if (!calibrar) {    // STORE DATA PROCESS
     
     if (debug){
-      debugCon.print(now());
-      debugCon.print(" :  Voltaje+ : ");  
+      debugCon.print(fecha);
+      debugCon.print(" :  V+ : ");  
       debugCon.print(vh);
-      debugCon.print("Vdc   ");
+      debugCon.print("Vdc -> ");
       debugCon.print(vh1);
-      debugCon.print("Vdc,  Voltaje- : ");  
+      debugCon.print("Vdc,  Ve- : ");  
       debugCon.print(vl);
-      debugCon.print("Vdc,  Corriente : ");
+      debugCon.print("Vdc -> ");
+      debugCon.print(vll);
+      debugCon.print("Vdc,  C : ");
       debugCon.print(i);
-      debugCon.print("A, Temperatura : ");
+      debugCon.print("A -> ");
+      debugCon.print(il);
+      debugCon.print("A, T : ");
       debugCon.print(t);
-       debugCon.println("ºC");
+      debugCon.print("ºC -> ");
+      debugCon.print(tl);
+      debugCon.println("ºC");
       /*debugCon.print("A,  Carga : ");
       debugCon.print(charge);
       debugCon.print("Ah,    ");
@@ -1175,11 +1188,11 @@ float temperature(word sensorvalue)
  * Returns;  		float: Total Ah drained by the battery.
  *
  * =============================================================================== */
-float calc_ah_drained(float sa0, float sa1, float ah0, int fs)
+/*float calc_ah_drained(float sa0, float sa1, float ah0, int fs)
 {
   return (float(fs)/3600)*((sa0+sa1)/2)+ah0;
 }
-
+*/
 
 /* ===============================================================================
  *
@@ -1192,11 +1205,11 @@ float calc_ah_drained(float sa0, float sa1, float ah0, int fs)
  * Returns;  		float: Current average in Amperes
  *
  * =============================================================================== */
-float curr_average(float ah, time_t inic)
+/*float curr_average(float ah, time_t inic)
 {
   return (ah*3600/(now()-inic));  //  ah/time(h)
 }
-
+*/
 
 /* ===============================================================================
  *
@@ -1208,7 +1221,7 @@ float curr_average(float ah, time_t inic)
  * Returns;  		byte: battery actual capacity expresed in % over battery total capacity
  *
  * =============================================================================== */
-byte calc_charge_level(int a0, int a1)
+/*byte calc_charge_level(int a0, int a1)
 {  
   byte level;
   if (!bitRead(state,0)){  // Battery is draining
@@ -1217,7 +1230,7 @@ byte calc_charge_level(int a0, int a1)
   }
   
 }
-
+*/
 
 /* ===============================================================================
  *
@@ -1253,7 +1266,7 @@ byte calc_charge_level(int a0, int a1)
  * Returns;  		none
  *
  * =============================================================================== */
-void blink_led(int times, int period)
+/*void blink_led(int times, int period)
 {
   for (int x=0; x<=times; x++)
   {
@@ -1263,7 +1276,7 @@ void blink_led(int times, int period)
     delay(period);
   }  
 }
-
+*/
 
 
 /* ===============================================================================
