@@ -1,4 +1,7 @@
-﻿#cs ----------------------------------------------------------------------------
+﻿#Region ;**** Directives created by AutoIt3Wrapper_GUI ****
+#AutoIt3Wrapper_Icon=images\logo30.ico
+#EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
+#cs ----------------------------------------------------------------------------
 
  AutoIt Version: 3.3.8.1
  Author:         Antonio Morales Ruiz
@@ -6,6 +9,7 @@
  Script Function:
 
  Version:
+			0.26.0	Add alarm identify and representation.
 			0.25.0  Add SOC representation when connects to a monitor.
 			0.24.1	Change same database access sentences for adapt to database tables changes. Prevent duplicate samples in database
 					for the same battery and date.
@@ -72,6 +76,7 @@
 
 ; LIBRERIAS
 #include '..\XbeeAPI\XbeeAPI.au3'
+#include '..\libs\bits\bit_operations.au3'
 #include <array.au3>
 #include <CommMG.au3>
 #include <StaticConstants.au3>
@@ -94,7 +99,7 @@ Opt("GUIOnEventMode", 1)
 
 ; ******** MAIN ************
 
-Const $PROGRAM_VERSION = "0.23.4"
+Const $PROGRAM_VERSION = "0.26.0"
 Const $ConfigFile = "Sismonbat.ini" ; File where store last com port configuration and database access
 
 ;$dllpath = "commg.dll"
@@ -105,6 +110,22 @@ Switch @OSArch
 	Case Else
 		_CommSetDllPath("c:\windows\system32\commg.dll")
 EndSwitch
+
+
+;INIT FORM DISPLAY WHILE THE APP IS LOADING
+Dim $Inicio, $Logo, $Descripcion, $Title
+
+$Inicio = GUICreate("Inicio", 701, 301, 326, 277, $WS_POPUP, 0)
+$Logo = GUICtrlCreatePic("", 40, 56, 257, 210)
+GUICtrlSetImage(-1,".\images\logo.jpg")
+$Descripcion = GUICtrlCreateLabel("MONBAT is a monitor system for traction Lead-Acid Batteries based in the Arduino plataform." & @CRLF & "MONBAT is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version." & @CRLF & "This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.", 320, 56, 357, 225)
+GUICtrlSetFont(-1, 10, 400, 0, "Arial")
+$Title = GUICtrlCreateLabel("MONBAT: Monitor System for Traction Lead-Acid Batteries", 26, 8, 552, 28)
+GUICtrlSetFont(-1, 16, 400, 0, "Arial")
+GUICtrlSetColor(-1, 0x000000)
+GUISetState(@SW_SHOW)
+
+
 
 Global $comport, $baudrate, $databit, $parity, $stopbit, $flowcontrol, $sportSetError, $serialconnected ; to manage the serial port conection
 
@@ -159,7 +180,6 @@ Global $zoominYbuttonhelp, $zoomoutYbuttonhelp, $zoominXbuttonhelp, $zoomoutXbut
 Global $historygraph[5] ; Graph for histoy representation. One graph for each sensor
 Global $status ; to show the operation status
 Global $charge ; to show the status charge of the current battery
-Global $tempalarm, $chargealarm, $levelalarm, $emptyalarm ; to show the alarms produced in the current battery
 Global $tempalarmbutton, $chargealarmbutton, $levelalarmbutton, $emptyalarmbutton ; to show the list of alarms
 Global $tempalarmbuttonehelp, $chargealarmbuttonhelp, $levelalarmbuttonhelp, $emptyalarmbuttonhelp ; to display contextual help
 Global $voltajecheck, $currentcheck, $levelcheck, $tempcheck ; to manage the data to visualize
@@ -279,12 +299,23 @@ GUICtrlCreateTabItem("")
 * ***************
 #ce
 #Region ###
-Global $alarmform
-Global $alarmoutput
+Global $alarmform, $alarmOkButton
+Global $alarmoutputlist
+
+Global $tempalarm[1][1]      ; List of moments with alarms in the battery
+Global $levelalarm[1][1]
+Global $chargealarm[1][1]
+Global $emptyalarm[1][1]
 
 $alarmform = GUICreate("Alarm List",400,600)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
-$alarmoutput = GUICtrlCreateEdit("", 10, 10, 380, 580)
+$alarmoutputlist = GUICtrlCreateListView("", 10, 10, 380, 520,-1, BitOR($LVS_EX_FULLROWSELECT, $LVS_EX_SUBITEMIMAGES))
+;_GUICtrlListView_InsertColumn($alarmoutputlist,0,"Nº", 80)
+_GUICtrlListView_InsertColumn($alarmoutputlist, 0, "Date", 200)
+_GUICtrlListView_SetItemCount($alarmoutputlist, 60)       ; allocate memory for 40 rows in the listview control for prevent allocation every time a item is added
+$alarmOkButton = GUICtrlCreateButton("Ok", 260,540,120,40)
+GUICtrlSetOnEvent(-1, "_ButtonClicked")
+;$alarmoutput = GUICtrlCreateEdit("", 10, 10, 380, 580)
 #EndRegion ###
 
 
@@ -753,7 +784,7 @@ $charge = GUICtrlCreatePic(".\images\default.jpg", $GUIWidth*3/4 + $GUIWidth/30,
 
 ; Alarm indicator creation
 Const $alarmwith = ($GUIWidth/4 - $GUIWidth/20) / 4
-$tempalarm = GUICtrlCreateLabel("Temp", $GUIWidth*3/4 + $GUIWidth/40, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
+GUICtrlCreateLabel("Temp", $GUIWidth*3/4 + $GUIWidth/40, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
 $buttonxpos = $GUIWidth*3/4 + $GUIWidth/40 + ($alarmwith - $ButtonWith)/2
 $tempalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
 GUICtrlSetImage($tempalarmbutton, ".\images\noalarm.bmp")
@@ -761,7 +792,7 @@ GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $tempalarmbuttonehelp = GUICtrlCreateLabel("Show temperature alarms", $buttonxpos - $ButtonWith, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
 GUICtrlSetState(-1,$GUI_HIDE)
 
-$chargealarm = GUICtrlCreateLabel("Charge", $GUIWidth*3/4 + $GUIWidth/40 + $alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
+GUICtrlCreateLabel("Charge", $GUIWidth*3/4 + $GUIWidth/40 + $alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
 $buttonxpos += $alarmwith
 $chargealarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
 GUICtrlSetImage($chargealarmbutton, ".\images\noalarm.bmp")
@@ -769,7 +800,7 @@ GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $chargealarmbuttonhelp = GUICtrlCreateLabel("Show charge cycle alarms", $buttonxpos - $ButtonWith, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
 GUICtrlSetState(-1,$GUI_HIDE)
 
-$levelalarm = GUICtrlCreateLabel("Level", $GUIWidth*3/4 + $GUIWidth/40 + 2*$alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
+GUICtrlCreateLabel("Level", $GUIWidth*3/4 + $GUIWidth/40 + 2*$alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
 $buttonxpos += $alarmwith
 $levelalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
 GUICtrlSetImage($levelalarmbutton, ".\images\noalarm.bmp")
@@ -777,7 +808,7 @@ GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $levelalarmbuttonhelp = GUICtrlCreateLabel("Show electrolyte level alarms", $buttonxpos - $ButtonWith, 2*$ButtonHeight + $chargeWhith + $GUIWidth/40 + 20)
 GUICtrlSetState(-1,$GUI_HIDE)
 
-$emptyalarm = GUICtrlCreateLabel("Empty", $GUIWidth*3/4 + $GUIWidth/40 + 3*$alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
+GUICtrlCreateLabel("Empty", $GUIWidth*3/4 + $GUIWidth/40 + 3*$alarmwith, $ButtonHeight + $chargeWhith + $GUIWidth/40, $alarmwith, 20,$SS_CENTER)
 $buttonxpos += $alarmwith
 $emptyalarmbutton = GUICtrlCreateButton( "1", $buttonxpos , $ButtonHeight + $chargeWhith + $GUIWidth/40 + 20, $ButtonWith, $ButtonHeight, $BS_BITMAP)
 GUICtrlSetImage($emptyalarmbutton, ".\images\noalarm.bmp")
@@ -806,7 +837,9 @@ GUICtrlCreateLabel("Battery serial",$xpos, $ypos, $labelwith, 15)
 $batteryserial = GUICtrlCreateLabel("",$xpos + $labelwith, $ypos, $GUIWidth - $GUIWidth/40 -($xpos+$labelwith),15)
 GUICtrlSetBkColor(-1,0xffffff)
 
-GUISetState() ; Show the main GUI
+;GUISetState() ; Show the main GUI
+GUISetState(@SW_SHOW, $myGui)
+GUISetState(@SW_HIDE, $inicio)
 #EndRegion ###
 
 
@@ -1327,6 +1360,8 @@ Func _ButtonClicked ()
 	Local $first
 	Local $received ; a status ok frame is received
 	Local $times ; Used for control the resend xbee frame
+	Local $t_first, $ch_first, $e_first, $l_first
+	Local $t, $ch, $e, $l
 
 	Switch @GUI_CtrlId
 
@@ -1560,6 +1595,7 @@ Func _ButtonClicked ()
 										GUICtrlSetImage($charge,".\images\bat100.jpg")
 
 								EndSwitch
+
 							EndIf
 						EndIf
 					EndIf
@@ -1567,9 +1603,6 @@ Func _ButtonClicked ()
 				WEnd
 				$times+=1
 			Wend
-
-
-
 
 			GUISetState(@SW_ENABLE,$myGui)
 			GUISetState(@SW_SHOW ,$myGui)
@@ -1634,7 +1667,8 @@ Func _ButtonClicked ()
 				$times+=1
 			WEnd
 			;_ArrayDisplay($sensor, "")
-			GUICtrlSetData($status, @CRLF, 1)
+			_GetAlarms()
+
 			_Draw()
 
 		Case $viewbutton
@@ -1722,6 +1756,8 @@ Func _ButtonClicked ()
 					WEnd
 				EndWith
 				;_ArrayDisplay($sensor, "")
+
+				_GetAlarms()
 
 				$SQLCode = "SELECT * FROM batteries WHERE battid = " & $batteryID
 				ConsoleWrite($SQLCode & @CRLF)
@@ -2006,34 +2042,44 @@ Func _ButtonClicked ()
 		Case $tempalarmbutton
 			GUISetState(@SW_DISABLE,$myGui)
 			GUISetState(@SW_SHOW ,$alarmform)
-			Sleep(2000)
-			GUISetState(@SW_ENABLE,$myGui)
-			GUISetState(@SW_SHOW ,$myGui)
-			GUISetState(@SW_HIDE,$alarmform)
+			;_ArrayDisplay($tempalarm)
+			_GUICtrlListView_DeleteAllItems(GUICtrlGetHandle($alarmoutputlist)) ; Clear previous printed list
+			_GUICtrlListView_SetItemCount($alarmoutputlist, UBound($tempalarm,1)+1)
+			_GUICtrlListView_AddArray($alarmoutputlist, $tempalarm)
+
 
 		Case $levelalarmbutton
 			GUISetState(@SW_DISABLE,$myGui)
 			GUISetState(@SW_SHOW ,$alarmform)
-			Sleep(2000)
-			GUISetState(@SW_ENABLE,$myGui)
-			GUISetState(@SW_SHOW ,$myGui)
-			GUISetState(@SW_HIDE,$alarmform)
+			;_ArrayDisplay($levelalarm)
+			_GUICtrlListView_DeleteAllItems(GUICtrlGetHandle($alarmoutputlist)) ; Clear previous printed list
+			_GUICtrlListView_SetItemCount($alarmoutputlist, UBound($levelalarm,1)+1)
+			_GUICtrlListView_AddArray($alarmoutputlist, $levelalarm)
+
 
 		Case $chargealarmbutton
 			GUISetState(@SW_DISABLE,$myGui)
 			GUISetState(@SW_SHOW ,$alarmform)
-			Sleep(2000)
-			GUISetState(@SW_ENABLE,$myGui)
-			GUISetState(@SW_SHOW ,$myGui)
-			GUISetState(@SW_HIDE,$alarmform)
+			;_ArrayDisplay($chargealarm)
+			_GUICtrlListView_DeleteAllItems(GUICtrlGetHandle($alarmoutputlist)) ; Clear previous printed list
+			_GUICtrlListView_SetItemCount($alarmoutputlist, UBound($chargealarm,1)+1)
+			_GUICtrlListView_AddArray($alarmoutputlist, $chargealarm)
+
 
 		Case $emptyalarmbutton
 			GUISetState(@SW_DISABLE,$myGui)
 			GUISetState(@SW_SHOW ,$alarmform)
-			Sleep(2000)
+			;_ArrayDisplay($emptyalarm)
+			_GUICtrlListView_DeleteAllItems(GUICtrlGetHandle($alarmoutputlist)) ; Clear previous printed list
+			_GUICtrlListView_SetItemCount($alarmoutputlist, UBound($emptyalarm,1)+1)
+			_GUICtrlListView_AddArray($alarmoutputlist, $emptyalarm)
+
+
+		Case $alarmOkButton
 			GUISetState(@SW_ENABLE,$myGui)
 			GUISetState(@SW_SHOW ,$myGui)
 			GUISetState(@SW_HIDE,$alarmform)
+
 
 
 		Case $comselectokbutton    ; ********** Set the COM port configuration on his respective vars
@@ -3206,6 +3252,107 @@ EndFunc
 ;
 ;***************************************************************************************************
 #Region ###
+
+Func _GetAlarms()
+
+	Local $t_first, $ch_first, $e_first, $l_first
+	Local $t, $ch, $e, $l
+	Local $count
+
+
+	;Extract alarms
+	$t_first = True
+	$ch_first = True
+	$e_first = True
+	$l_first = True
+	$t=0
+	$e=0
+	$ch=0
+	$l=0
+	GUICtrlSetImage($tempalarmbutton, ".\images\noalarm.bmp")
+	GUICtrlSetImage($chargealarmbutton, ".\images\noalarm.bmp")
+	GUICtrlSetImage($levelalarmbutton, ".\images\noalarm.bmp")
+	GUICtrlSetImage($emptyalarm, ".\images\noalarm.bmp")
+	ReDim $tempalarm[1][1]
+	ReDim $chargealarm[1][1]
+	ReDim $levelalarm[1][1]
+	ReDim $emptyalarm[1][1]
+
+	;[msb..lsb] [level_sensor_alarm,sensor_alarm,system_alarm,temp_alarm,charge_alarm,level,empty_alarm,charge/drain]
+
+	For $count = 0 To (UBound($sensor,2)-1)
+		ConsoleWrite("Count = " & $count & ":  ")
+		If _bit($sensor[5][$count],4) Then			;Temperature alarm
+			ConsoleWrite(", t")
+			If $t_first Then			; if array has only 1 cell write the data in it, in other case
+				$t_first = False
+				$tempalarm[$t][0]=_DateAdd('s',$sensor[0][$count],"1970/01/01 00:00:00")
+				$t+=1
+				GUICtrlSetImage($tempalarmbutton, ".\images\alarm.bmp")
+			Else
+				If Not(_bit($sensor[5][$count-1],4)) Then		;The previous value was no alarm
+					ReDim $tempalarm[UBound($tempalarm,1)+1][1]		; add space for the next data
+					$tempalarm[$t][0]=_DateAdd('s',$sensor[0][$count],"1970/01/01 00:00:00")
+					$t+=1
+				EndIf
+			EndIf
+		EndIf
+
+		If _bit($sensor[5][$count],3) Then			;Charge alarm
+			ConsoleWrite(", ch")
+			If $ch_first Then			; if array has only 1 cell write the data in it, in other case
+				$ch_first = False
+				$chargealarm[$ch][0]=_DateAdd('s',$sensor[0][$count],"1970/01/01 00:00:00")
+				$ch+=1
+				GUICtrlSetImage($chargealarmbutton, ".\images\alarm.bmp")
+			Else
+				If Not(_bit($sensor[5][$count-1],3)) Then		;The previous value was no alarm
+					ReDim $chargealarm[UBound($chargealarm,1)+1][1]		; add space for the next data
+					$chargealarm[$ch][0]=_DateAdd('s',$sensor[0][$count],"1970/01/01 00:00:00")
+					$ch+=1
+				EndIf
+			EndIf
+		EndIf
+
+		ConsoleWrite($sensor[5][$count] & "   " & _bit($sensor[5][$count],3))
+		If _bit($sensor[5][$count],2) Then			;level alarm
+			ConsoleWrite(", l")
+			If $l_first Then			; if array has only 1 cell write the data in it, in other case
+				$l_first = False
+				$levelalarm[$l][0]=_DateAdd('s',$sensor[0][$count],"1970/01/01 00:00:00")
+				$l+=1
+				GUICtrlSetImage($levelalarmbutton, ".\images\alarm.bmp")
+			Else
+				If Not(_bit($sensor[5][$count-1],2)) Then		;The previous value was no alarm
+					ReDim $levelalarm[UBound($levelalarm,1)+1][1]		; add space for the next data
+					$levelalarm[$l][0]=_DateAdd('s',$sensor[0][$count],"1970/01/01 00:00:00")
+					$l+=1
+				EndIf
+			EndIf
+		EndIf
+
+		If _bit($sensor[5][$count],1) Then			;empty alarm
+			ConsoleWrite(", e")
+			If $e_first Then			; if array has only 1 cell write the data in it, in other case
+				$e_first = False
+				$emptyalarm[$e][0]=_DateAdd('s',$sensor[0][$count],"1970/01/01 00:00:00")
+				$e+=1
+				GUICtrlSetImage($emptyalarmbutton, ".\images\alarm.bmp")
+			Else
+				If Not(_bit($sensor[5][$count-1],1)) Then		;The previous value was no alarm
+					ReDim $emptyalarm[UBound($emptyalarm,1)+1][1]		; add space for the next data
+					$emptyalarm[$e][0]=_DateAdd('s',$sensor[0][$count],"1970/01/01 00:00:00")
+					$e+=1
+				EndIf
+			EndIf
+		EndIf
+		ConsoleWrite(@CRLF)
+	Next
+	GUICtrlSetData($status, @CRLF, 1)
+
+	;_ArrayDisplay($levelalarm)
+EndFunc
+
 Func _voltaje($sensorvalue)
 	Return ((($sensorvalue*3.2226/1000)+4.1030)/0.4431);
 EndFunc
@@ -3295,7 +3442,7 @@ EndFunc
 
 ;===============================================================================
 ;
-; Function Name:	_CheckIncomingFrame()
+; Function Name:	_CalculateCalibration()
 ; Description:		Calculate the correction parameter to apply to the readed sensor data
 ;					to obtain a calibrated rate
 ; Parameters:		$x1, $x2: values (V, ºC ...) in two different instants. $x2 must be > $x1
