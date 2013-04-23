@@ -6,6 +6,10 @@
  Script Function:
 
  Version:
+			0.25.0  Add SOC representation when connects to a monitor.
+			0.24.1	Change same database access sentences for adapt to database tables changes. Prevent duplicate samples in database
+					for the same battery and date.
+			0.24.0	Add software calibration. Tested with Vh voltaje. TODO: add reset sw calibration
 			0.23.9	Modify calibration structure process and calibration data readed in main function.TODO: calculate new param to send to Arduino
 			0.23.8	Fix error in save in database, and other minor changes
 			0.23.7	Add new function to adapt data identifications sent to Arduino to a 15chars string
@@ -138,6 +142,7 @@ Const $SET_BATT_CAPACITY = "61"
 Const $CALIBRATE = "07"
 Const $SET_TIME = "08"
 Const $READ_MEMORY = "10"
+Const $READ_STATUS = "11"
 Const $RESET_MEM = "99"
 
 Global $myGui ; main GUI handler
@@ -401,7 +406,7 @@ GUIctrlSetOnEvent(-1, "_ButtonClicked")
 * ***************
 #ce
 #Region ###
-Global $calibrationForm, $calibrationInstruction, $calibrationNextbutton, $calibrationCancelbutton
+Global $calibrationForm, $calibrationInstruction, $calibrationNextbutton, $calibrationCancelbutton, $calibrationRstbutton
 Global $calibrationSensor, $calibrationHightvalue, $calibrationLowvalue, $calibrationValue1unit, $calibrationValue2unit
 Global $calibrationHightvaluereaded, $calibrationLowvaluereaded, $calibrationValue1unitreaded, $calibrationValue2unitreaded
 Global $calibrationLabel1,$calibrationLabel2,$calibrationLabel3,$calibrationLabel4
@@ -421,6 +426,8 @@ GUICtrlSetFont(-1, 12, 800, 0, "MS Sans Serif")
 GUICtrlSetBkColor(-1, 0xFFFFFF)
 $calibrationSensor = GUICtrlCreateCombo("", 28, 136, 161, 25, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
 GUICtrlSetData(-1, "VOLTAJE +|VOLTAJE -|CURRENT|TEMPERATURE","VOLTAJE +")
+$calibrationRstbutton = GUICtrlCreateButton("RST", 264, 136, 49, 25)
+GUIctrlSetOnEvent(-1, "_ButtonClicked")
 $calibrationHightvalue = GUICtrlCreateInput("", 264, 192, 81, 21, $GUI_SS_DEFAULT_INPUT)
 $calibrationLowvalue = GUICtrlCreateInput("", 264, 248, 81, 21, $GUI_SS_DEFAULT_INPUT)
 GUICtrlCreateLabel("Sensor", 28, 120, 37, 17)
@@ -459,7 +466,6 @@ $myGui = GUICreate("Traction batteries monitor system", $GUIWidth, $GUIHeight, 5
 GUISetOnEvent($GUI_EVENT_CLOSE, "_CLOSEClicked")
 GUISetOnEvent($GUI_EVENT_MOUSEMOVE, "_MouseMove")
 GUISetBkColor(0xf0f0f0)
-GUISetState() ; Show the main GUI
 
 ; Form menu creation
 $filemenu = GUICtrlCreateMenu("&File")
@@ -551,28 +557,28 @@ GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith*8
 
 $zoominYbutton = GUICtrlCreateButton("Zoom In",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_BITMAP)
-GUICtrlSetImage(-1, ".\images\zoomin.bmp")
+GUICtrlSetImage(-1, ".\images\zoomin_y.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $zoominYbuttonhelp =GUICtrlCreateLabel("Zoom In Vertical Axix", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
 GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith
 
 $zoomoutYbutton = GUICtrlCreateButton("Zoom Out",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_BITMAP)
-GUICtrlSetImage(-1, ".\images\zoomout.bmp")
+GUICtrlSetImage(-1, ".\images\zoomout_y.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $zoomoutYbuttonhelp =GUICtrlCreateLabel("Zoom Out Vertical Axix", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
 GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith
 
 $zoominXbutton = GUICtrlCreateButton("Zoom In",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_BITMAP)
-GUICtrlSetImage(-1, ".\images\zoomin.bmp")
+GUICtrlSetImage(-1, ".\images\zoomin_x.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $zoominXbuttonhelp =GUICtrlCreateLabel("Zoom In Horiontal Axix", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
 GUICtrlSetState(-1,$GUI_HIDE)
 $buttonxpos += $ButtonWith
 
 $zoomoutXbutton = GUICtrlCreateButton("Zoom Out",$buttonxpos,$buttonypos,$ButtonWith,$ButtonHeight,$BS_BITMAP)
-GUICtrlSetImage(-1, ".\images\zoomout.bmp")
+GUICtrlSetImage(-1, ".\images\zoomout_x.bmp")
 GUICtrlSetOnEvent(-1, "_ButtonClicked")
 $zoomoutXbuttonhelp =GUICtrlCreateLabel("Zoom Out Horizontal Axix", $buttonxpos+$ButtonWith/2, $buttonypos+$ButtonHeight)
 GUICtrlSetState(-1,$GUI_HIDE)
@@ -799,6 +805,8 @@ $ypos += $labelspacer
 GUICtrlCreateLabel("Battery serial",$xpos, $ypos, $labelwith, 15)
 $batteryserial = GUICtrlCreateLabel("",$xpos + $labelwith, $ypos, $GUIWidth - $GUIWidth/40 -($xpos+$labelwith),15)
 GUICtrlSetBkColor(-1,0xffffff)
+
+GUISetState() ; Show the main GUI
 #EndRegion ###
 
 
@@ -1312,6 +1320,7 @@ Func _ButtonClicked ()
 
 	Local $k ; General counter
 	Local $dat ;
+	Local $soc ; State of Charge readed from Arduino
 	Local $res ; Byte to byte char conversion
 	Local $dato ;
 	Local $Time, $Time1 ; Used for delay calculation in XBee transmisions/responses
@@ -1431,7 +1440,7 @@ Func _ButtonClicked ()
 			_SetAddress64($addr64)
 			_SetAddress16($addr16)
 
-
+			$received = False
 			$first = True
 			$times = 1
 			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
@@ -1488,6 +1497,78 @@ Func _ButtonClicked ()
 				$times+=1
 			Wend
 
+			$received = False
+			$first = True
+			$times = 1
+			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+				_SendZBData($READ_STATUS)
+				;ConsoleWrite(@CRLF & "count = " & $count)
+
+				$Time = TimerInit()
+				While ((TimerDiff($Time)/1000) <= 1 )  ; Wait until a zb data packet is received or 1second
+					GUICtrlSetData($status, ".", 1)
+					If _CheckIncomingFrame() Then
+						GUICtrlSetData($status, "-", 1)
+						If _GetApiID() == $ZB_RX_RESPONSE Then
+							GUICtrlSetData($status, "/", 1)
+							$received=True
+							$dato = _ReadZBDataResponseValue() ; Extract the data sent by the arduino
+							ConsoleWrite("Data received = " & $dato & @CRLF)
+							If StringMid($dato, 1, 2) = $READ_STATUS Then		; The data is a response for a READ_STATUS frame request
+								$soc = Int(100*Dec(StringMid($dato, 3, 2))/255)    ;The SOC mapped in 0..100 range
+								ConsoleWrite("Reveivec SOC = " & $soc & @CRLF)
+								Switch $soc
+									Case 0 to 5
+										GUICtrlSetImage($charge,".\images\bat5.jpg")
+									Case 5 to 10
+										GUICtrlSetImage($charge,".\images\bat10.jpg")
+									Case 10 to 15
+										GUICtrlSetImage($charge,".\images\bat15.jpg")
+									Case 15 to 20
+										GUICtrlSetImage($charge,".\images\bat20.jpg")
+									Case 20 to 25
+										GUICtrlSetImage($charge,".\images\bat25.jpg")
+									Case 25 to 30
+										GUICtrlSetImage($charge,".\images\bat30.jpg")
+									Case 30 to 35
+										GUICtrlSetImage($charge,".\images\bat35.jpg")
+									Case 35 to 40
+										GUICtrlSetImage($charge,".\images\bat40.jpg")
+									Case 40 to 45
+										GUICtrlSetImage($charge,".\images\bat45.jpg")
+									Case 45 to 50
+										GUICtrlSetImage($charge,".\images\bat50.jpg")
+									Case 50 to 55
+										GUICtrlSetImage($charge,".\images\bat55.jpg")
+									Case 55 to 60
+										GUICtrlSetImage($charge,".\images\bat60.jpg")
+									Case 60 to 65
+										GUICtrlSetImage($charge,".\images\bat65.jpg")
+									Case 65 to 70
+										GUICtrlSetImage($charge,".\images\bat70.jpg")
+									Case 70 to 75
+										GUICtrlSetImage($charge,".\images\bat75.jpg")
+									Case 75 to 80
+										GUICtrlSetImage($charge,".\images\bat80.jpg")
+									Case 80 to 85
+										GUICtrlSetImage($charge,".\images\bat85.jpg")
+									Case 85 to 90
+										GUICtrlSetImage($charge,".\images\bat90.jpg")
+									Case 90 to 95
+										GUICtrlSetImage($charge,".\images\bat95.jpg")
+									Case 95 to 100
+										GUICtrlSetImage($charge,".\images\bat100.jpg")
+
+								EndSwitch
+							EndIf
+						EndIf
+					EndIf
+					Sleep(100)
+				WEnd
+				$times+=1
+			Wend
+
+
 
 
 			GUISetState(@SW_ENABLE,$myGui)
@@ -1543,7 +1624,7 @@ Func _ButtonClicked ()
 								$sensor[2][UBound($sensor,2)-1] = _voltaje(Dec(StringMid($dato,15, 4)))
 								$sensor[3][UBound($sensor,2)-1] = _current(Dec(StringMid($dato,19, 4)))
 								$sensor[4][UBound($sensor,2)-1] = _temperature(Dec(StringMid($dato,23, 4)))
-								$sensor[5][UBound($sensor,2)-1] = StringMid($dato,27, 2)
+								$sensor[5][UBound($sensor,2)-1] = Dec(StringMid($dato,27, 2))
 								$Time = TimerInit() ; Reset the time counter
 							EndIf
 						EndIf
@@ -1635,7 +1716,7 @@ Func _ButtonClicked ()
 						$sensor[2][UBound($sensor,2)-1] = .Fields("voltajel").value
 						$sensor[3][UBound($sensor,2)-1] = .Fields("amperaje").value
 						$sensor[4][UBound($sensor,2)-1] = .Fields("temperature").value
-						$sensor[5][UBound($sensor,2)-1] = 1
+						$sensor[5][UBound($sensor,2)-1] = .Fields("state").value
 
 						.MoveNext
 					WEnd
@@ -1688,11 +1769,20 @@ Func _ButtonClicked ()
 				EndIf
 
 				For $k = 0 To (UBound($sensor,2)-1) Step 1
-					$SQLCode = "INSERT INTO battsignals (fecha, battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & $sensor[0][$k] & ", " & $batteryID & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
-					$SQLCode &= " ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)"    ;Don`t work Error with querry sentence ¿?¿?¿?
-					;$SQLCode = "INSERT INTO battsignals (battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & "01" & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
+
+					; Check if the sensor value exist in battsignals table. Check only for one sample for this battid and date. don´t check the values
+					$SQLCode = 'SELECT id FROM battsignals WHERE battid = "' & $batteryID
+					$SQLCode &= '" && fecha = "' & $sensor[0][$k] & '"'
 					ConsoleWrite($SQLCode & @CRLF)
-					_Query($SQLInstance, $SQLCode) 		;TODO: check success in database write
+					$TableContents = _Query($SQLInstance, $SQLCode)
+
+					If $TableContents.EOF then ; Querry is empty
+						$SQLCode = "INSERT INTO battsignals (fecha, battid, voltajeh, voltajel, amperaje, temperature, state) VALUES (" & $sensor[0][$k] & ", " & $batteryID & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & $sensor[5][$k] & ")"
+						$SQLCode &= " ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)"    ;Don`t work Error with querry sentence ¿?¿?¿?
+						;$SQLCode = "INSERT INTO battsignals (battid, voltajeh, voltajel, amperaje, temperature, level) VALUES (" & "01" & ", " & $sensor[1][$k] & ", "  & $sensor[2][$k] & ", "  & $sensor[3][$k] & ", "  & $sensor[4][$k] & ", "  & True & ")"
+						ConsoleWrite($SQLCode & @CRLF)
+						_Query($SQLInstance, $SQLCode) 		;TODO: check success in database write
+					EndIf
 				Next
 			EndIf
 
@@ -2227,6 +2317,47 @@ Func _ButtonClicked ()
 				GUISetState(@SW_HIDE,$calibrationForm)
 			EndIf
 
+		Case $calibrationRstbutton
+			$res = MsgBox(4,"Confirm reset calibration","Are you sure you want to clear calibration data?")
+			If $res = 6 Then
+				$calibrar = False
+				$received=False
+				$times=1
+				Switch GUICtrlRead($calibrationSensor)
+					Case "VOLTAJE +"
+						$dat = "01"
+					Case "VOLTAJE -"
+						$dat = "02"
+					Case "CURRENT"
+						$dat = "03"
+					Case "TEMPERATURE"
+						$dat = "04"
+				EndSwitch
+
+				While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
+
+					_SendZBData($CALIBRATE & $dat & "7F" & "7F")
+
+					$Time = TimerInit()
+					While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+						GUICtrlSetData($status, ".", 1)
+						If _CheckIncomingFrame() Then
+							ConsoleWrite(_PrintFrame() & @CRLF)
+							GUICtrlSetData($status, "-", 1)
+							If _GetApiID() == $ZB_RX_RESPONSE Then
+								GUICtrlSetData($status, "/", 1)				;Only check if a frame is returned by Arduino. Don´t check the content
+								$received = True
+							EndIf
+						EndIf
+						Sleep(100)
+					WEnd
+					$times+=1
+				WEnd
+				GUISetState(@SW_ENABLE,$myGui)
+				GUISetState(@SW_SHOW ,$myGui)
+				GUISetState(@SW_HIDE,$calibrationForm)
+			EndIf
+
 		case $versionformokbutton
 			GUISetState(@SW_HIDE, $versionform)
 
@@ -2472,7 +2603,7 @@ Func _CalibrationProcess($stage)
 						$times+=1
 					WEnd
 					GUICtrlSetData($calibrationValue1unitreaded,"ud")
-					GUICtrlSetData($calibrationInstruction,"Connect the monbat sistem to a variable power supply and set the posivite half tension to a value bigger than 15Vdc" & @CRLF & "Strike the 'Next' button")
+					GUICtrlSetData($calibrationInstruction,"Connect the monbat sistem to a variable power supply and set the posivite half tension to aprox 15Vdc" & @CRLF & "Strike the 'Next' button")
 
 				Case "VOLTAJE -"
 					$received=False
@@ -2495,7 +2626,7 @@ Func _CalibrationProcess($stage)
 						$times+=1
 					WEnd
 					GUICtrlSetData($calibrationValue1unitreaded,"ud")
-					GUICtrlSetData($calibrationInstruction,"Connect the monbat sistem to a variable power supply and set the posivite half tension to a value bigger than 15Vdc" & @CRLF & "Strike the 'Next' button")
+					GUICtrlSetData($calibrationInstruction,"Connect the monbat sistem to a variable power supply and set the negative half tension to aprox 15Vdc" & @CRLF & "Strike the 'Next' button")
 
 				Case "CURRENT"
 					$received=False
@@ -2585,10 +2716,10 @@ Func _CalibrationProcess($stage)
 			Switch GUICtrlRead($calibrationSensor)
 				Case "VOLTAJE +"
 					GUICtrlSetData($calibrationValue2unitreaded,"ud")
-					GUICtrlSetData($calibrationInstruction,"Set the posivite half tension in the power supply to a value between 9.5Vdc and 10Vdc" & @CRLF & "Strike the 'Next' button")
+					GUICtrlSetData($calibrationInstruction,"Set the posivite half tension in the power supply to a value between 9.75Vdc and 10.25Vdc" & @CRLF & "Strike the 'Next' button")
 				Case "VOLTAJE -"
 					GUICtrlSetData($calibrationValue2unitreaded,"ud")
-					GUICtrlSetData($calibrationInstruction,"Set the posivite half tension in the power supply to a value between -9.5Vdc and -10Vdc" & @CRLF & "Strike the 'Next' button")
+					GUICtrlSetData($calibrationInstruction,"Set the posivite half tension in the power supply to a value between -9.75Vdc and -10.25Vdc" & @CRLF & "Strike the 'Next' button")
 				Case "CURRENT"
 					GUICtrlSetData($calibrationValue2unitreaded,"ud")
 				Case "TEMPERATURE"
@@ -2615,7 +2746,7 @@ Func _CalibrationProcess($stage)
 					GUICtrlSetData($calibrationInstruction,"Measure the power supply voltaje with a multimeter and introduce the value. RESPECT THE MEASURE SIGN" & @CRLF & "Strike the 'Next' button")
 				Case "VOLTAJE -"
 					GUICtrlSetData($calibrationValue2unit,"V")
-					GUICtrlSetData($calibrationInstruction,"Measure the power supply voltaje with a multimeter and introduce the value. RESPECT THE MEASURE SIGN" & @CRLF & "Strike the 'Next' button")
+					GUICtrlSetData($calibrationInstruction,"Measure the power supply voltaje with a multimeter and introduce the value. OMIT THE MEASURE SIGN" & @CRLF & "Strike the 'Next' button")
 				Case "CURRENT"
 					GUICtrlSetData($calibrationValue2unit,"A")
 
@@ -2680,7 +2811,7 @@ Func _CalibrationProcess($stage)
 					$received=False
 					$times=1
 					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
-						_SendZBData($CALIBRATE & "02" & "FF" & "FF")
+						_SendZBData($CALIBRATE & "02" & Hex(Round(($calibrationGain-0.9)/0.000781),2) & Hex(Round(($calibrationOff+102.4)/0.8),2))
 
 						$Time = TimerInit()
 						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
@@ -2702,7 +2833,7 @@ Func _CalibrationProcess($stage)
 					$received=False
 					$times=1
 					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
-						_SendZBData($CALIBRATE & "03" & "FF" & "FF")
+						_SendZBData($CALIBRATE & "03" & Hex(Round(($calibrationGain-0.9)/0.000781),2) & Hex(Round(($calibrationOff+102.4)/0.8),2))
 
 						$Time = TimerInit()
 						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
@@ -2725,7 +2856,7 @@ Func _CalibrationProcess($stage)
 					$received=False
 					$times=1
 					While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
-						_SendZBData($CALIBRATE & "04" & "FF" & "FF")
+						_SendZBData($CALIBRATE & "04" & Hex(Round(($calibrationGain-0.9)/0.000781),2) & Hex(Round(($calibrationOff+102.4)/0.8),2))
 
 						$Time = TimerInit()
 						While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
