@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.12.0   Add SOC representation in function of voltaje. Add READ_STATUS case for sending status to PC
  *              Version 0.11.2   Fix some debug and comment some unused code
  *              Version 0.11.1   Add software calibration to the rest of the sensors
  *              Version 0.11.0   Remove debug lines. Arduino crashes into a cyclic restart. I don't know if is for an internal memory flash error
@@ -83,6 +84,7 @@ SoftwareSerial debugCon(9,10); //Rx, Tx arduino digital port for debug serial co
 #define CALIBRATE 0x07
 #define SET_TIME 0x08
 #define READ_MEMORY 0x10
+#define READ_STATUS 0x11
 #define EXIT 0xFA
 #define RESET_MEM 0x99
 
@@ -198,12 +200,12 @@ word l_prev;
 word s_prev;
 
 // Battery status
-//byte st;  
+word status;  
 //boolean drain; // true if battery is draining, false if charging 
 boolean full; // battery if fully charged
 boolean empty; // batrey charge below 20% 
 word capacity; // battry cappacity in Ah
-byte soc; // state of charge in % respect battery capacity
+unsigned int soc; // state of charge in % respect battery capacity
 
 // time at several events
 time_t fecha;  //now
@@ -285,7 +287,7 @@ void setup()
     debugCon.println("|         |         |         |         |         |         |         |         |");
     debugCon.println("|-------------------------------------------------------------------------------|");
   }
-  
+  /*
   if (debug) {
     debugCon.println("SENSORS SOFTWARE CALIBRATION DATA");
     debugCon.print("vh_gain = ");
@@ -674,7 +676,6 @@ void serialEvent()
           break;
 
         case READ_MEMORY:
-          
           if (fifo.Empty()){  // Prevent read empty fifo
             fin = true;
           }else{
@@ -750,6 +751,13 @@ void serialEvent()
             debugCon.print("fifo head = ");
             debugCon.println(fifo_head);            
           }*/
+          break;
+        
+        case READ_STATUS:
+          payload[0]=READ_STATUS;
+          payload[1]=map(soc,0,100,0,255);
+          payload[2]=lowByte(status);
+          xbee.send(zbTx);
           break;
         
         case EXIT:
@@ -839,6 +847,14 @@ void captureData()
   float t=temperature(sensorT);
   float tl=temperature(T_c);
   
+  soc = soc_conv((vh1+vll)/2,0);
+  if (soc >= 200){
+    soc = 0;
+  } 
+    
+  status=word(charge(soc),temp_alarm(false)|level_alarm(false)|charge_alarm(false));
+  led.Write(status);
+  
   //static float i_p= 0.0000;
   //float iprev=current(a_prev);
   //static float charge;
@@ -857,15 +873,17 @@ void captureData()
       debugCon.print(vl);
       debugCon.print("Vdc -> ");
       debugCon.print(vll);
-      debugCon.print("Vdc,  C : ");
-      debugCon.print(i);
-      debugCon.print("A -> ");
-      debugCon.print(il);
-      debugCon.print("A, T : ");
-      debugCon.print(t);
-      debugCon.print("ºC -> ");
-      debugCon.print(tl);
-      debugCon.println("ºC");
+      //debugCon.print("Vdc,  C : ");
+      //debugCon.print(i);
+      //debugCon.print("A -> ");
+      //debugCon.print(il);
+      //debugCon.print("A, T : ");
+      //debugCon.print(t);
+      //debugCon.print("ºC -> ");
+      //debugCon.print(tl);
+      //debugCon.print("ºC");
+      debugCon.print(", SOC = ");
+      debugCon.println(soc);
       /*debugCon.print("A,  Carga : ");
       debugCon.print(charge);
       debugCon.print("Ah,    ");
@@ -1176,6 +1194,51 @@ float temperature(word sensorvalue)
   return float(((sensorvalue*3.2226/1000)-0.5965)/0.0296);
 }
 
+
+/* ===============================================================================
+ *
+ * Function Name:	calc_ah_drained(word sa0, word sa1, float ah0)
+ * Description:    	Calculate the Ah drained by the battery until is draining
+ *                      
+ * Parameters:          sa0  : float. Last value of amperaje sensor sample in Amperes
+ *                      sa1  : float. Actual value of amperaje sensor sample in Amperes
+ *                      ah0  : float. Last value returned by this function (in Ah)
+ *                      fs   : int. Sample frecuency in seconds
+ * Returns;  		float: Total Ah drained by the battery.
+ *
+ * =============================================================================== */
+unsigned int soc_conv(float voltaje,boolean charge)
+{
+  unsigned int result;
+  if (charge){
+    if (voltaje>12.70 && voltaje <=13.8){
+      result = int(59.09*voltaje-578.2);
+    }else if (voltaje>13.65){
+      result = int(11.36*voltaje-1120);
+    }
+  }else{
+    if (voltaje<=10.65){
+      debugCon.println("1");
+      result = int(25*voltaje-256.25);
+    }else if (voltaje>10.65 && voltaje<=10.95){
+      result = int(32.25*voltaje-333.14);
+      debugCon.println("2");
+    }else if (voltaje>10.95 && voltaje<=11.65){
+      result = int(42.86*voltaje-449.32);
+      debugCon.println("3");
+    }else if (voltaje>11.65 && voltaje<=12){
+      result = int(114.28*voltaje-1281.36);
+      debugCon.println("4");
+    }else if (voltaje>12){
+      result = int(100*voltaje-1110);
+      debugCon.println("5");
+    }
+  }  
+  return result;
+}
+
+
+
 /* ===============================================================================
  *
  * Function Name:	calc_ah_drained(word sa0, word sa1, float ah0)
@@ -1306,7 +1369,7 @@ byte charge(unsigned int carga){
     res|=B00111111;
   } else if (carga>78 && carga<=90) {
     res|=B01111111;
-  } else if (carga>90 && carga<=100) {
+  } else if (carga>90){ // && carga<=100) {
     res|=B11111111;
   } else {
     
