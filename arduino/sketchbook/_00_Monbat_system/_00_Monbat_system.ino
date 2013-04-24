@@ -9,6 +9,8 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.12.2   Fix error in SOC calculation when battery is charging
+ *              Version 0.12.1   Fix some error in alarms calculation. Add new cases and debug lines
  *              Version 0.12.0   Add SOC representation in function of voltaje. Add READ_STATUS case for sending status to PC
  *              Version 0.11.2   Fix some debug and comment some unused code
  *              Version 0.11.1   Add software calibration to the rest of the sensors
@@ -851,13 +853,15 @@ void captureData()
   float t=temperature(sensorT);
   float tl=temperature(T_c);
   
-  soc = soc_conv((vh1+vll)/2,0);
-  if (soc >= 200){
+  soc = soc_conv((vh1+vll)/2,bitRead(state,0));
+  if ((soc >=100)&(soc<200)){
+    soc = 100;
+  } else if(soc >= 200){
     soc = 0;
-  } 
+  }
   
-  //[level_sensor_alarm,sensor_alarm,system_alarm,temp_alarm,charge_alarm,level,empty_alarm,charge/drain]
-  check_alarms()
+  //state = [level_sensor_alarm,sensor_alarm,system_alarm,temp_alarm,charge_alarm,level,empty_alarm,charge/drain]
+  check_alarms();
   status=word(charge(soc),temp_alarm(bitRead(state,4))|level_alarm(bitRead(state,2))|charge_alarm(bitRead(state,3)|bitRead(state,1)));
   led.Write(status);
   
@@ -1008,31 +1012,31 @@ boolean changed()
 {
   boolean res = false;
   if (((float(sensorVh))>float(up_thr*float(vh_prev))) || (float(sensorVh)<float(low_thr*float(vh_prev)))) {
-    if (debug){
+    /*if (debug){
       debugCon << "Vh Changed. Actual: " << float(sensorVh) << ", last: " << float(vh_prev) << ", margins = [" << float(low_thr*float(vh_prev)) << "," << float(up_thr*float(vh_prev)) << "]";
       debugCon.println();  
-    }
+    }*/
     res = true;
   }
   if (((float(sensorVl))>float(up_thr*float(vl_prev))) || (float(sensorVl)<float(low_thr*float(vl_prev)))) {
-    if (debug){
+    /*if (debug){
       debugCon << "Vl Changed. Actual: " << float(sensorVl) << ", last: " << float(vl_prev) << ", margins = [" << float(low_thr*float(vl_prev)) << "," << float(up_thr*float(vl_prev)) << "]";
       debugCon.println();  
-    }
+    }*/
     res = true;
   }
   if (((float(sensorA))>float(up_thr*float(a_prev))) || (float(sensorA)<float(low_thr*float(a_prev)))) {
-    if (debug){
+    /*if (debug){
       debugCon << "A Changed. Actual: " << float(sensorA) << ", last: " << float(a_prev) << ", margins = [" << float(low_thr*float(a_prev)) << "," << float(up_thr*float(a_prev)) << "]";
       debugCon.println();  
-    }
+    }*/
     res = true;
   }
   if (((float(sensorT))>float(up_thr*float(t_prev))) || (float(sensorT)<float(low_thr*float(t_prev)))) {
-    if (debug){
+    /*if (debug){
       debugCon << "T Changed. Actual: " << float(sensorT) << ", last: " << float(t_prev) << ", margins = [" << float(low_thr*float(t_prev)) << "," << float(up_thr*float(t_prev)) << "]";
       debugCon.println();  
-    }
+    }*/
     res = true;
   }
   if (state != s_prev) {
@@ -1061,11 +1065,17 @@ boolean check_alarms()
   static byte times = 0;
   boolean alarm = false;
   
+  //state = [level_sensor_alarm,sensor_alarm,system_alarm,temp_alarm,charge_alarm,level,empty_alarm,charge/drain]
+  
   //  check temperature alarms
-  if ((sensorT > max_temp) || (sensorT < min_temp) && bitRead(state,0)) // Temp over safety margins and battery charging
+  if ((sensorT > max_temp) || (sensorT < min_temp))//  && bitRead(state,0)) // Temp over safety margins and battery charging
   {
     bitSet(state,4);
     alarm = true;
+    debugCon.println("Temperature alarm");
+  } else {
+    bitClear(state,4);
+    debugCon.println("NO Temperature alarm");
   }
   
   // check level alarms. Wait for 15 times followed
@@ -1076,19 +1086,26 @@ boolean check_alarms()
     }else{
       times=0;
     }
-    if (times > 15){
+    debugCon.print(times);
+    debugCon.print(" continous times ->");
+    if (times > 5){
       bitSet(state,7);
       alarm = true;
+      debugCon.println(" level alarm");
     }else{
       bitClear(state,7);
+      debugCon.println(" no level alarm");
     }
+    bitClear(state,7);
   }
   
   if (!bitRead(s_prev,0))    // previous statate draining
   {
     //if (sensorA > charge_amp)   //now is charging
+    full = false;
     if ((Vh_c > charge_volt) && (Vl_c > charge_volt))
     {
+      debugCon.print("Inic charge ");
       bitSet(state,0);
       charge_init = now();
       drain_end = now();
@@ -1096,15 +1113,17 @@ boolean check_alarms()
     } 
     else // continues draining
     {
+      debugCon.print("Continues drain ");
       if ((Vh_c < empty_volt) && (Vl_c < empty_volt))   //battery below 20% capacity
       {
+        debugCon.print(", battery under 20%");
         empty = true;
         bitSet(state,1);
         alarm = true;
       }
       else  // battery is not completely discharged
       {
-       
+        debugCon.print(", Ok");       
       }
     }
   } 
@@ -1113,23 +1132,30 @@ boolean check_alarms()
     //if (sensorA < drain_amp)   //now is draining
     if ((Vh_c < charge_volt) && (Vl_c < charge_volt))
     {
+      debugCon.print("Init drain ");
       bitClear(state,0);
       drain_init = now();
       charge_end = now();
       if (!full) 
       {
+        debugCon.print(", ERROR battery not fully charged");
         bitSet(state,3);
         alarm = true;
       }
     }
     else // cotinues charging
     {
+      debugCon.print("Continues charging ");
       if ((Vh_c > full_volt) && (Vl_c > full_volt))   // battery fully charged
       {
+        debugCon.print(", fully charged");
         full = true;
+        bitClear(state,1);
+        bitClear(state,3);
       }
     }
   }
+  debugCon.println(" .");
   return alarm;
 }
 
@@ -1230,29 +1256,32 @@ unsigned int soc_conv(float voltaje,boolean charge)
 {
   unsigned int result;
   if (charge){
-    if (voltaje>12.70 && voltaje <=13.8){
-      result = int(59.09*voltaje-578.2);
+    if (voltaje <= 13.8){                    // if (voltaje>12.70 && voltaje <=13.8){
+      result = int(59.09*voltaje-740.44);
+      debugCon.print("6, ");
     }else if (voltaje>13.65){
-      result = int(11.36*voltaje-1120);
+      result = int(11.36*voltaje-81.76);
+      debugCon.print("7, ");
     }
   }else{
     if (voltaje<=10.65){
-      debugCon.println("1");
+      debugCon.print("1, ");
       result = int(25*voltaje-256.25);
     }else if (voltaje>10.65 && voltaje<=10.95){
       result = int(32.25*voltaje-333.14);
-      debugCon.println("2");
+      debugCon.print("2, ");
     }else if (voltaje>10.95 && voltaje<=11.65){
       result = int(42.86*voltaje-449.32);
-      debugCon.println("3");
+      debugCon.print("3, ");
     }else if (voltaje>11.65 && voltaje<=12){
       result = int(114.28*voltaje-1281.36);
-      debugCon.println("4");
+      debugCon.print("4, ");
     }else if (voltaje>12){
       result = int(100*voltaje-1110);
-      debugCon.println("5");
+      debugCon.print("5, ");
     }
   }  
+  debugCon.println(result);
   return result;
 }
 
