@@ -9,6 +9,7 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.13.0   Add alimentation fault interrupt control. Now only controls the system status led
  *              Version 0.12.2   Fix error in SOC calculation when battery is charging
  *              Version 0.12.1   Fix some error in alarms calculation. Add new cases and debug lines
  *              Version 0.12.0   Add SOC representation in function of voltaje. Add READ_STATUS case for sending status to PC
@@ -130,6 +131,9 @@ const int ampPin = 6;    // Amperaje charging or drain the battery
 const int tempPin = 3;   // External battery temperature 
 const int levPin = 3;    // Digital signal representing the electrolyte level 0 = level fault
 const int aliAlarmPin = 2;    // Digital signal repersenting the alimentation fault for the levels adaptation board 
+// ******* OTHER PINS DEFINITION ***********
+const int sysOK = 11;    // Green Led representing the system health
+const int sysFailure = 12;  // Red Led represnting the system malfunction
 
 //const int fullLED = 11;    // FIFO state in debug mode
 //const int emptyLED = 12;
@@ -274,6 +278,8 @@ void setup()
   
   pinMode(levPin, INPUT_PULLUP);
   pinMode(aliAlarmPin, INPUT_PULLUP);
+  pinMode(sysOK,OUTPUT);
+  pinMode(sysFailure,OUTPUT);
   
   for (int x=3; x>=0; x--) // 
             last_time = last_time*255 + fifo.Read(fifo.Get_head() - FRAME_LENGHT + x);
@@ -328,12 +334,12 @@ void setup()
   //MsTimer2::set(500, captureData); // 500ms period
   //MsTimer2::start();
   
-/*  digitalWrite(aliAlarmPin, HIGH);
+  //digitalWrite(aliAlarmPin, HIGH);
   attachInterrupt(0, supplyFault, LOW);
   if (debug) {
     debugCon.println("Interrupts configurated");
   }
-*/  
+  
   if (debug) {
     debugCon.println("Started...");
   }
@@ -355,8 +361,19 @@ void setup()
  * =============================================================================== */
 void supplyFault()
 {
-
+  //noInterrupts();
   
+  if (digitalRead(aliAlarmPin)){
+    digitalWrite(sysOK,HIGH);
+    digitalWrite(sysFailure,LOW);
+    attachInterrupt(0, supplyFault, LOW);
+  } else {
+    digitalWrite(sysOK,LOW);
+    digitalWrite(sysFailure,HIGH);
+    attachInterrupt(0, supplyFault, RISING);
+  }
+  
+  //interrupts();  
 }
 
 
