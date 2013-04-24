@@ -9,7 +9,10 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
- *              Version 0.13.0   Add alimentation fault interrupt control. Now only controls the system status led
+ *              Version 0.14.0   Add sleep capability (sleepNow funct) and wake up from a int0 interrup or USART interrupt. Not tested yet.
+ *                               Main loop now control the user leds interface representation, and the configuration of the sleep modes in 
+ *                               the XBee module. May the Force be with me for doing this works
+ *              Version 0.13.0   Add supply fault interrupt control. Now only controls the system status led
  *              Version 0.12.2   Fix error in SOC calculation when battery is charging
  *              Version 0.12.1   Fix some error in alarms calculation. Add new cases and debug lines
  *              Version 0.12.0   Add SOC representation in function of voltaje. Add READ_STATUS case for sending status to PC
@@ -68,6 +71,9 @@
 #include <Streaming.h>
 #include <SoftwareSerial.h>  // Used for a serial debug connection (this library is only for Arduino 1.0 or later
 #include <sLed.h>  // Define the serial interface for multiple digital output control
+#include <avr/power.h> // avr libraries for controling the power modes in the microcontroles
+#include <avr/sleep.h>  // and enable sleep modes
+
 
 sLed led(7,5,4,6,900);    // Create a sLed objet and asociate to the arduino pins;
 //sLed(unsigned int DataPin, unsigned int shiftCkPin, unsigned int latchCkPin, unsigned int rstPin, unsigned int BaudRate);
@@ -132,8 +138,9 @@ const int tempPin = 3;   // External battery temperature
 const int levPin = 3;    // Digital signal representing the electrolyte level 0 = level fault
 const int aliAlarmPin = 2;    // Digital signal repersenting the alimentation fault for the levels adaptation board 
 // ******* OTHER PINS DEFINITION ***********
-const int sysOK = 11;    // Green Led representing the system health
-const int sysFailure = 12;  // Red Led represnting the system malfunction
+const int sysOKPin = 11;    // Green Led representing the system health
+const int sysFailurePin = 12;  // Red Led represnting the system malfunction
+const int xbeeSleepPin = 8;
 
 //const int fullLED = 11;    // FIFO state in debug mode
 //const int emptyLED = 12;
@@ -217,6 +224,8 @@ boolean empty; // batrey charge below 20%
 word capacity; // battry cappacity in Ah
 unsigned int soc; // state of charge in % respect battery capacity
 
+boolean supplyFault; // Changed in the pin 2 interrupt ISR to indicate the main alimentation fault
+
 // time at several events
 time_t fecha;  //now
 time_t charge_init;    // time when current charge begin
@@ -256,6 +265,8 @@ void setup()
     bitSet(state,5); //Sys alamr. capacity not fixed and no calculations possibility
   }
   
+  digitalWrite(xbeeSleepPin,LOW);   // Wake up the XBee module.
+  
   if (debug) {
     debugCon.begin(9600);      // DONE: Must convert to NewSoftSerial connection
     debugCon.print("Battery capacity: ");
@@ -278,8 +289,9 @@ void setup()
   
   pinMode(levPin, INPUT_PULLUP);
   pinMode(aliAlarmPin, INPUT_PULLUP);
-  pinMode(sysOK,OUTPUT);
-  pinMode(sysFailure,OUTPUT);
+  pinMode(sysOKPin,OUTPUT);
+  pinMode(sysFailurePin,OUTPUT);
+  pinMode(xbeeSleepPin,OUTPUT);
   
   for (int x=3; x>=0; x--) // 
             last_time = last_time*255 + fifo.Read(fifo.Get_head() - FRAME_LENGHT + x);
@@ -335,7 +347,7 @@ void setup()
   //MsTimer2::start();
   
   //digitalWrite(aliAlarmPin, HIGH);
-  attachInterrupt(0, supplyFault, LOW);
+  attachInterrupt(0, int0ISR, LOW);
   if (debug) {
     debugCon.println("Interrupts configurated");
   }
@@ -350,33 +362,88 @@ void setup()
 
 /* ===============================================================================
  *
- * Function Name:	supplyFault()
- * Description:    	Interrupt 0 handler (digital pin 0) used for detect the ausence of
+ * Function Name:	int0ISR()
+ * Description:    	Interrupt 0 service routine (digital pin 0) used for detect the ausence of
  *                      main supply in the system. 
- *                      Sleep XBee Modem, Arduino subsystems, store current date and deactivate 
- *                      the capture data function.
+ *                      Only control the state of the var readed in the loop function for  
+ *                      order sleep to Arduino. Wake up the arduino if an interrupt is caught.
  * Parameters:          none
  * Returns;  		none
  *
  * =============================================================================== */
-void supplyFault()
+void int0ISR()
 {
   //noInterrupts();
-  
+  detachInterrupt(0);
   if (digitalRead(aliAlarmPin)){
-    digitalWrite(sysOK,HIGH);
-    digitalWrite(sysFailure,LOW);
-    attachInterrupt(0, supplyFault, LOW);
+    supplyFault = false;
+    attachInterrupt(0, int0ISR, LOW);
   } else {
-    digitalWrite(sysOK,LOW);
-    digitalWrite(sysFailure,HIGH);
-    attachInterrupt(0, supplyFault, RISING);
+    supplyFault = true;
+    attachInterrupt(0, int0ISR, RISING);
   }
   
   //interrupts();  
 }
 
 
+/* ===============================================================================
+ *
+ * Function Name:	sleepNow()
+ * Description:    	This function sleep the Arduino, and return the execution control after
+ *                      the interrupt handler that wake the micro 
+ *                      based on the Ruben Laguna's review of the code Sleep Demo Serial from
+ *                      http://www.arduino.cc/playground/Learning/ArduinoSleepCode
+ *                      Ruben Laguna blog: 
+ *   http://rubenlaguna.com/wp/2008/10/15/arduino-sleep-mode-waking-up-when-receiving-data-on-the-usart/ 
+ *                      
+ * Parameters:          none
+ * Returns;  		none
+ *
+ * =============================================================================== */
+void sleepNow()
+{
+    /* Now is the time to set the sleep mode. In the Atmega8 datasheet
+     * http://www.atmel.com/dyn/resources/prod_documents/doc2486.pdf on page 35
+     * there is a list of sleep modes which explains which clocks and 
+     * wake up sources are available in which sleep modus.
+     *
+     * In the avr/sleep.h file, the call names of these sleep modus are to be found:
+     *
+     * The 5 different modes are:
+     *     SLEEP_MODE_IDLE         -the least power savings 
+     *     SLEEP_MODE_ADC
+     *     SLEEP_MODE_PWR_SAVE
+     *     SLEEP_MODE_STANDBY
+     *     SLEEP_MODE_PWR_DOWN     -the most power savings
+     *
+     *  the power reduction management <avr/power.h>  is described in 
+     *  http://www.nongnu.org/avr-libc/user-manual/group__avr__power.html
+     */  
+     
+  set_sleep_mode(SLEEP_MODE_IDLE);   // sleep mode is set here
+
+  sleep_enable();          // enables the sleep bit in the mcucr register
+                             // so sleep is possible. just a safety pin 
+  
+  power_adc_disable();
+  power_spi_disable();
+  power_timer0_disable();
+  power_timer1_disable();
+  power_timer2_disable();
+  power_twi_disable();
+  
+  
+  sleep_mode();            // here the device is actually put to sleep!!
+ 
+                             // THE PROGRAM CONTINUES FROM HERE AFTER WAKING UP
+                             // and execute the 
+  sleep_disable();         // first thing after waking from sleep:
+                            // disable sleep...
+
+  power_all_enable();
+   
+}
 
 
 /* ===============================================================================
@@ -1517,15 +1584,25 @@ byte charge_alarm(boolean alarm){
 /* ===============================================================================
  *
  * Function Name:	void()
- * Description:    	Main loop
+ * Description:    	Main loop: 
  * Parameters:          none
  * Returns;  		none
  *
  * =============================================================================== */
 void loop()
 {
-  //digitalWrite(emptyLED, fifo.Empty());
-  //digitalWrite(fullLED, fifo.Full());
+  if (supplyFault){
+    digitalWrite(sysOKPin,LOW);
+    digitalWrite(sysFailurePin,HIGH);
+    // Send to the XBee Module the configuration for ciclic sleep.
+    //sleepNow()  // sleep the Arduino
+      
+  } else {
+    digitalWrite(sysOKPin,HIGH);
+    digitalWrite(sysFailurePin,LOW);
+    //digitalWrite(xbeeSleepPin,LOW);
+    //Change configuration in the XBee module
+  }
   Alarm.delay(10); // Necesary for the periodic event function. ¿¿??
   //delay(10);
 } 
