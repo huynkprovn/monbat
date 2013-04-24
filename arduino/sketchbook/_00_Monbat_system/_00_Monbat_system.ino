@@ -145,7 +145,7 @@ const word drain_amp = 505; //0x01F9 Min sensor value for considering the batter
 //********* voltage levels conversion
 const word full_volt = 913;//0x0391 //Battery voltaje when fully charged.2,65V per element = 15,9V in half batt 
 const word empty_volt = 104;//0x0068 //Battery voltaje when charge is at 20%. 1,7V per element = 10,2V in half Batt
-
+const word charge_volt = 445; //0x01BD //Battery voltaje for considering the battery is charnging = 12,5V in half Batt
 const word max_temp = 553;//0x0229 //30ºC Battery life reduced in 30%
 const word min_temp = 323;//0x0143 //15ºC (70% batt capacity) minimun permissible temperature
 
@@ -187,9 +187,13 @@ byte t_off = EEPROM.read(87);
 
 //Actual and Previous sensor values
 word sensorVh; // Analog pin values
+word Vh_c; // Pin value after calibration correction
 word sensorVl;
+word Vl_c;
 word sensorA;
+word A_c;
 word sensorT;
+word T_c;
 byte state; // [msb..lsb] [level_sensor_alarm,sensor_alarm,system_alarm,temp_alarm,charge_alarm,level,empty_alarm,charge/drain]
 
 word vh_prev;
@@ -712,10 +716,10 @@ void serialEvent()
               }
             }
             fifo.Block(false); //
-            if (debug) {
+            /*if (debug) {
               debugCon << "Tx data at:" << temp_dir;
               debugCon.println();
-            }
+            }*/
             xbee.send(zbTx);
             if (temp_dir >= fifo.Get_head()){
               fin=true;
@@ -756,7 +760,7 @@ void serialEvent()
         case READ_STATUS:
           payload[0]=READ_STATUS;
           payload[1]=map(soc,0,100,0,255);
-          payload[2]=lowByte(status);
+          payload[2]=lowByte(state);
           xbee.send(zbTx);
           break;
         
@@ -833,10 +837,10 @@ void captureData()
   
   static int times = 0;
   
-  word Vh_c = int((float(vh_gain)*0.000781+0.9)*float(sensorVh)+(float(vh_off)*0.8-102.4));
-  word Vl_c = int((float(vl_gain)*0.000781+0.9)*float(sensorVl)+(float(vl_off)*0.8-102.4));
-  word T_c = int((float(t_gain)*0.000781+0.9)*float(sensorT)+(float(t_off)*0.8-102.4));
-  word A_c = int((float(a_gain)*0.000781+0.9)*float(sensorA)+(float(a_off)*0.8-102.4));
+  Vh_c = int((float(vh_gain)*0.000781+0.9)*float(sensorVh)+(float(vh_off)*0.8-102.4));
+  Vl_c = int((float(vl_gain)*0.000781+0.9)*float(sensorVl)+(float(vl_off)*0.8-102.4));
+  T_c = int((float(t_gain)*0.000781+0.9)*float(sensorT)+(float(t_off)*0.8-102.4));
+  A_c = int((float(a_gain)*0.000781+0.9)*float(sensorA)+(float(a_off)*0.8-102.4));
   
   float vh=voltaje(sensorVh);
   float vh1=voltaje(Vh_c);
@@ -851,8 +855,10 @@ void captureData()
   if (soc >= 200){
     soc = 0;
   } 
-    
-  status=word(charge(soc),temp_alarm(false)|level_alarm(false)|charge_alarm(false));
+  
+  //[level_sensor_alarm,sensor_alarm,system_alarm,temp_alarm,charge_alarm,level,empty_alarm,charge/drain]
+  check_alarms()
+  status=word(charge(soc),temp_alarm(bitRead(state,4))|level_alarm(bitRead(state,2))|charge_alarm(bitRead(state,3)|bitRead(state,1)));
   led.Write(status);
   
   //static float i_p= 0.0000;
@@ -882,6 +888,8 @@ void captureData()
       //debugCon.print("ºC -> ");
       //debugCon.print(tl);
       //debugCon.print("ºC");
+      debugCon.print(", State = ");
+      debugCon.print(state);
       debugCon.print(", SOC = ");
       debugCon.println(soc);
       /*debugCon.print("A,  Carga : ");
@@ -1050,6 +1058,7 @@ boolean changed()
  * =============================================================================== */
 boolean check_alarms()
 {
+  static byte times = 0;
   boolean alarm = false;
   
   //  check temperature alarms
@@ -1062,14 +1071,23 @@ boolean check_alarms()
   // check level alarms. Wait for 15 times followed
   if (bitRead(state,2))
   {
-    //if (times > 15) //check 
-    bitSet(state,7);
-    alarm = true;
+    if (bitRead(s_prev,2)){   
+      times++;
+    }else{
+      times=0;
+    }
+    if (times > 15){
+      bitSet(state,7);
+      alarm = true;
+    }else{
+      bitClear(state,7);
+    }
   }
   
   if (!bitRead(s_prev,0))    // previous statate draining
   {
-    if (sensorA > charge_amp)   //now is charging
+    //if (sensorA > charge_amp)   //now is charging
+    if ((Vh_c > charge_volt) && (Vl_c > charge_volt))
     {
       bitSet(state,0);
       charge_init = now();
@@ -1078,7 +1096,7 @@ boolean check_alarms()
     } 
     else // continues draining
     {
-      if ((sensorVh < empty_volt) && (sensorVl < empty_volt))   //battery below 20% capacity
+      if ((Vh_c < empty_volt) && (Vl_c < empty_volt))   //battery below 20% capacity
       {
         empty = true;
         bitSet(state,1);
@@ -1092,7 +1110,8 @@ boolean check_alarms()
   } 
   else             //previous state charging
   {
-    if (sensorA < drain_amp)   //now is draining
+    //if (sensorA < drain_amp)   //now is draining
+    if ((Vh_c < charge_volt) && (Vl_c < charge_volt))
     {
       bitClear(state,0);
       drain_init = now();
@@ -1105,7 +1124,7 @@ boolean check_alarms()
     }
     else // cotinues charging
     {
-      if ((sensorVh > full_volt) && (sensorVl > full_volt))   // battery fully charged
+      if ((Vh_c > full_volt) && (Vl_c > full_volt))   // battery fully charged
       {
         full = true;
       }
