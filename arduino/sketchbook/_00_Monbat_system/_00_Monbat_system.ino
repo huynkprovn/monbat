@@ -224,7 +224,7 @@ boolean empty; // batrey charge below 20%
 word capacity; // battry cappacity in Ah
 unsigned int soc; // state of charge in % respect battery capacity
 
-boolean supplyFault; // Changed in the pin 2 interrupt ISR to indicate the main alimentation fault
+boolean supplyFault = false; // Changed in the pin 2 interrupt ISR to indicate the main alimentation fault
 
 // time at several events
 time_t fecha;  //now
@@ -265,7 +265,7 @@ void setup()
     bitSet(state,5); //Sys alamr. capacity not fixed and no calculations possibility
   }
   
-  digitalWrite(xbeeSleepPin,LOW);   // Wake up the XBee module.
+//  digitalWrite(xbeeSleepPin,LOW);   // Wake up the XBee module.
   
   if (debug) {
     debugCon.begin(9600);      // DONE: Must convert to NewSoftSerial connection
@@ -291,14 +291,16 @@ void setup()
   pinMode(aliAlarmPin, INPUT_PULLUP);
   pinMode(sysOKPin,OUTPUT);
   pinMode(sysFailurePin,OUTPUT);
-  pinMode(xbeeSleepPin,OUTPUT);
-  
+  //pinMode(xbeeSleepPin,OUTPUT);
+    
   for (int x=3; x>=0; x--) // 
             last_time = last_time*255 + fifo.Read(fifo.Get_head() - FRAME_LENGHT + x);
   if (debug) {
     debugCon << "last sample time = " << last_time;
     debugCon.println("");
   }
+  
+  //  digitalWrite(xbeeSleepPin,LOW);   // Wake up the XBee module.
   
   /*
   if (debug) {
@@ -425,6 +427,8 @@ void sleepNow()
 
   sleep_enable();          // enables the sleep bit in the mcucr register
                              // so sleep is possible. just a safety pin 
+  
+  debugCon.print(" Goin to sleep...");
   
   power_adc_disable();
   power_spi_disable();
@@ -1595,13 +1599,14 @@ void loop()
     digitalWrite(sysOKPin,LOW);
     digitalWrite(sysFailurePin,HIGH);
     // Send to the XBee Module the configuration for ciclic sleep.
-    //sleepNow()  // sleep the Arduino
+    //digitalWrite(xbeeSleepPin,HIGH);
+    //sleepNow();  // sleep the Arduino
       
   } else {
     digitalWrite(sysOKPin,HIGH);
     digitalWrite(sysFailurePin,LOW);
-    //digitalWrite(xbeeSleepPin,LOW);
     //Change configuration in the XBee module
+    //digitalWrite(xbeeSleepPin,LOW);
   }
   Alarm.delay(10); // Necesary for the periodic event function. ¿¿??
   //delay(10);
