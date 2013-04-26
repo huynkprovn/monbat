@@ -9,6 +9,13 @@
  *              configurated in Api mode with escaped bytes. AP=2
  *
  * Changelog:
+ *              Version 0.15.1   Add wake up force "on power mode" and periodic sleep enable when "power down mode" tested with the xbee
+ *                               module and work fine. try to read memory in "power down mode" and the micro wake up, send the data and 
+ *                               sleep again.
+ *              Version 0.15.0   Add funct call for stop periodic function. this code works fine!!! The periodic call to "capture data" is 
+ *                               deactivate when the power down mode is detected. The micro is slept but counter0 is enabled. The date and 
+ *                               time are updated while the micro is sleeping. Serial incoming frames wake up the micro. Tested with modules 
+ *                               configures with SM=0 (no sleep function). SM=5 (periodic sleep with pin wake up)
  *              Version 0.14.0   Add sleep capability (sleepNow funct) and wake up from a int0 interrup or USART interrupt. Not tested yet.
  *                               Main loop now control the user leds interface representation, and the configuration of the sleep modes in 
  *                               the XBee module. May the Force be with me for doing this works
@@ -290,9 +297,9 @@ void setup()
   pinMode(aliAlarmPin, INPUT_PULLUP);
   pinMode(sysOKPin,OUTPUT);
   pinMode(sysFailurePin,OUTPUT);
-//  pinMode(xbeeSleepPin,OUTPUT);
+  pinMode(xbeeSleepPin,OUTPUT);
   
-//  digitalWrite(xbeeSleepPin,LOW);   // Wake up the XBee module.
+  digitalWrite(xbeeSleepPin,LOW);   // Wake up the XBee module.
 
   for (int x=3; x>=0; x--) // 
             last_time = last_time*255 + fifo.Read(fifo.Get_head() - FRAME_LENGHT + x);
@@ -1599,13 +1606,14 @@ void loop()
   if (supplyFault){
     digitalWrite(sysOKPin,LOW);
     digitalWrite(sysFailurePin,HIGH);
+    digitalWrite(xbeeSleepPin, HIGH);
     // Send to the XBee Module the configuration for ciclic sleep.
     sleepNow();  // sleep the Arduino
       
   } else {
     digitalWrite(sysOKPin,HIGH);
     digitalWrite(sysFailurePin,LOW);
-    //digitalWrite(xbeeSleepPin,LOW);
+    digitalWrite(xbeeSleepPin,LOW);
     //Change configuration in the XBee module
   }
   Alarm.delay(10); // Necesary for the periodic event function. ¿¿??
