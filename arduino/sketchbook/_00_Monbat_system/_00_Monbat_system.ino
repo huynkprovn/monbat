@@ -233,7 +233,7 @@ time_t charge_end;      // time when last charge end
 time_t drain_init;      // time when current discharge begin
 time_t drain_end;      // time when last discharge end
 
-
+AlarmID_t sample_Alarm;
 /* ===============================================================================
  *
  * Function Name:	Setup()
@@ -343,7 +343,7 @@ void setup()
     
   setTime(last_time);
   //setTime(11,0,0,17,11,2012);
-  Alarm.timerRepeat(sample_period,captureData);  // Periodic function for reading sensors values
+  sample_Alarm = Alarm.timerRepeat(sample_period,captureData);  // Periodic function for reading sensors values
   //MsTimer2::set(500, captureData); // 500ms period
   //MsTimer2::start();
   
@@ -422,6 +422,8 @@ void sleepNow()
      *  http://www.nongnu.org/avr-libc/user-manual/group__avr__power.html
      */  
      
+  Alarm.disable(sample_Alarm);    //Stop periodic call to the alarm function   
+  
   set_sleep_mode(SLEEP_MODE_IDLE);   // sleep mode is set here
 
   sleep_enable();          // enables the sleep bit in the mcucr register
@@ -443,6 +445,8 @@ void sleepNow()
                             // disable sleep...
 
   power_all_enable();
+
+  Alarm.enable(sample_Alarm);    //Restart periodic call to the alarm function   
    
 }
 
