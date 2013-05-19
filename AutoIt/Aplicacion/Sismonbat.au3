@@ -1636,7 +1636,7 @@ Func _ButtonClicked ()
 			While Not($received) And ($times <=3)  ;Resend 3 times if not ok ack frame is received
 				_SendZBData($READ_MEMORY) ; Send the READ_MEMORY_COMMAND to the arduino
 				$Time = TimerInit()
-				While ((TimerDiff($Time)/1000) <= 0.75 )  ; Wait until a zb data packet is received or 750ms
+				While ((TimerDiff($Time)/1000) <= 2.75 )  ; Wait until a zb data packet is received or 750ms
 					GUICtrlSetData($status, ".", 1)
 					If _CheckIncomingFrame() Then
 						ConsoleWrite(_PrintFrame() & @CRLF)
@@ -1645,6 +1645,7 @@ Func _ButtonClicked ()
 							GUICtrlSetData($status, "/", 1)
 							$received = True
 							$dato = _ReadZBDataResponseValue() ; Extract the data sent by the arduino
+							ConsoleWrite($dato & @CRLF)
 							If StringMid($dato, 1, 2) = $READ_MEMORY Then		; The data is a response for a READ_MEMORY_COMMAND frame request
 								;ReDim $sensor[6][UBound($sensor,2)+1]		; add space for the received data
 								If $first Then			; if array has only 1 cell write the data in it, in other case
@@ -1666,7 +1667,7 @@ Func _ButtonClicked ()
 				WEnd
 				$times+=1
 			WEnd
-			;_ArrayDisplay($sensor, "")
+			_ArrayDisplay($sensor, "")
 			_GetAlarms()
 
 			_Draw()
