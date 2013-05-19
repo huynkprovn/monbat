@@ -1,0 +1,35 @@
+CREATE DATABASE monbat;
+USE monbat;
+	
+CREATE TABLE battsignals (
+id INT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE,
+fecha INT(10) UNSIGNED NOT NULL,
+battid INT NOT NULL,
+voltajeh DECIMAL(5,3) NOT NULL,
+voltajel DECIMAL(5,3) NOT NULL,	
+amperaje DECIMAL(4,1) NOT NULL,
+temperature DECIMAL(5,2) NOT NULL,
+state TINYINT UNSIGNED NOT NULL,
+PRIMARY KEY (id)
+);
+
+CREATE TABLE batteries (
+	battid INT NOT NULL AUTO_INCREMENT UNIQUE,
+	sh BINARY(8) NOT NULL,
+	sl BINARY(8) NOT NULL,
+	my BINARY(4) NOT NULL,
+	ni VARCHAR(20) NOT NULL,
+	truckmodel VARCHAR(20) NOT NULL,
+	truckserial VARCHAR(20) NOT NULL,
+	battmodel VARCHAR(20) NOT NULL,
+	battserial VARCHAR(20) NOT NULL,
+	PRIMARY KEY (battid)
+);
+
+CREATE TABLE alarms (
+	alarmid INT NOT NULL AUTO_INCREMENT UNIQUE,
+	battid INT NOT NULL,
+	type ENUM('temp', 'charge', 'level', 'empty', 'balance', 'system') NOT NULL,
+	fecha INT(10) UNSIGNED NOT NULL,
+	PRIMARY KEY (alarmid)
+);
