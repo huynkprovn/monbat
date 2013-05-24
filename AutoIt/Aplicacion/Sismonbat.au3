@@ -9,6 +9,7 @@
  Script Function:
 
  Version:
+			0.26.1	Change _draw function for representing level sensor instead of status byte
 			0.26.0	Add alarm identify and representation.
 			0.25.0  Add SOC representation when connects to a monitor.
 			0.24.1	Change same database access sentences for adapt to database tables changes. Prevent duplicate samples in database
@@ -698,7 +699,7 @@ Global $xmax = Int($GUIWidth*3/4)
 Global $ymax	= Int($GUIHeight-$ButtonHeight-$checkboxheight-$statusHeight)
 Global $sensor[6][1] ; sensors signals for representation [date,v+,v-,a,t,l]
 Global $offset[5] = [-Int($ymax/4), -Int($ymax/4),Int($ymax/2),Int($ymax/10),Int($ymax/2)]; offset off each sensor representation
-Global $yscale[5] = [25,25,1,10,1]	 ; scale of each sensor representation
+Global $yscale[5] = [25,25,1,10,100]	 ; scale of each sensor representation
 Global $colours[5] = [0xff0000, 0x000000, 0x14ce00, 0x0000ff, 0xff00ff] ; Sensor representation colours
 Global $visible[5] = [True,True,True,True,True]
 Global $xscale
@@ -1667,7 +1668,7 @@ Func _ButtonClicked ()
 				WEnd
 				$times+=1
 			WEnd
-			_ArrayDisplay($sensor, "")
+			;mys_ArrayDisplay($sensor, "")
 			_GetAlarms()
 
 			_Draw()
@@ -3066,8 +3067,14 @@ Func _Draw()
 					$y=0
 					$first=True
 				Else
-					$y=$ymax - ($yscale[$j]*$ygain*$screen[$j+1][$x]+$offset[$j] + $yoffset)
-					;$y=$ymax - ($yscale[$j]*$screen[$j+1][$x]+$offset[$j])
+					If ($j < 4) Then
+						$y=$ymax - ($yscale[$j]*$ygain*$screen[$j+1][$x]+$offset[$j] + $yoffset)
+						;$y=$ymax - ($yscale[$j]*$screen[$j+1][$x]+$offset[$j])
+					ElseIf (($j = 4) And _bit($screen[$j+1][$x],2)) Then
+						$y=$ymax - ($yscale[$j]*$ygain*0+$offset[$j] + $yoffset)
+					Else
+						$y=$ymax - ($yscale[$j]*$ygain*1+$offset[$j] + $yoffset)
+					EndIf
 				EndIf
 
 				If $y<0 Then
