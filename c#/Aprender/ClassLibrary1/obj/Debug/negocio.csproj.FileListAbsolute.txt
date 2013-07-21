@@ -1,0 +1,7 @@
+C:\Users\pc\documents\visual studio 2010\Projects\Aprender\ClassLibrary1\bin\Debug\negocio.dll
+C:\Users\pc\documents\visual studio 2010\Projects\Aprender\ClassLibrary1\bin\Debug\negocio.pdb
+C:\Users\pc\documents\visual studio 2010\Projects\Aprender\ClassLibrary1\obj\Debug\ResolveAssemblyReference.cache
+C:\Users\pc\documents\visual studio 2010\Projects\Aprender\ClassLibrary1\obj\Debug\negocio.dll
+C:\Users\pc\documents\visual studio 2010\Projects\Aprender\ClassLibrary1\obj\Debug\negocio.pdb
+C:\Users\pc\Documents\Visual Studio 2010\Projects\Aprender\ClassLibrary1\bin\Debug\XBee.dll
+C:\Users\pc\Documents\Visual Studio 2010\Projects\Aprender\ClassLibrary1\bin\Debug\XBee.pdb
