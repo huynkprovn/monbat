@@ -218,12 +218,13 @@ namespace XBee
         */
         public void begin(string portCOM, int baud)
         {
-            _serial = new SerialPort(portCOM,baud,Parity.None,8,StopBits.One);
+            _serial = new SerialPort(portCOM, baud, Parity.None, 8, StopBits.One);
 
             _serial.DtrEnable = false;
             _serial.RtsEnable = false;
             _serial.ReadTimeout = 100;
             _serial.WriteTimeout = 100;
+                
             if (!_serial.IsOpen)
             {
                 _serial.Open();
@@ -234,7 +235,11 @@ namespace XBee
 
         public void close()
         {
-            _serial.Close();
+            if (_serial.IsOpen) 
+            {
+                _serial.Close();
+            }
+            
         }
 
         

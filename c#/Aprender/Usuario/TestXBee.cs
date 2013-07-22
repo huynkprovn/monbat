@@ -231,6 +231,7 @@ namespace Usuario
         private void TestXBee_FormClosing(Object sender, FormClosingEventArgs e)
         {
             XBeeA.close();
+            XBeeB.close();
         }
 
 
@@ -537,8 +538,80 @@ namespace Usuario
 
         private void ComA_Enviar_Click(object sender, EventArgs e)
         {
-            atRequest.setCommand(DH_Cmd);
-            sendAtCommand();
+            byte[] commandoAT = new byte[2];
+            string dato;
+
+            switch (ComA_TipoTrama.Text) 
+            {
+                case "AtCommandReq":
+                    ComA_Mensajes.AppendText("Pulsado AtCommand Request" + Environment.NewLine);
+                    ComA_Mensajes.AppendText("      Enviando comando : " + ComA_ATCommand.Text + Environment.NewLine);
+                    char[] temp = ComA_ATCommand.Text.ToCharArray();
+                    for (int k = 0; k < temp.Length; k++)
+                    {
+                        commandoAT[k] = (byte)temp[k];
+                    }
+
+                    atRequest.setCommand(commandoAT);
+                    XBeeA.send(atRequest);
+                    if (XBeeA.readPacket(500))
+                    {
+                        if (XBeeA.getResponse().getApiId() == XBeeConstants.AT_COMMAND_RESPONSE)
+                        {
+                            XBeeA.getResponse().getAtCommandResponse(ref atResponse);
+
+                            if (atResponse.isOk())
+                            {
+                                if (atResponse.getValueLength() > 0)
+                                {
+                                    dato = "";
+                                    for (int i = 0; i < atResponse.getValueLength(); i++)
+                                    {
+                                        dato = string.Concat(dato, string.Format("{0:X2}", atResponse.getValue()[i]));
+                                    }
+                                    ComA_Mensajes.AppendText("Resultado del comando : " + dato + Environment.NewLine);
+                                }
+                            }
+                            else
+                            {
+                                ComA_Mensajes.AppendText("Command return error code: ");
+                                ComA_Mensajes.AppendText(Convert.ToString(atResponse.getStatus()));
+                            }
+                        }
+                        else
+                        {
+                            Console.Write("Expected AT response but got ");
+                            Console.Write(XBeeA.getResponse().getApiId());
+                        }
+                    }
+                    else
+                    {
+                        // at command failed
+                        if (XBeeA.getResponse().isError())
+                        {
+                            Console.Write("Error reading packet.  Error code: ");
+                            Console.WriteLine(XBeeA.getResponse().getErrorCode());
+                        }
+                        else
+                        {
+                            Console.Write("No response from radio");
+                        }
+                    }
+                    break;
+
+                case "RemoteAtCommandReq":
+                    ComA_Mensajes.AppendText("Pulsado Remote AtCommand Request");
+                    ComA_Mensajes.AppendText(Environment.NewLine);
+                    break;
+
+                case "ZBTransmitReq":
+                    ComA_Mensajes.AppendText("Pulsado ZigBee Data Request");
+                    ComA_Mensajes.AppendText(Environment.NewLine);
+                    break;
+
+                default:
+                    break;
+            }
         }
 
         private void ComB_Leer_Click(object sender, EventArgs e)
@@ -549,9 +622,9 @@ namespace Usuario
 
             atRequest.setCommand(SH_Cmd);
             XBeeB.send(atRequest);
-            if (XBeeB.readPacket(5000))
+            if (XBeeB.readPacket(500))
             {
-                if (XBeeB.getResponse().getApiId() == XBee.XBeeConstants.AT_COMMAND_RESPONSE)
+                if (XBeeB.getResponse().getApiId() == XBeeConstants.AT_COMMAND_RESPONSE)
                 {
                     XBeeB.getResponse().getAtCommandResponse(ref atResponse);
 
@@ -598,9 +671,9 @@ namespace Usuario
 
             atRequest.setCommand(SL_Cmd);
             XBeeB.send(atRequest);
-            if (XBeeB.readPacket(5000))
+            if (XBeeB.readPacket(500))
             {
-                if (XBeeB.getResponse().getApiId() == XBee.XBeeConstants.AT_COMMAND_RESPONSE)
+                if (XBeeB.getResponse().getApiId() == XBeeConstants.AT_COMMAND_RESPONSE)
                 {
                     XBeeB.getResponse().getAtCommandResponse(ref atResponse);
 
@@ -645,9 +718,9 @@ namespace Usuario
 
             atRequest.setCommand(DH_Cmd);
             XBeeB.send(atRequest);
-            if (XBeeB.readPacket(5000))
+            if (XBeeB.readPacket(500))
             {
-                if (XBeeB.getResponse().getApiId() == XBee.XBeeConstants.AT_COMMAND_RESPONSE)
+                if (XBeeB.getResponse().getApiId() == XBeeConstants.AT_COMMAND_RESPONSE)
                 {
                     XBeeB.getResponse().getAtCommandResponse(ref atResponse);
 
@@ -693,7 +766,7 @@ namespace Usuario
 
             atRequest.setCommand(DL_Cmd);
             XBeeB.send(atRequest);
-            if (XBeeB.readPacket(5000))
+            if (XBeeB.readPacket(500))
             {
                 if (XBeeB.getResponse().getApiId() == XBeeConstants.AT_COMMAND_RESPONSE)
                 {
@@ -740,10 +813,10 @@ namespace Usuario
 
 
             atRequest.setCommand(ID_Cmd);
-            XBeeA.send(atRequest);
-            if (XBeeB.readPacket(5000))
+            XBeeB.send(atRequest);
+            if (XBeeB.readPacket(500))
             {
-                if (XBeeB.getResponse().getApiId() == XBee.XBeeConstants.AT_COMMAND_RESPONSE)
+                if (XBeeB.getResponse().getApiId() == XBeeConstants.AT_COMMAND_RESPONSE)
                 {
                     XBeeB.getResponse().getAtCommandResponse(ref atResponse);
 
@@ -789,9 +862,9 @@ namespace Usuario
 
             atRequest.setCommand(MY_Cmd);
             XBeeB.send(atRequest);
-            if (XBeeB.readPacket(5000))
+            if (XBeeB.readPacket(500))
             {
-                if (XBeeB.getResponse().getApiId() == XBee.XBeeConstants.AT_COMMAND_RESPONSE)
+                if (XBeeB.getResponse().getApiId() == XBeeConstants.AT_COMMAND_RESPONSE)
                 {
                     XBeeB.getResponse().getAtCommandResponse(ref atResponse);
 

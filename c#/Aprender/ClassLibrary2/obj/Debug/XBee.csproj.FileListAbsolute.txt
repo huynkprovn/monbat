@@ -3,3 +3,8 @@ C:\Users\pc\documents\visual studio 2010\Projects\Aprender\ClassLibrary2\bin\Deb
 C:\Users\pc\documents\visual studio 2010\Projects\Aprender\ClassLibrary2\obj\Debug\ResolveAssemblyReference.cache
 C:\Users\pc\documents\visual studio 2010\Projects\Aprender\ClassLibrary2\obj\Debug\XBee.dll
 C:\Users\pc\documents\visual studio 2010\Projects\Aprender\ClassLibrary2\obj\Debug\XBee.pdb
+E:\pfc\codigo\c#\Aprender\ClassLibrary2\bin\Debug\XBee.dll
+E:\pfc\codigo\c#\Aprender\ClassLibrary2\bin\Debug\XBee.pdb
+E:\pfc\codigo\c#\Aprender\ClassLibrary2\obj\Debug\ResolveAssemblyReference.cache
+E:\pfc\codigo\c#\Aprender\ClassLibrary2\obj\Debug\XBee.dll
+E:\pfc\codigo\c#\Aprender\ClassLibrary2\obj\Debug\XBee.pdb

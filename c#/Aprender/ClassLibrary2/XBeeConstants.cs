@@ -119,7 +119,7 @@ namespace XBee
         public const byte UNEXPECTED_START_BYTE = 3;
 
         public enum Atcommands :byte {DH , DL, MY, MP, NC, SH, SL, NI, SE, DE, CI, NP, DD, CH, DA, ID, OP, NH, BH, OI, NT, NO, SC, SD, ZS, NJ, JV, NW, JN, AR, DJ, II, EE, EO, NK, KY, PL, PM, DB, PP, AP, AO, BD, NB, SB, RO, D7, D6, IR, IC, P0, P1, P2, P3, D0, D1, D2, D3, D4, D5, D8, LT, PR, RP, _V, V_, TP, VR, HV, AI, CT, CN, GT, CC, SM, SN, SP, ST, SO, WH, SI, PO, AC, WR, RE, FR, NR, CB, ND, DN, IS, _S };
-        public enum RequestApiFrames : byte {AtCommandReq, RemoteAtCommandReq, ZBTransmitReq };
+        public enum RequestApiFrames : byte {AtCommandReq, RemoteAtCommandReq, ZBTransmitReq};
         #endregion
     }
 }

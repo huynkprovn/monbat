@@ -11,3 +11,16 @@ C:\Users\pc\documents\visual studio 2010\Projects\Aprender\Usuario\bin\Debug\XBe
 C:\Users\pc\Documents\Visual Studio 2010\Projects\Aprender\Usuario\bin\Debug\negocio.dll
 C:\Users\pc\Documents\Visual Studio 2010\Projects\Aprender\Usuario\bin\Debug\negocio.pdb
 C:\Users\pc\Documents\Visual Studio 2010\Projects\Aprender\Usuario\obj\x86\Debug\Usuario.Properties.Resources.resources
+E:\pfc\codigo\c#\Aprender\Usuario\obj\x86\Debug\Usuario.exe
+E:\pfc\codigo\c#\Aprender\Usuario\obj\x86\Debug\Usuario.pdb
+E:\pfc\codigo\c#\Aprender\Usuario\bin\Debug\Usuario.exe
+E:\pfc\codigo\c#\Aprender\Usuario\bin\Debug\Usuario.pdb
+E:\pfc\codigo\c#\Aprender\Usuario\bin\Debug\negocio.dll
+E:\pfc\codigo\c#\Aprender\Usuario\bin\Debug\XBee.dll
+E:\pfc\codigo\c#\Aprender\Usuario\bin\Debug\negocio.pdb
+E:\pfc\codigo\c#\Aprender\Usuario\bin\Debug\XBee.pdb
+E:\pfc\codigo\c#\Aprender\Usuario\obj\x86\Debug\ResolveAssemblyReference.cache
+E:\pfc\codigo\c#\Aprender\Usuario\obj\x86\Debug\Usuario.Properties.Resources.resources
+E:\pfc\codigo\c#\Aprender\Usuario\obj\x86\Debug\Usuario.TestXBee.resources
+E:\pfc\codigo\c#\Aprender\Usuario\obj\x86\Debug\GenerateResource.read.1.tlog
+E:\pfc\codigo\c#\Aprender\Usuario\obj\x86\Debug\GenerateResource.write.1.tlog
