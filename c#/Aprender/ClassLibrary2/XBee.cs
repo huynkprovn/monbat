@@ -553,6 +553,7 @@ namespace XBee
 	    */
         public void getZBRxResponse(ref ZBRxResponse response)
         {
+            response.setFrameData(getFrameData());
 	        setCommon(ref response);
             response.getRemoteAddress64().setMsb((UInt32)(((UInt32)(getFrameData()[0]) << 24) + ((UInt32)(getFrameData()[1]) << 16) + ((UInt16)(getFrameData()[2]) << 8) + getFrameData()[3]));
 	        response.getRemoteAddress64().setLsb((UInt32)(((UInt32)(getFrameData()[4]) << 24) + ((UInt32)(getFrameData()[5]) << 16) + ((UInt16)(getFrameData()[6]) << 8) + (getFrameData()[7])));
@@ -586,9 +587,10 @@ namespace XBee
 	    */
         public void getRemoteAtCommandResponse(ref RemoteAtCommandResponse response)
         {
-	        setCommon(ref response);
-            response.getRemoteAddress64().setMsb((UInt32)(((UInt32)(getFrameData()[0]) << 24) + ((UInt32)(getFrameData()[1]) << 16) + ((UInt16)(getFrameData()[2]) << 8) + getFrameData()[3]));
-	        response.getRemoteAddress64().setLsb((UInt32)(((UInt32)(getFrameData()[4]) << 24) + ((UInt32)(getFrameData()[5]) << 16) + ((UInt16)(getFrameData()[6]) << 8) + (getFrameData()[7])));
+            response.setFrameData(getFrameData());
+            setCommon(ref response);
+            //response.getRemoteAddress64().setMsb((UInt32)(((UInt32)(getFrameData()[0]) << 24) + ((UInt32)(getFrameData()[1]) << 16) + ((UInt32)(getFrameData()[2]) << 8) + getFrameData()[3]));
+	        //response.getRemoteAddress64().setLsb((UInt32)(((UInt32)(getFrameData()[4]) << 24) + ((UInt32)(getFrameData()[5]) << 16) + ((UInt32)(getFrameData()[6]) << 8) + (getFrameData()[7])));
         }
 
 
@@ -1185,7 +1187,6 @@ namespace XBee
                 {
 		            // value is only included for query commands.  set commands does not return a value
 		            value[k] = getFrameData()[14+k];
-                    return value;
                 }
 	        }
 
@@ -1737,7 +1738,7 @@ namespace XBee
         {
             if (pos == 0)
             {
-                return (byte)((_remoteAddress64.getMsb() >> 24) & 0xff);
+                return (byte)(((UInt32)_remoteAddress64.getMsb() >> 24) & 0xff);
             }
             else if (pos == 1)
             {
@@ -1746,10 +1747,12 @@ namespace XBee
             else if (pos == 2)
             {
                 return (byte)((_remoteAddress64.getMsb() >> 8) & 0xff);
+                
             }
             else if (pos == 3)
             {
                 return (byte)(_remoteAddress64.getMsb() & 0xff);
+                
             }
             else if (pos == 4)
             {

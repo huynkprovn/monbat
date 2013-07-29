@@ -35,6 +35,8 @@ namespace Usuario
 
         public AtCommandRequest atRequest = new AtCommandRequest();
         public AtCommandResponse atResponse = new AtCommandResponse();
+        public RemoteAtCommandRequest remoteatRequest = new RemoteAtCommandRequest();
+        public RemoteAtCommandResponse remoteatResponse = new RemoteAtCommandResponse();
 
 
         public void sendAtCommand()
@@ -120,6 +122,7 @@ namespace Usuario
         {
             if(ComA_64Addr_mb.Checked)
             {
+                ComA_64Addr.Text = ComB_SHaddr.Text + ComB_SLaddr.Text;
                 ComA_64Addr_br.Checked = false;
             }
         }
@@ -128,6 +131,7 @@ namespace Usuario
         {
             if (ComA_64Addr_br.Checked)
             {
+                ComA_64Addr.Text = "000000000000FFFF";
                 ComA_64Addr_mb.Checked = false;
             }
         }
@@ -138,6 +142,7 @@ namespace Usuario
         {
             if (ComB_64Addr_ma.Checked)
             {
+                ComB_64Addr.Text = ComA_SHaddr.Text + ComA_SLaddr.Text;
                 ComB_64Addr_br.Checked = false;
             }
         }
@@ -146,6 +151,7 @@ namespace Usuario
         {
             if (ComB_64Addr_br.Checked)
             {
+                ComB_64Addr.Text = "000000000000FFFF";
                 ComB_64Addr_ma.Checked = false;
             }
         }
@@ -155,6 +161,7 @@ namespace Usuario
         {
             if (ComA_16Addr_mb.Checked)
             {
+                ComA_16Addr.Text = ComB_MY.Text;
                 ComA_16Addr_br.Checked = false;
             }
         }
@@ -162,7 +169,8 @@ namespace Usuario
         private void ComA_16Addr_br_CheckedChanged(object sender, EventArgs e)
         {
             if (ComA_16Addr_br.Checked)
-            {
+            {       
+                ComA_16Addr.Text = "FFFE";
                 ComA_16Addr_mb.Checked = false;
             }
         }
@@ -171,6 +179,7 @@ namespace Usuario
         {
             if (ComB_16Addr_ma.Checked)
             {
+                ComB_16Addr.Text = ComA_MY.Text;
                 ComB_16Addr_br.Checked = false;
             }
         }
@@ -179,6 +188,7 @@ namespace Usuario
         {
             if (ComB_16Addr_br.Checked)
             {
+                ComB_16Addr.Text = "FFFE";
                 ComB_16Addr_ma.Checked = false;
             }
         }
@@ -539,14 +549,17 @@ namespace Usuario
         private void ComA_Enviar_Click(object sender, EventArgs e)
         {
             byte[] commandoAT = new byte[2];
+            char[] temp;
             string dato;
+            XBeeAddress64 remoteAddress = new XBeeAddress64();
 
             switch (ComA_TipoTrama.Text) 
             {
                 case "AtCommandReq":
+                    #region AtCommandReq
                     ComA_Mensajes.AppendText("Pulsado AtCommand Request" + Environment.NewLine);
                     ComA_Mensajes.AppendText("      Enviando comando : " + ComA_ATCommand.Text + Environment.NewLine);
-                    char[] temp = ComA_ATCommand.Text.ToCharArray();
+                    temp = ComA_ATCommand.Text.ToCharArray();
                     for (int k = 0; k < temp.Length; k++)
                     {
                         commandoAT[k] = (byte)temp[k];
@@ -598,16 +611,83 @@ namespace Usuario
                         }
                     }
                     break;
+                    #endregion
 
                 case "RemoteAtCommandReq":
+                    #region RemoteAtCommandReq
+
+                    remoteAddress.setMsb(UInt32.Parse(ComA_64Addr.Text.Substring(0, 8), System.Globalization.NumberStyles.AllowHexSpecifier));
+                    remoteAddress.setLsb(UInt32.Parse(ComA_64Addr.Text.Substring(8, 8), System.Globalization.NumberStyles.AllowHexSpecifier));
+                    remoteatRequest.setRemoteAddress64(remoteAddress);
+                    remoteatRequest.setRemoteAddress16(UInt16.Parse(ComA_16Addr.Text, System.Globalization.NumberStyles.AllowHexSpecifier));
+ 
+                    temp = ComA_ATCommand.Text.ToCharArray();
+                    for (int k = 0; k < temp.Length; k++)
+                    {
+                        commandoAT[k] = (byte)temp[k];
+                    }
+                    remoteatRequest.setCommand(commandoAT);
+
+
+
+
                     ComA_Mensajes.AppendText("Pulsado Remote AtCommand Request");
                     ComA_Mensajes.AppendText(Environment.NewLine);
+
+                    XBeeA.send(remoteatRequest);
+                    if (XBeeA.readPacket(5000))
+                    {
+                        if (XBeeA.getResponse().getApiId() == XBeeConstants.REMOTE_AT_COMMAND_RESPONSE)
+                        {
+                            XBeeA.getResponse().getRemoteAtCommandResponse(ref remoteatResponse);
+
+                            if (remoteatResponse.isOk())
+                            {
+                                if (remoteatResponse.getValueLength() > 0)
+                                {
+                                    dato = "";
+                                    for (int i = 0; i < remoteatResponse.getValueLength(); i++)
+                                    {
+                                        dato = string.Concat(dato, string.Format("{0:X2}", remoteatResponse.getValue()[i]));
+                                    }
+                                    ComA_Mensajes.AppendText("Resultado del comando : " + dato + Environment.NewLine);
+                                }
+                            }
+                            else
+                            {
+                                ComA_Mensajes.AppendText("Command return error code: ");
+                                ComA_Mensajes.AppendText(Convert.ToString(remoteatResponse.getStatus()) + Environment.NewLine);
+                            }
+                        }
+                        else
+                        {
+                            ComA_Mensajes.AppendText("Expected Remote AT response but got ");
+                            ComA_Mensajes.AppendText(Convert.ToString(XBeeA.getResponse().getApiId()) + Environment.NewLine);
+                        }
+                    }
+                    else
+                    {
+                        // at command failed
+                        if (XBeeA.getResponse().isError())
+                        {
+                            ComA_Mensajes.AppendText("Error reading packet.  Error code: ");
+                            ComA_Mensajes.AppendText(Convert.ToString(XBeeA.getResponse().getErrorCode()) + Environment.NewLine);
+                        }
+                        else
+                        {
+                            Console.Write("No response from radio" + Environment.NewLine);
+                        }
+                    }
+                    
                     break;
+                    #endregion
 
                 case "ZBTransmitReq":
+                    #region ZBTransmitReq
                     ComA_Mensajes.AppendText("Pulsado ZigBee Data Request");
                     ComA_Mensajes.AppendText(Environment.NewLine);
                     break;
+                    #endregion
 
                 default:
                     break;
@@ -906,6 +986,11 @@ namespace Usuario
                     Console.Write("No response from radio");
                 }
             }
+
+        }
+
+        private void serialPortA_DataReceived(object sender, SerialDataReceivedEventArgs e)
+        {
 
         }
 

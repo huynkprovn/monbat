@@ -385,6 +385,7 @@
             // ComA_64Addr
             // 
             this.ComA_64Addr.Location = new System.Drawing.Point(411, 137);
+            this.ComA_64Addr.MaxLength = 16;
             this.ComA_64Addr.Name = "ComA_64Addr";
             this.ComA_64Addr.Size = new System.Drawing.Size(108, 20);
             this.ComA_64Addr.TabIndex = 21;
@@ -766,6 +767,10 @@
             this.ComB_Leer.Text = "LEER";
             this.ComB_Leer.UseVisualStyleBackColor = true;
             this.ComB_Leer.Click += new System.EventHandler(this.ComB_Leer_Click);
+            // 
+            // serialPortA
+            // 
+            this.serialPortA.DataReceived += new System.IO.Ports.SerialDataReceivedEventHandler(this.serialPortA_DataReceived);
             // 
             // TestXBee
             // 
