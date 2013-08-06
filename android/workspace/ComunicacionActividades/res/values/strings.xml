@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+ 
+    <string name="app_name">ComunicacionActividades</string>
+    <string name="action_settings">Settings</string>
+    <string name="nombre">Nombre</string>
+    <string name="bVerificar">Verificar</string>
+    <string name="bAceptar">Aceptar</string>
+    <string name="bRechazar">Rechazar</string>
+    
+</resources>

@@ -1,0 +1,57 @@
+<TabHost xmlns:android="http://schemas.android.com/apk/res/android"
+    
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+	android:id="@android:id/tabhost">
+	
+    <LinearLayout 
+        android:orientation="vertical"
+        android:layout_width="fill_parent"
+    	android:layout_height="fill_parent">
+    	    
+        <TabWidget 
+            android:id="@android:id/tabs"
+            android:layout_width="fill_parent"
+    		android:layout_height="warp_content"/>
+        
+        <FrameLayout
+            android:id="@android:id/tabcontent"
+            android:layout_width="fill_parent"
+    		android:layout_height="fill_parent" >
+            
+            <LinearLayout
+                android:id="@+id/tab1Layout"
+          		android:orientation="vertical"
+        		android:layout_width="warp_content"
+    			android:layout_height="fill_parent">
+    			
+                <TextView 
+                    android:layout_width="fill_parent"
+    				android:layout_height="fill_parent" 
+            		android:text="Esto es una pestaña"/>
+                
+                <EditText 
+                    android:layout_width="warp_content"
+    				android:layout_height="fill_parent"/>
+            </LinearLayout>
+            
+            <TextView 
+                android:id="@+id/tab2Layout"
+            	android:layout_width="fill_parent"
+    			android:layout_height="fill_parent" 
+            	android:text="Esto es otra pestaña"/>
+            
+            <TextView 
+                android:id="@+id/tab3Layout"
+            	android:layout_width="fill_parent"
+    			android:layout_height="fill_parent" 
+            	android:text="Esto es la tecera pestaña"/>
+            
+        </FrameLayout>
+        
+        
+    </LinearLayout>
+
+    
+
+</TabHost>

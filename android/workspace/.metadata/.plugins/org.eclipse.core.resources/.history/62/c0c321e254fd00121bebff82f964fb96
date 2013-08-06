@@ -1,0 +1,9 @@
+package com.example.asteroides;
+
+public class AcercaDe {
+
+	public AcercaDe() {
+		// TODO Auto-generated constructor stub
+	}
+
+}
