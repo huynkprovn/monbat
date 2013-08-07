@@ -47,8 +47,12 @@ public class Localizacion extends Activity {
 
         switch (item.getItemId()) {
         case R.id.acercaDe:
-               lanzarAcercaDe(null);
-               break;
+            lanzarAcercaDe(null);
+            break;
+        case R.id.config:
+        	lanzarPreferencias(null);
+        	break;
+        	
         }
 
         return true; /** true -> consumimos el item, no se propaga*/
@@ -56,6 +60,11 @@ public class Localizacion extends Activity {
 	
 	public void lanzarAcercaDe(View view){
 		Intent i = new Intent(this, AcercaDe.class);
+		startActivity(i);
+	}
+	
+	public void lanzarPreferencias(View view){
+		Intent i = new Intent(this, Preferencias.class);
 		startActivity(i);
 	}
 
