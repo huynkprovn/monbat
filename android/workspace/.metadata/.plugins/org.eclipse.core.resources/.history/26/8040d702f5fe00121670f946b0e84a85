@@ -1,0 +1,9 @@
+package com.example.asteroides;
+
+public class Preferencias {
+
+	public Preferencias() {
+		// TODO Auto-generated constructor stub
+	}
+
+}

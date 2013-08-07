@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen 
+    xmlns:android="http://schemas.android.com/apk/res/android" 
+    android:key="preferencias_principal" >
+    
+    <CheckBoxPreference
+        android:key="musica"
+        android:title="Reproducir Musica"
+        android:summary="Se reproduce musica de fondo" />
+    
+    <ListPreference 
+        android:key="Graficos"
+        android:title="Tipo de Graficos"
+        android:summary="Se escoge la representacion de graficos"
+        android:entries="@array/tiposGraficos"
+        android:entryValues="@array/tiposGraficosValores" />
+    <EditTextPreference 
+        android:key="fragmentos"
+        android:title="Numero de Fragmentos"
+        android:summary="En cuantos trozos se divide un asteroide"
+        android:defaultValue="3" />
+    
+</PreferenceScreen>
