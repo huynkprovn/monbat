@@ -9,11 +9,14 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 
+
+
 public class Localizacion extends Activity {
 
 	private Button bAcercaDe;
 	private Button bSalir;
-	
+	public static AlmacenPuntuaciones almacen = new AlmacenPuntuacionesArray();
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -25,13 +28,8 @@ public class Localizacion extends Activity {
 				lanzarAcercaDe(null);
 			}
 		});
-		
-		bSalir = (Button) findViewById(R.id.Button4);
-		bSalir.setOnClickListener(new OnClickListener() {
-			public void onClick(View view){
-				finish();
-			}
-		});
+
+
 	}
 
 	@Override
@@ -65,6 +63,11 @@ public class Localizacion extends Activity {
 	
 	public void lanzarPreferencias(View view){
 		Intent i = new Intent(this, Preferencias.class);
+		startActivity(i);
+	}
+	
+	public void lanzarPuntuaciones(View view){
+		Intent i = new Intent(this, Puntuaciones.class);
 		startActivity(i);
 	}
 

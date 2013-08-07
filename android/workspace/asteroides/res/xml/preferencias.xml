@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen 
+        
+  <PreferenceScreen 
     xmlns:android="http://schemas.android.com/apk/res/android" 
+    android:title="Preferencias principales"
     android:key="preferencias_principal" >
     
     <CheckBoxPreference
@@ -14,10 +16,37 @@
         android:summary="Se escoge la representacion de graficos"
         android:entries="@array/tiposGraficos"
         android:entryValues="@array/tiposGraficosValores" />
+    
     <EditTextPreference 
         android:key="fragmentos"
         android:title="Numero de Fragmentos"
         android:summary="En cuantos trozos se divide un asteroide"
         android:defaultValue="3" />
+ 	
+    <PreferenceCategory 
+	    android:title="Modo Multijugador" 
+	    android:key="preferencias_multijugador">
+    
+		<CheckBoxPreference 
+	    	android:key="multijugador" 
+	    	android:title="Activar Modo Multijugador" 
+	    	android:summary="Permite el juego multiusuario" />
+        
+        <EditTextPreference 
+            android:key="jugadores" 
+            android:title="Maximo de Jugadores" 
+            android:summary="Numero maximo de jugadores simultaneos" 
+            android:defaultValue="1" />
+        
+        <ListPreference 
+            android:key="conexion" 
+            android:title="Modo de Conexion" 
+            android:summary="Tipo de conexion para conectar usuarios" 
+            android:entries="@array/tiposConexiones" 
+            android:entryValues="@array/tiposConexionesValores" />     
+    </PreferenceCategory>
     
 </PreferenceScreen>
+	
+	
+	

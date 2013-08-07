@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <qualifiedTypeNameHistroy>
-<fullyQualifiedTypeName name="com.example.ejemplo2.R.layout"/>
-<fullyQualifiedTypeName name="android.widget.Toast"/>
-<fullyQualifiedTypeName name="com.example.tabhost.R.id"/>
-<fullyQualifiedTypeName name="android.view.View.OnClickListener"/>
-<fullyQualifiedTypeName name="com.example.comunicacionactividades.R.id"/>
-<fullyQualifiedTypeName name="com.example.asteroides.R.xml"/>
-<fullyQualifiedTypeName name="com.example.asteroides.R.id"/>
+<fullyQualifiedTypeName name="android.R.layout"/>
+<fullyQualifiedTypeName name="com.example.asteroides.R.layout"/>
 </qualifiedTypeNameHistroy>
